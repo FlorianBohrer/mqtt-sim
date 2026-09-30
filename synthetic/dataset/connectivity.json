@@ -1,0 +1,417 @@
+{
+  "gw-sim-000001": [
+    {
+      "start": 45000,
+      "end": 45900,
+      "reconnect": 45901.917,
+      "cause": "regional-isp-outage",
+      "inflight_drop": false
+    }
+  ],
+  "gw-sim-000002": [
+    {
+      "start": 28100.024,
+      "end": 28130.264,
+      "reconnect": 28158.174,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 35535.767,
+      "end": 35807.549,
+      "reconnect": 35816.96,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 45000,
+      "end": 45900,
+      "reconnect": 45928.882,
+      "cause": "regional-isp-outage",
+      "inflight_drop": true
+    }
+  ],
+  "gw-sim-000003": [],
+  "gw-sim-000004": [],
+  "gw-sim-000005": [],
+  "gw-sim-000006": [
+    {
+      "start": 606.539,
+      "end": 1329.938,
+      "reconnect": 1349.282,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 3839.298,
+      "end": 3999.063,
+      "reconnect": 4007.548,
+      "cause": "random",
+      "inflight_drop": true
+    },
+    {
+      "start": 8446.162,
+      "end": 8677.643,
+      "reconnect": 8698.495,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 10926.835,
+      "end": 10964.824,
+      "reconnect": 10992.239,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 15031.062,
+      "end": 15061.232,
+      "reconnect": 15077.069,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 15759.198,
+      "end": 15962.456,
+      "reconnect": 15988.547,
+      "cause": "random",
+      "inflight_drop": true
+    },
+    {
+      "start": 16746.112,
+      "end": 16771.779,
+      "reconnect": 16800.596,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 18810.978,
+      "end": 18941.6,
+      "reconnect": 18943.505,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 19888.386,
+      "end": 19914.183,
+      "reconnect": 19941.043,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 20802.506,
+      "end": 20903.997,
+      "reconnect": 20923.011,
+      "cause": "random",
+      "inflight_drop": true
+    },
+    {
+      "start": 32533.658,
+      "end": 32558.621,
+      "reconnect": 32564.389,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 35600.976,
+      "end": 35713.183,
+      "reconnect": 35726.461,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 45000,
+      "end": 45900,
+      "reconnect": 45924.179,
+      "cause": "regional-isp-outage",
+      "inflight_drop": false
+    },
+    {
+      "start": 62956.518,
+      "end": 63534.857,
+      "reconnect": 63547.018,
+      "cause": "random",
+      "inflight_drop": true
+    },
+    {
+      "start": 68965.18,
+      "end": 68986.815,
+      "reconnect": 68993.909,
+      "cause": "random",
+      "inflight_drop": true
+    },
+    {
+      "start": 69704.326,
+      "end": 70047.303,
+      "reconnect": 70074.332,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 70655.212,
+      "end": 70694.747,
+      "reconnect": 70704.423,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 72000,
+      "end": 86400,
+      "reconnect": 86414.25,
+      "cause": "overnight-outage+random",
+      "inflight_drop": false
+    }
+  ],
+  "gw-sim-000007": [
+    {
+      "start": 12532.702,
+      "end": 12553.486,
+      "reconnect": 12564.326,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 18801.45,
+      "end": 19493.622,
+      "reconnect": 19497.745,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 31571.418,
+      "end": 31811.775,
+      "reconnect": 31839.147,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 35471.691,
+      "end": 35560.025,
+      "reconnect": 35582.841,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 46512.805,
+      "end": 46666.977,
+      "reconnect": 46686.917,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 58213.907,
+      "end": 58736.503,
+      "reconnect": 58759.903,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 66458.747,
+      "end": 66555.066,
+      "reconnect": 66584.017,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 81176.29,
+      "end": 82001.571,
+      "reconnect": 82019.786,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 82987.475,
+      "end": 83640.805,
+      "reconnect": 83661.692,
+      "cause": "random",
+      "inflight_drop": false
+    }
+  ],
+  "gw-sim-000008": [
+    {
+      "start": 9356.938,
+      "end": 9413.108,
+      "reconnect": 9441.358,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 32118.451,
+      "end": 32147.937,
+      "reconnect": 32174.264,
+      "cause": "random",
+      "inflight_drop": true
+    },
+    {
+      "start": 39793.948,
+      "end": 39821.343,
+      "reconnect": 39829.169,
+      "cause": "random",
+      "inflight_drop": true
+    },
+    {
+      "start": 45000,
+      "end": 45900,
+      "reconnect": 45914.046,
+      "cause": "regional-isp-outage",
+      "inflight_drop": false
+    },
+    {
+      "start": 58449.373,
+      "end": 59033.244,
+      "reconnect": 59052.609,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 60585.497,
+      "end": 61228.499,
+      "reconnect": 61256.567,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 61677.29,
+      "end": 61752.729,
+      "reconnect": 61770.295,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 65353.683,
+      "end": 66086.011,
+      "reconnect": 66100.415,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 74299.296,
+      "end": 74346.066,
+      "reconnect": 74375.721,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 75632.402,
+      "end": 75653.615,
+      "reconnect": 75659.601,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 76504.982,
+      "end": 76674.515,
+      "reconnect": 76687.718,
+      "cause": "random",
+      "inflight_drop": false
+    }
+  ],
+  "gw-sim-000009": [
+    {
+      "start": 9279.512,
+      "end": 9322.137,
+      "reconnect": 9324.875,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 13083.799,
+      "end": 13843.181,
+      "reconnect": 13868.623,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 21464.444,
+      "end": 21492.305,
+      "reconnect": 21500.452,
+      "cause": "random",
+      "inflight_drop": true
+    },
+    {
+      "start": 28193.486,
+      "end": 28226.959,
+      "reconnect": 28233.658,
+      "cause": "random",
+      "inflight_drop": true
+    },
+    {
+      "start": 34807.539,
+      "end": 35224.85,
+      "reconnect": 35244.328,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 40117.65,
+      "end": 40519.968,
+      "reconnect": 40523.033,
+      "cause": "random",
+      "inflight_drop": true
+    },
+    {
+      "start": 45000,
+      "end": 45900,
+      "reconnect": 45927.479,
+      "cause": "regional-isp-outage",
+      "inflight_drop": false
+    },
+    {
+      "start": 54310.789,
+      "end": 54471.756,
+      "reconnect": 54485.772,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 63628.102,
+      "end": 64139.754,
+      "reconnect": 64142.504,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 64336.511,
+      "end": 64364.649,
+      "reconnect": 64380.91,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 68052.056,
+      "end": 68562.65,
+      "reconnect": 68589.224,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 73427.643,
+      "end": 73668.211,
+      "reconnect": 73670.143,
+      "cause": "random",
+      "inflight_drop": true
+    },
+    {
+      "start": 78017.173,
+      "end": 78298.64,
+      "reconnect": 78302.562,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 79097.208,
+      "end": 79165.566,
+      "reconnect": 79175.725,
+      "cause": "random",
+      "inflight_drop": false
+    },
+    {
+      "start": 85437.563,
+      "end": 85519.302,
+      "reconnect": 85540.598,
+      "cause": "random",
+      "inflight_drop": false
+    }
+  ],
+  "gw-sim-000010": []
+}

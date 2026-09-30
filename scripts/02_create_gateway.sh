@@ -2,14 +2,16 @@
 set -eu
 
 [ "$#" -ge 1 ] || {
-  echo "Usage: $0 <gateway-id>"
+  echo "Usage: $0 <gateway-id> [gateways|services]"
   exit 1
 }
 
 GW="$1"
+# Optional: certificate group; services = cloud stand-in identities (same profile).
+GROUP="${2:-gateways}"
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 CA="$ROOT/certs/ca"
-DIR="$ROOT/certs/gateways/$GW"
+DIR="$ROOT/certs/$GROUP/$GW"
 
 mkdir -p "$DIR"
 

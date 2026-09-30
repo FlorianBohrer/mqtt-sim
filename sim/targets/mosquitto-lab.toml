@@ -1,0 +1,23 @@
+# Target profile for the ENTC-63 acceptance harness: the lab's Mosquitto broker.
+#
+# For another broker candidate (ENTC-59): copy this file, point host/port at the
+# broker, configure that broker from synthetic/fleet.json (trust the lab CA, map
+# certificate CN to identity, one ACL rule set per gateway / service) and adapt
+# the log patterns below. The tests themselves stay unchanged.
+
+name = "Mosquitto lab broker"
+host = "localhost"            # overridden by --host / SIM_BROKER_HOST (compose: broker)
+port = 8883                   # overridden by --port / SIM_BROKER_PORT
+observe_s = 3.0               # how long a delivery that must NOT happen is watched
+session_expiry_s = 300        # Session Expiry Interval used by the session tests
+reconnect_gateways = 10       # gateways dropped at once in REC-01
+reconnect_window_s = 5.0      # full-jitter window for their first reconnect attempt
+
+[log]
+# Regular expressions applied to the broker log captured for the run window.
+# `timestamp` must capture Unix seconds; lines outside the run window are ignored.
+timestamp = '(\d{10}):'
+connect_accepted = '''New client connected from \S+ as \S+ \(.*u'[^']+'\)'''
+auth_failure = 'OpenSSL Error|certificate verify failed|peer did not return a certificate'
+acl_denied = 'Denied (PUBLISH|SUBSCRIBE)'
+disconnect = 'Client \S+ (disconnected|closed its connection)|already connected, closing old connection'

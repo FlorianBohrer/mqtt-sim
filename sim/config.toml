@@ -1,0 +1,103 @@
+# Synthetische ENETEC-Flotte und Datenverkehr fuer das mTLS-Lab.
+#
+# Kennzeichnung wie in ENETEC.md:
+#   SOURCE      = aus Projektunterlagen (EICP-Zusammenfassung, MQTT Current State,
+#                 Mental Model v1.0, bestehendes Lab)
+#   INTERPRETED = daraus abgeleitet, nicht bestaetigt
+#   ASSUMPTION  = reine Lab-Annahme fuer die Simulation
+# Massgeblich fuer Nachrichtensemantik bleibt ENTC-61 / EICP v1.4.
+# Nach jeder Aenderung neu erzeugen: make fleet (siehe docs/mqtt-tests/synthetic-simulation.md)
+
+seed = 20260930
+
+[topics]
+# SOURCE: eicp/v1/{environment}/{plantId}/gateways/{gatewayId}/{direction}/{domain}/{operation}
+base = "eicp/v1/sim"
+telemetry = "d2c/telemetry/report"
+# ASSUMPTION: neutraler Lab-Namespace wie in Test 10; bewusst keine EICP-Command-Semantik.
+command = "c2d/simulation/command"
+
+[fleet]
+plants = 6
+# INTERPRETED: Wohnanlagen mit einem Gateway, Gewerbeobjekte mit mehreren.
+plant_types = { residential = 0.7, commercial = 0.3 }
+gateways_per_plant = { residential = [1, 1], commercial = [2, 3] }
+# Bestehende Lab-Gateways/-Plants bleiben unveraendert, damit Skripte 04-10 passen.
+# Weitere Plants erhalten die kanonische Form plt_<UUIDv7> (SOURCE: EICP).
+pinned = [
+  { gateway_id = "gw-sim-000001", plant_id = "plt_sim_001" },
+  { gateway_id = "gw-sim-000002", plant_id = "plt_sim_002" },
+]
+# SOURCE (Mental Model v1.0): Gateway-Typen. Verteilung: ASSUMPTION.
+gateway_families = { "SmartComfort365" = 0.6, "Pure365 Bridge" = 0.4 }
+# INTERPRETED (Mental Model v1.0): Systemregler, Raumgeraete, I/O-Module je Gateway.
+room_devices_per_gateway = { residential = [3, 8], commercial = [6, 16] }
+io_modules_per_gateway = [0, 2]
+# ASSUMPTION: Anteil Gateways mit instabiler Anbindung (Funk/LTE statt Ethernet).
+flaky_link_share = 0.25
+clock_skew_s = [-3.0, 3.0]
+
+[services]
+# Cloud-Platzhalter; spaeter durch die MQTT->Pub/Sub-Bridge ersetzt.
+ingest = "svc-sim-cloud-ingest"
+command = "svc-sim-cloud-command"
+
+[dataset]
+start = "2026-10-01T00:00:00Z"   # Donnerstag; 24 h decken einen Tagesgang ab
+duration_s = 86400
+utc_offset_h = 2
+# SOURCE (Planungswert): ~2.51 Mio. D2C/Tag bei ~10.000 Gateways = ~251 je Gateway.
+# Der Generator leitet daraus das Meldeintervall der Raumgeraete ab. Welcher Anteil
+# davon Telemetrie vs. State/Heartbeat/Event ist, ist OFFEN (EICP v1.4).
+d2c_per_gateway_per_day = 251
+interval_jitter_s = 5.0
+
+[baseline]
+# SOURCE (Planungswerte): nur Vergleichswerte fuer summary.json, steuern nichts.
+avg_payload_bytes = 500
+max_payload_bytes = 12000
+
+[climate]
+# Plausibles Raumklima fuer die Felder aus samples/telemetry.json. Keine ENETEC-Messdaten.
+setpoint_c = [20.0, 22.0]
+base_rh_pct = [38.0, 52.0]
+occupancy = [0.4, 1.0]
+co2_gain_ppm = [400, 1000]
+co2_outdoor_ppm = 420
+
+[connectivity]
+# ASSUMPTION: zufaellige Ausfaelle je Anbindungstyp.
+outages_per_h = { stable = 0.02, flaky = 0.5 }
+outage_duration_s = [20, 900]
+# ASSUMPTION (EICP: exponentieller Backoff + Jitter, Werte OFFEN): Verzoegerung des
+# ersten erfolgreichen Reconnects nach Rueckkehr des Netzes.
+reconnect_jitter_s = [0.5, 30.0]
+# ASSUMPTION: Offline-Puffer im Gateway; Ueberlauf verwirft die aeltesten Nachrichten.
+buffer_max_messages = 50
+backlog_flush_per_s = 10
+# ASSUMPTION: Anteil der Ausfaelle, die eine noch unbestaetigte QoS-1-Nachricht treffen
+# (Netzabbruch direkt nach PUBLISH, vor PUBACK) -> Neuzustellung mit DUP nach Reconnect.
+inflight_drop_share = 0.3
+
+# Geplante Ereignisse fuer die Edge-Cases aus "MQTT Current State", Abschnitt 10.
+[[connectivity.incidents]]
+name = "regional-isp-outage"      # Reconnect-Sturm: viele Gateways gleichzeitig zurueck
+start_s = 45000
+duration_s = 900
+share = 0.5
+[[connectivity.incidents]]
+name = "overnight-outage"         # langer Ausfall: Pufferueberlauf, persistente Session
+start_s = 72000
+duration_s = 14400
+select = "largest"
+count = 1
+
+[commands]
+per_gateway_per_h = 0.25
+# Je Ausfall ein Command mitten im Ausfall: prueft die Zustellung ueber die
+# persistente Session nach dem Reconnect (Clean Start = false).
+during_outage = true
+
+[mqtt]
+keepalive_s = 120                 # SOURCE: Planungswert
+session_expiry_s = 3600           # ASSUMPTION: Wert OFFEN

@@ -287,3 +287,45 @@ make clean
 This deletes the generated simulation keys and certificates.
 
 Never copy real ENETEC private keys into this lab.
+
+## 12. ENTC-63 acceptance harness (one command)
+
+```bash
+make clean && make acceptance
+```
+
+`make acceptance` (`scripts/13_acceptance.sh`) builds everything from a clean checkout:
+
+- test CA
+- synthetic fleet with one certificate per gateway
+- generated ACL
+- negative identities
+
+It then starts the broker, runs the broker-agnostic acceptance cases and writes a PASS/FAIL
+report per requirement to `results/acceptance-<run>/report.md`. The cases cover:
+
+- mTLS positive/negative
+- Client ID binding
+- deny-by-default, d2c/c2d direction, cross-plant/cross-gateway
+- duplicate Client ID
+- QoS 1
+- persistent session
+- reconnect without storm
+- broker logs
+
+**It exits 0 only if every mandatory case passes.** The same harness runs against other
+broker candidates via a target profile (`sim/targets/*.toml`).
+
+Details, requirement mapping and the Mosquitto reference result:
+[docs/mqtt-tests/acceptance-harness.md](docs/mqtt-tests/acceptance-harness.md).
+
+## 13. Synthetic fleet and architecture simulation
+
+```bash
+make fleet      # synthetic fleet, 24 h dataset, generated ACL, certificates
+make simulate   # replay the dataset (QoS 1, outages, reconnect, commands) and verify it
+```
+
+The fleet config is `sim/config.toml`; the generated, committed data lives in `synthetic/`.
+The data model, sources/assumptions and reference run are described in
+[docs/mqtt-tests/synthetic-simulation.md](docs/mqtt-tests/synthetic-simulation.md).

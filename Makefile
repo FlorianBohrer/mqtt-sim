@@ -1,4 +1,5 @@
-.PHONY: check init up down logs valid-publish cross-gateway wrong-clientid inspect verify clean
+.PHONY: check init up down logs valid-publish cross-gateway wrong-clientid inspect verify clean \
+	fleet negative-certs acceptance simulate sim-test
 
 check:
 	./scripts/00_check_prerequisites.sh
@@ -32,3 +33,20 @@ verify:
 
 clean:
 	./scripts/09_clean.sh
+
+# Synthetic fleet and architecture simulation (docs/mqtt-tests/synthetic-simulation.md)
+fleet:
+	./scripts/11_synthetic_fleet.sh
+
+negative-certs:
+	./scripts/12_create_negative_identities.sh
+
+# ENTC-63 verification command: exit 0 only if all mandatory acceptance cases pass.
+acceptance:
+	./scripts/13_acceptance.sh
+
+simulate:
+	./scripts/14_simulate.sh
+
+sim-test:
+	docker compose run --rm -T --entrypoint python sim -m unittest discover -s sim/tests -t sim -v

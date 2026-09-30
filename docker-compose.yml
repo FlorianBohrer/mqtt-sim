@@ -18,3 +18,14 @@ services:
     volumes:
       - ./certs:/certs:ro
       - ./samples:/samples:ro
+
+  # Synthetic fleet / simulation runtime (python -m enetec_sim), see docs/mqtt-tests/.
+  sim:
+    build: ./sim
+    image: enetec-sim:local
+    profiles: ["sim"]
+    environment:
+      SIM_BROKER_HOST: ${SIM_BROKER_HOST:-broker}
+      SIM_BROKER_PORT: ${SIM_BROKER_PORT:-8883}
+    volumes:
+      - ./:/lab

@@ -1,0 +1,176 @@
+{
+  "generator": {
+    "name": "enetec_sim",
+    "seed": 20260930,
+    "config_sha256": "b28f9b651345a1363ace9ddf07eebc699e8a5ced55ec361a237bf7f7f4b49123"
+  },
+  "window": {
+    "start": "2026-10-01T00:00:00Z",
+    "duration_s": 86400
+  },
+  "fleet": {
+    "plants": 6,
+    "gateways": 10,
+    "devices": 108,
+    "room_devices": 91,
+    "by_family": {
+      "Pure365 Bridge": 5,
+      "SmartComfort365": 5
+    },
+    "by_plant_type": {
+      "commercial": 3,
+      "residential": 3
+    },
+    "flaky_links": 4
+  },
+  "telemetry": {
+    "room_report_interval_s": 3132.4,
+    "generated": 2516,
+    "sent": 2500,
+    "buffered_then_sent": 113,
+    "dropped_buffer_overflow": 16,
+    "per_gateway_per_day": 251.6,
+    "baseline_per_gateway_per_day": 251,
+    "payload_bytes_mean": 304.5,
+    "payload_bytes_max": 306,
+    "baseline_payload_bytes_mean": 500,
+    "baseline_payload_bytes_max": 12000,
+    "peak_msgs_per_s": 10
+  },
+  "commands": {
+    "total": 115,
+    "during_outage": 60
+  },
+  "connectivity": {
+    "offline_windows": 57,
+    "gateways_with_outage": 6,
+    "offline_s_total": 32183.7,
+    "inflight_drops": 12,
+    "incident_gateways": {
+      "overnight-outage": 1,
+      "regional-isp-outage": 5
+    }
+  },
+  "per_gateway": [
+    {
+      "gateway_id": "gw-sim-000001",
+      "plant_id": "plt_sim_001",
+      "family": "Pure365 Bridge",
+      "link": "stable",
+      "room_devices": 7,
+      "telemetry": 192,
+      "buffered": 2,
+      "dropped": 0,
+      "offline_windows": 1,
+      "commands": 10
+    },
+    {
+      "gateway_id": "gw-sim-000002",
+      "plant_id": "plt_sim_002",
+      "family": "SmartComfort365",
+      "link": "stable",
+      "room_devices": 8,
+      "telemetry": 221,
+      "buffered": 3,
+      "dropped": 0,
+      "offline_windows": 3,
+      "commands": 9
+    },
+    {
+      "gateway_id": "gw-sim-000003",
+      "plant_id": "plt_sim_002",
+      "family": "SmartComfort365",
+      "link": "stable",
+      "room_devices": 13,
+      "telemetry": 358,
+      "buffered": 0,
+      "dropped": 0,
+      "offline_windows": 0,
+      "commands": 4
+    },
+    {
+      "gateway_id": "gw-sim-000004",
+      "plant_id": "plt_01a06776-fb70-786e-881e-2f72a8183b0a",
+      "family": "Pure365 Bridge",
+      "link": "stable",
+      "room_devices": 4,
+      "telemetry": 111,
+      "buffered": 0,
+      "dropped": 0,
+      "offline_windows": 0,
+      "commands": 6
+    },
+    {
+      "gateway_id": "gw-sim-000005",
+      "plant_id": "plt_01a041c3-f360-7d3b-9f36-2b573fec3127",
+      "family": "Pure365 Bridge",
+      "link": "stable",
+      "room_devices": 13,
+      "telemetry": 360,
+      "buffered": 0,
+      "dropped": 0,
+      "offline_windows": 0,
+      "commands": 9
+    },
+    {
+      "gateway_id": "gw-sim-000006",
+      "plant_id": "plt_01a041c3-f360-7d3b-9f36-2b573fec3127",
+      "family": "Pure365 Bridge",
+      "link": "flaky",
+      "room_devices": 14,
+      "telemetry": 388,
+      "buffered": 75,
+      "dropped": 16,
+      "offline_windows": 18,
+      "commands": 24
+    },
+    {
+      "gateway_id": "gw-sim-000007",
+      "plant_id": "plt_019fbd62-7088-79ee-b127-b5ac5d7e490d",
+      "family": "SmartComfort365",
+      "link": "flaky",
+      "room_devices": 8,
+      "telemetry": 223,
+      "buffered": 10,
+      "dropped": 0,
+      "offline_windows": 9,
+      "commands": 16
+    },
+    {
+      "gateway_id": "gw-sim-000008",
+      "plant_id": "plt_019fbd62-7088-79ee-b127-b5ac5d7e490d",
+      "family": "SmartComfort365",
+      "link": "flaky",
+      "room_devices": 9,
+      "telemetry": 247,
+      "buffered": 13,
+      "dropped": 0,
+      "offline_windows": 11,
+      "commands": 15
+    },
+    {
+      "gateway_id": "gw-sim-000009",
+      "plant_id": "plt_019fbd62-7088-79ee-b127-b5ac5d7e490d",
+      "family": "Pure365 Bridge",
+      "link": "flaky",
+      "room_devices": 7,
+      "telemetry": 194,
+      "buffered": 10,
+      "dropped": 0,
+      "offline_windows": 15,
+      "commands": 19
+    },
+    {
+      "gateway_id": "gw-sim-000010",
+      "plant_id": "plt_019f67ee-7a70-7ac4-af69-93722be61f89",
+      "family": "SmartComfort365",
+      "link": "stable",
+      "room_devices": 8,
+      "telemetry": 222,
+      "buffered": 0,
+      "dropped": 0,
+      "offline_windows": 0,
+      "commands": 3
+    }
+  ]
+}

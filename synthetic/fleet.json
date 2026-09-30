@@ -1,0 +1,1239 @@
+{
+  "note": "SYNTHETIC lab fleet generated from sim/config.toml. Not ENETEC data; message semantics are defined by ENTC-61 / EICP v1.4.",
+  "generator": {
+    "name": "enetec_sim",
+    "seed": 20260930,
+    "config_sha256": "b28f9b651345a1363ace9ddf07eebc699e8a5ced55ec361a237bf7f7f4b49123"
+  },
+  "topics": {
+    "base": "eicp/v1/sim",
+    "telemetry": "d2c/telemetry/report",
+    "command": "c2d/simulation/command"
+  },
+  "plants": [
+    {
+      "plant_id": "plt_sim_001",
+      "type": "residential",
+      "gateways": [
+        "gw-sim-000001"
+      ]
+    },
+    {
+      "plant_id": "plt_sim_002",
+      "type": "commercial",
+      "gateways": [
+        "gw-sim-000002",
+        "gw-sim-000003"
+      ]
+    },
+    {
+      "plant_id": "plt_01a06776-fb70-786e-881e-2f72a8183b0a",
+      "type": "residential",
+      "gateways": [
+        "gw-sim-000004"
+      ]
+    },
+    {
+      "plant_id": "plt_01a041c3-f360-7d3b-9f36-2b573fec3127",
+      "type": "commercial",
+      "gateways": [
+        "gw-sim-000005",
+        "gw-sim-000006"
+      ]
+    },
+    {
+      "plant_id": "plt_019fbd62-7088-79ee-b127-b5ac5d7e490d",
+      "type": "commercial",
+      "gateways": [
+        "gw-sim-000007",
+        "gw-sim-000008",
+        "gw-sim-000009"
+      ]
+    },
+    {
+      "plant_id": "plt_019f67ee-7a70-7ac4-af69-93722be61f89",
+      "type": "residential",
+      "gateways": [
+        "gw-sim-000010"
+      ]
+    }
+  ],
+  "gateways": [
+    {
+      "gateway_id": "gw-sim-000001",
+      "plant_id": "plt_sim_001",
+      "plant_type": "residential",
+      "family": "Pure365 Bridge",
+      "serial_number": "2150551891",
+      "lifecycle": "operational",
+      "certificate_cn": "gw-sim-000001",
+      "client_id": "gw-sim-000001",
+      "topics": {
+        "d2c": "eicp/v1/sim/plt_sim_001/gateways/gw-sim-000001/d2c/#",
+        "c2d": "eicp/v1/sim/plt_sim_001/gateways/gw-sim-000001/c2d/#"
+      },
+      "link": "stable",
+      "clock_skew_s": 0.762,
+      "devices": [
+        {
+          "serial_number": "890315215",
+          "device_class": "system_controller"
+        },
+        {
+          "serial_number": "2696672734",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.7,
+            "base_rh_pct": 44.0,
+            "occupancy": 0.86,
+            "co2_gain_ppm": 666
+          }
+        },
+        {
+          "serial_number": "3229383335",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.8,
+            "base_rh_pct": 47.2,
+            "occupancy": 0.48,
+            "co2_gain_ppm": 766
+          }
+        },
+        {
+          "serial_number": "2754677227",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.2,
+            "base_rh_pct": 41.3,
+            "occupancy": 0.64,
+            "co2_gain_ppm": 705
+          }
+        },
+        {
+          "serial_number": "1559165517",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.0,
+            "base_rh_pct": 41.5,
+            "occupancy": 0.46,
+            "co2_gain_ppm": 469
+          }
+        },
+        {
+          "serial_number": "3977774305",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.8,
+            "base_rh_pct": 43.9,
+            "occupancy": 0.71,
+            "co2_gain_ppm": 573
+          }
+        },
+        {
+          "serial_number": "502591925",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.6,
+            "base_rh_pct": 46.5,
+            "occupancy": 0.94,
+            "co2_gain_ppm": 829
+          }
+        },
+        {
+          "serial_number": "590127075",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.1,
+            "base_rh_pct": 43.1,
+            "occupancy": 0.93,
+            "co2_gain_ppm": 618
+          }
+        },
+        {
+          "serial_number": "1094081288",
+          "device_class": "io_module"
+        }
+      ]
+    },
+    {
+      "gateway_id": "gw-sim-000002",
+      "plant_id": "plt_sim_002",
+      "plant_type": "commercial",
+      "family": "SmartComfort365",
+      "serial_number": "280218189",
+      "lifecycle": "operational",
+      "certificate_cn": "gw-sim-000002",
+      "client_id": "gw-sim-000002",
+      "topics": {
+        "d2c": "eicp/v1/sim/plt_sim_002/gateways/gw-sim-000002/d2c/#",
+        "c2d": "eicp/v1/sim/plt_sim_002/gateways/gw-sim-000002/c2d/#"
+      },
+      "link": "stable",
+      "clock_skew_s": -2.112,
+      "devices": [
+        {
+          "serial_number": "1325895396",
+          "device_class": "system_controller"
+        },
+        {
+          "serial_number": "4234454609",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.2,
+            "base_rh_pct": 46.2,
+            "occupancy": 0.56,
+            "co2_gain_ppm": 501
+          }
+        },
+        {
+          "serial_number": "3153373505",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.6,
+            "base_rh_pct": 41.8,
+            "occupancy": 0.56,
+            "co2_gain_ppm": 802
+          }
+        },
+        {
+          "serial_number": "538447772",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.9,
+            "base_rh_pct": 45.4,
+            "occupancy": 0.66,
+            "co2_gain_ppm": 943
+          }
+        },
+        {
+          "serial_number": "660995920",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.9,
+            "base_rh_pct": 42.6,
+            "occupancy": 0.44,
+            "co2_gain_ppm": 522
+          }
+        },
+        {
+          "serial_number": "2214074069",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.3,
+            "base_rh_pct": 51.7,
+            "occupancy": 0.94,
+            "co2_gain_ppm": 444
+          }
+        },
+        {
+          "serial_number": "3567862699",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.7,
+            "base_rh_pct": 42.9,
+            "occupancy": 0.76,
+            "co2_gain_ppm": 406
+          }
+        },
+        {
+          "serial_number": "4029441149",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.2,
+            "base_rh_pct": 40.1,
+            "occupancy": 0.81,
+            "co2_gain_ppm": 610
+          }
+        },
+        {
+          "serial_number": "2494022126",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.4,
+            "base_rh_pct": 40.1,
+            "occupancy": 0.73,
+            "co2_gain_ppm": 517
+          }
+        },
+        {
+          "serial_number": "3469482495",
+          "device_class": "io_module"
+        }
+      ]
+    },
+    {
+      "gateway_id": "gw-sim-000003",
+      "plant_id": "plt_sim_002",
+      "plant_type": "commercial",
+      "family": "SmartComfort365",
+      "serial_number": "1016347864",
+      "lifecycle": "operational",
+      "certificate_cn": "gw-sim-000003",
+      "client_id": "gw-sim-000003",
+      "topics": {
+        "d2c": "eicp/v1/sim/plt_sim_002/gateways/gw-sim-000003/d2c/#",
+        "c2d": "eicp/v1/sim/plt_sim_002/gateways/gw-sim-000003/c2d/#"
+      },
+      "link": "stable",
+      "clock_skew_s": 2.997,
+      "devices": [
+        {
+          "serial_number": "3434662458",
+          "device_class": "system_controller"
+        },
+        {
+          "serial_number": "1127532130",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.5,
+            "base_rh_pct": 41.2,
+            "occupancy": 0.91,
+            "co2_gain_ppm": 554
+          }
+        },
+        {
+          "serial_number": "3121138976",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.3,
+            "base_rh_pct": 43.6,
+            "occupancy": 0.96,
+            "co2_gain_ppm": 735
+          }
+        },
+        {
+          "serial_number": "2158117527",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.9,
+            "base_rh_pct": 43.5,
+            "occupancy": 0.64,
+            "co2_gain_ppm": 481
+          }
+        },
+        {
+          "serial_number": "3496198213",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.6,
+            "base_rh_pct": 43.7,
+            "occupancy": 0.62,
+            "co2_gain_ppm": 764
+          }
+        },
+        {
+          "serial_number": "1116625278",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.3,
+            "base_rh_pct": 40.8,
+            "occupancy": 0.58,
+            "co2_gain_ppm": 893
+          }
+        },
+        {
+          "serial_number": "3366017897",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.5,
+            "base_rh_pct": 44.8,
+            "occupancy": 0.86,
+            "co2_gain_ppm": 742
+          }
+        },
+        {
+          "serial_number": "3393871222",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.2,
+            "base_rh_pct": 38.5,
+            "occupancy": 0.48,
+            "co2_gain_ppm": 826
+          }
+        },
+        {
+          "serial_number": "3603105232",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.7,
+            "base_rh_pct": 46.6,
+            "occupancy": 0.71,
+            "co2_gain_ppm": 727
+          }
+        },
+        {
+          "serial_number": "933628550",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.6,
+            "base_rh_pct": 41.3,
+            "occupancy": 0.91,
+            "co2_gain_ppm": 919
+          }
+        },
+        {
+          "serial_number": "2722940617",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.9,
+            "base_rh_pct": 47.1,
+            "occupancy": 0.54,
+            "co2_gain_ppm": 490
+          }
+        },
+        {
+          "serial_number": "3868860635",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.9,
+            "base_rh_pct": 49.4,
+            "occupancy": 0.58,
+            "co2_gain_ppm": 960
+          }
+        },
+        {
+          "serial_number": "4107922025",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.2,
+            "base_rh_pct": 47.6,
+            "occupancy": 0.97,
+            "co2_gain_ppm": 947
+          }
+        },
+        {
+          "serial_number": "1207226626",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.0,
+            "base_rh_pct": 43.4,
+            "occupancy": 0.63,
+            "co2_gain_ppm": 527
+          }
+        }
+      ]
+    },
+    {
+      "gateway_id": "gw-sim-000004",
+      "plant_id": "plt_01a06776-fb70-786e-881e-2f72a8183b0a",
+      "plant_type": "residential",
+      "family": "Pure365 Bridge",
+      "serial_number": "1512627509",
+      "lifecycle": "operational",
+      "certificate_cn": "gw-sim-000004",
+      "client_id": "gw-sim-000004",
+      "topics": {
+        "d2c": "eicp/v1/sim/plt_01a06776-fb70-786e-881e-2f72a8183b0a/gateways/gw-sim-000004/d2c/#",
+        "c2d": "eicp/v1/sim/plt_01a06776-fb70-786e-881e-2f72a8183b0a/gateways/gw-sim-000004/c2d/#"
+      },
+      "link": "stable",
+      "clock_skew_s": 1.724,
+      "devices": [
+        {
+          "serial_number": "3821516397",
+          "device_class": "system_controller"
+        },
+        {
+          "serial_number": "1291580802",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.7,
+            "base_rh_pct": 45.5,
+            "occupancy": 0.87,
+            "co2_gain_ppm": 647
+          }
+        },
+        {
+          "serial_number": "4077127577",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.0,
+            "base_rh_pct": 50.4,
+            "occupancy": 0.86,
+            "co2_gain_ppm": 545
+          }
+        },
+        {
+          "serial_number": "1994770709",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.3,
+            "base_rh_pct": 40.3,
+            "occupancy": 0.67,
+            "co2_gain_ppm": 893
+          }
+        },
+        {
+          "serial_number": "3594257254",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.5,
+            "base_rh_pct": 40.3,
+            "occupancy": 0.53,
+            "co2_gain_ppm": 518
+          }
+        }
+      ]
+    },
+    {
+      "gateway_id": "gw-sim-000005",
+      "plant_id": "plt_01a041c3-f360-7d3b-9f36-2b573fec3127",
+      "plant_type": "commercial",
+      "family": "Pure365 Bridge",
+      "serial_number": "3856938623",
+      "lifecycle": "operational",
+      "certificate_cn": "gw-sim-000005",
+      "client_id": "gw-sim-000005",
+      "topics": {
+        "d2c": "eicp/v1/sim/plt_01a041c3-f360-7d3b-9f36-2b573fec3127/gateways/gw-sim-000005/d2c/#",
+        "c2d": "eicp/v1/sim/plt_01a041c3-f360-7d3b-9f36-2b573fec3127/gateways/gw-sim-000005/c2d/#"
+      },
+      "link": "stable",
+      "clock_skew_s": 2.777,
+      "devices": [
+        {
+          "serial_number": "811575172",
+          "device_class": "system_controller"
+        },
+        {
+          "serial_number": "1809353322",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.7,
+            "base_rh_pct": 45.0,
+            "occupancy": 0.56,
+            "co2_gain_ppm": 736
+          }
+        },
+        {
+          "serial_number": "2958765969",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.4,
+            "base_rh_pct": 41.2,
+            "occupancy": 0.81,
+            "co2_gain_ppm": 413
+          }
+        },
+        {
+          "serial_number": "1861008798",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.8,
+            "base_rh_pct": 50.5,
+            "occupancy": 0.89,
+            "co2_gain_ppm": 659
+          }
+        },
+        {
+          "serial_number": "3912828931",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.8,
+            "base_rh_pct": 43.3,
+            "occupancy": 0.79,
+            "co2_gain_ppm": 828
+          }
+        },
+        {
+          "serial_number": "3525379324",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.7,
+            "base_rh_pct": 52.0,
+            "occupancy": 0.46,
+            "co2_gain_ppm": 930
+          }
+        },
+        {
+          "serial_number": "3673054517",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.6,
+            "base_rh_pct": 39.9,
+            "occupancy": 0.99,
+            "co2_gain_ppm": 400
+          }
+        },
+        {
+          "serial_number": "542832189",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.8,
+            "base_rh_pct": 47.6,
+            "occupancy": 0.57,
+            "co2_gain_ppm": 814
+          }
+        },
+        {
+          "serial_number": "3783781393",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.8,
+            "base_rh_pct": 48.4,
+            "occupancy": 0.55,
+            "co2_gain_ppm": 450
+          }
+        },
+        {
+          "serial_number": "2609153243",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.9,
+            "base_rh_pct": 43.2,
+            "occupancy": 0.41,
+            "co2_gain_ppm": 452
+          }
+        },
+        {
+          "serial_number": "3547379530",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.8,
+            "base_rh_pct": 41.2,
+            "occupancy": 0.59,
+            "co2_gain_ppm": 913
+          }
+        },
+        {
+          "serial_number": "1975259828",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.1,
+            "base_rh_pct": 50.2,
+            "occupancy": 0.57,
+            "co2_gain_ppm": 656
+          }
+        },
+        {
+          "serial_number": "2372129946",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.9,
+            "base_rh_pct": 47.9,
+            "occupancy": 0.67,
+            "co2_gain_ppm": 865
+          }
+        },
+        {
+          "serial_number": "532363847",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.2,
+            "base_rh_pct": 39.0,
+            "occupancy": 0.47,
+            "co2_gain_ppm": 437
+          }
+        },
+        {
+          "serial_number": "1743929908",
+          "device_class": "io_module"
+        }
+      ]
+    },
+    {
+      "gateway_id": "gw-sim-000006",
+      "plant_id": "plt_01a041c3-f360-7d3b-9f36-2b573fec3127",
+      "plant_type": "commercial",
+      "family": "Pure365 Bridge",
+      "serial_number": "1904302963",
+      "lifecycle": "operational",
+      "certificate_cn": "gw-sim-000006",
+      "client_id": "gw-sim-000006",
+      "topics": {
+        "d2c": "eicp/v1/sim/plt_01a041c3-f360-7d3b-9f36-2b573fec3127/gateways/gw-sim-000006/d2c/#",
+        "c2d": "eicp/v1/sim/plt_01a041c3-f360-7d3b-9f36-2b573fec3127/gateways/gw-sim-000006/c2d/#"
+      },
+      "link": "flaky",
+      "clock_skew_s": 0.918,
+      "devices": [
+        {
+          "serial_number": "247734891",
+          "device_class": "system_controller"
+        },
+        {
+          "serial_number": "2461227227",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.8,
+            "base_rh_pct": 38.8,
+            "occupancy": 0.91,
+            "co2_gain_ppm": 668
+          }
+        },
+        {
+          "serial_number": "2528132019",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.4,
+            "base_rh_pct": 44.9,
+            "occupancy": 0.53,
+            "co2_gain_ppm": 696
+          }
+        },
+        {
+          "serial_number": "2713970927",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.5,
+            "base_rh_pct": 42.5,
+            "occupancy": 0.96,
+            "co2_gain_ppm": 984
+          }
+        },
+        {
+          "serial_number": "1572849049",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.2,
+            "base_rh_pct": 44.6,
+            "occupancy": 0.93,
+            "co2_gain_ppm": 602
+          }
+        },
+        {
+          "serial_number": "2233783885",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.1,
+            "base_rh_pct": 50.2,
+            "occupancy": 0.9,
+            "co2_gain_ppm": 888
+          }
+        },
+        {
+          "serial_number": "4198045655",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.9,
+            "base_rh_pct": 41.9,
+            "occupancy": 0.88,
+            "co2_gain_ppm": 603
+          }
+        },
+        {
+          "serial_number": "3356299478",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.0,
+            "base_rh_pct": 39.7,
+            "occupancy": 0.57,
+            "co2_gain_ppm": 747
+          }
+        },
+        {
+          "serial_number": "3660626665",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.8,
+            "base_rh_pct": 47.0,
+            "occupancy": 0.41,
+            "co2_gain_ppm": 841
+          }
+        },
+        {
+          "serial_number": "1045741603",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.5,
+            "base_rh_pct": 48.7,
+            "occupancy": 0.5,
+            "co2_gain_ppm": 779
+          }
+        },
+        {
+          "serial_number": "155015180",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.5,
+            "base_rh_pct": 43.5,
+            "occupancy": 0.78,
+            "co2_gain_ppm": 671
+          }
+        },
+        {
+          "serial_number": "4200778518",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.6,
+            "base_rh_pct": 44.6,
+            "occupancy": 0.5,
+            "co2_gain_ppm": 941
+          }
+        },
+        {
+          "serial_number": "2013904507",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.8,
+            "base_rh_pct": 44.4,
+            "occupancy": 0.83,
+            "co2_gain_ppm": 963
+          }
+        },
+        {
+          "serial_number": "3537501950",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.7,
+            "base_rh_pct": 44.6,
+            "occupancy": 0.65,
+            "co2_gain_ppm": 508
+          }
+        },
+        {
+          "serial_number": "1041888550",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.4,
+            "base_rh_pct": 40.7,
+            "occupancy": 0.83,
+            "co2_gain_ppm": 746
+          }
+        }
+      ]
+    },
+    {
+      "gateway_id": "gw-sim-000007",
+      "plant_id": "plt_019fbd62-7088-79ee-b127-b5ac5d7e490d",
+      "plant_type": "commercial",
+      "family": "SmartComfort365",
+      "serial_number": "1281114590",
+      "lifecycle": "operational",
+      "certificate_cn": "gw-sim-000007",
+      "client_id": "gw-sim-000007",
+      "topics": {
+        "d2c": "eicp/v1/sim/plt_019fbd62-7088-79ee-b127-b5ac5d7e490d/gateways/gw-sim-000007/d2c/#",
+        "c2d": "eicp/v1/sim/plt_019fbd62-7088-79ee-b127-b5ac5d7e490d/gateways/gw-sim-000007/c2d/#"
+      },
+      "link": "flaky",
+      "clock_skew_s": 0.337,
+      "devices": [
+        {
+          "serial_number": "443364810",
+          "device_class": "system_controller"
+        },
+        {
+          "serial_number": "930820144",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.5,
+            "base_rh_pct": 50.9,
+            "occupancy": 0.84,
+            "co2_gain_ppm": 493
+          }
+        },
+        {
+          "serial_number": "1984822523",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.3,
+            "base_rh_pct": 39.1,
+            "occupancy": 0.54,
+            "co2_gain_ppm": 465
+          }
+        },
+        {
+          "serial_number": "1588496904",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.9,
+            "base_rh_pct": 38.6,
+            "occupancy": 0.43,
+            "co2_gain_ppm": 778
+          }
+        },
+        {
+          "serial_number": "3425985684",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.5,
+            "base_rh_pct": 50.0,
+            "occupancy": 0.88,
+            "co2_gain_ppm": 662
+          }
+        },
+        {
+          "serial_number": "2960917080",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.1,
+            "base_rh_pct": 45.1,
+            "occupancy": 0.92,
+            "co2_gain_ppm": 999
+          }
+        },
+        {
+          "serial_number": "450865769",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.9,
+            "base_rh_pct": 48.7,
+            "occupancy": 0.98,
+            "co2_gain_ppm": 530
+          }
+        },
+        {
+          "serial_number": "1174716201",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.0,
+            "base_rh_pct": 43.0,
+            "occupancy": 0.68,
+            "co2_gain_ppm": 962
+          }
+        },
+        {
+          "serial_number": "131122854",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.4,
+            "base_rh_pct": 43.3,
+            "occupancy": 0.61,
+            "co2_gain_ppm": 850
+          }
+        },
+        {
+          "serial_number": "3864807185",
+          "device_class": "io_module"
+        },
+        {
+          "serial_number": "420911366",
+          "device_class": "io_module"
+        }
+      ]
+    },
+    {
+      "gateway_id": "gw-sim-000008",
+      "plant_id": "plt_019fbd62-7088-79ee-b127-b5ac5d7e490d",
+      "plant_type": "commercial",
+      "family": "SmartComfort365",
+      "serial_number": "3338420306",
+      "lifecycle": "operational",
+      "certificate_cn": "gw-sim-000008",
+      "client_id": "gw-sim-000008",
+      "topics": {
+        "d2c": "eicp/v1/sim/plt_019fbd62-7088-79ee-b127-b5ac5d7e490d/gateways/gw-sim-000008/d2c/#",
+        "c2d": "eicp/v1/sim/plt_019fbd62-7088-79ee-b127-b5ac5d7e490d/gateways/gw-sim-000008/c2d/#"
+      },
+      "link": "flaky",
+      "clock_skew_s": 1.306,
+      "devices": [
+        {
+          "serial_number": "3445800592",
+          "device_class": "system_controller"
+        },
+        {
+          "serial_number": "1566602065",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.3,
+            "base_rh_pct": 51.2,
+            "occupancy": 0.88,
+            "co2_gain_ppm": 573
+          }
+        },
+        {
+          "serial_number": "633211709",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.6,
+            "base_rh_pct": 48.9,
+            "occupancy": 0.9,
+            "co2_gain_ppm": 631
+          }
+        },
+        {
+          "serial_number": "1973952308",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.3,
+            "base_rh_pct": 44.6,
+            "occupancy": 0.44,
+            "co2_gain_ppm": 501
+          }
+        },
+        {
+          "serial_number": "3574383240",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.2,
+            "base_rh_pct": 50.8,
+            "occupancy": 0.86,
+            "co2_gain_ppm": 786
+          }
+        },
+        {
+          "serial_number": "2113740933",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.8,
+            "base_rh_pct": 45.8,
+            "occupancy": 0.99,
+            "co2_gain_ppm": 561
+          }
+        },
+        {
+          "serial_number": "2951524475",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.1,
+            "base_rh_pct": 39.7,
+            "occupancy": 0.6,
+            "co2_gain_ppm": 760
+          }
+        },
+        {
+          "serial_number": "1282431447",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.3,
+            "base_rh_pct": 50.0,
+            "occupancy": 0.43,
+            "co2_gain_ppm": 490
+          }
+        },
+        {
+          "serial_number": "1048876225",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.4,
+            "base_rh_pct": 48.3,
+            "occupancy": 0.76,
+            "co2_gain_ppm": 587
+          }
+        },
+        {
+          "serial_number": "1003653963",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.5,
+            "base_rh_pct": 46.9,
+            "occupancy": 0.67,
+            "co2_gain_ppm": 438
+          }
+        }
+      ]
+    },
+    {
+      "gateway_id": "gw-sim-000009",
+      "plant_id": "plt_019fbd62-7088-79ee-b127-b5ac5d7e490d",
+      "plant_type": "commercial",
+      "family": "Pure365 Bridge",
+      "serial_number": "4183771909",
+      "lifecycle": "operational",
+      "certificate_cn": "gw-sim-000009",
+      "client_id": "gw-sim-000009",
+      "topics": {
+        "d2c": "eicp/v1/sim/plt_019fbd62-7088-79ee-b127-b5ac5d7e490d/gateways/gw-sim-000009/d2c/#",
+        "c2d": "eicp/v1/sim/plt_019fbd62-7088-79ee-b127-b5ac5d7e490d/gateways/gw-sim-000009/c2d/#"
+      },
+      "link": "flaky",
+      "clock_skew_s": -2.774,
+      "devices": [
+        {
+          "serial_number": "1956882968",
+          "device_class": "system_controller"
+        },
+        {
+          "serial_number": "3851342125",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.1,
+            "base_rh_pct": 44.0,
+            "occupancy": 0.95,
+            "co2_gain_ppm": 779
+          }
+        },
+        {
+          "serial_number": "745199016",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.6,
+            "base_rh_pct": 51.4,
+            "occupancy": 0.6,
+            "co2_gain_ppm": 787
+          }
+        },
+        {
+          "serial_number": "905298570",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.9,
+            "base_rh_pct": 47.3,
+            "occupancy": 0.81,
+            "co2_gain_ppm": 726
+          }
+        },
+        {
+          "serial_number": "1023009886",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.9,
+            "base_rh_pct": 42.7,
+            "occupancy": 0.86,
+            "co2_gain_ppm": 709
+          }
+        },
+        {
+          "serial_number": "1028351613",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.6,
+            "base_rh_pct": 50.3,
+            "occupancy": 0.95,
+            "co2_gain_ppm": 514
+          }
+        },
+        {
+          "serial_number": "1951453740",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.3,
+            "base_rh_pct": 46.4,
+            "occupancy": 0.87,
+            "co2_gain_ppm": 557
+          }
+        },
+        {
+          "serial_number": "819185874",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.6,
+            "base_rh_pct": 49.9,
+            "occupancy": 0.65,
+            "co2_gain_ppm": 416
+          }
+        }
+      ]
+    },
+    {
+      "gateway_id": "gw-sim-000010",
+      "plant_id": "plt_019f67ee-7a70-7ac4-af69-93722be61f89",
+      "plant_type": "residential",
+      "family": "SmartComfort365",
+      "serial_number": "1802953146",
+      "lifecycle": "operational",
+      "certificate_cn": "gw-sim-000010",
+      "client_id": "gw-sim-000010",
+      "topics": {
+        "d2c": "eicp/v1/sim/plt_019f67ee-7a70-7ac4-af69-93722be61f89/gateways/gw-sim-000010/d2c/#",
+        "c2d": "eicp/v1/sim/plt_019f67ee-7a70-7ac4-af69-93722be61f89/gateways/gw-sim-000010/c2d/#"
+      },
+      "link": "stable",
+      "clock_skew_s": 2.557,
+      "devices": [
+        {
+          "serial_number": "1455005284",
+          "device_class": "system_controller"
+        },
+        {
+          "serial_number": "532138854",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.5,
+            "base_rh_pct": 41.0,
+            "occupancy": 0.86,
+            "co2_gain_ppm": 664
+          }
+        },
+        {
+          "serial_number": "719183289",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.5,
+            "base_rh_pct": 47.1,
+            "occupancy": 0.61,
+            "co2_gain_ppm": 587
+          }
+        },
+        {
+          "serial_number": "2902230346",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.2,
+            "base_rh_pct": 40.9,
+            "occupancy": 0.45,
+            "co2_gain_ppm": 730
+          }
+        },
+        {
+          "serial_number": "3626291390",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.6,
+            "base_rh_pct": 45.2,
+            "occupancy": 0.95,
+            "co2_gain_ppm": 708
+          }
+        },
+        {
+          "serial_number": "3819760243",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.6,
+            "base_rh_pct": 48.2,
+            "occupancy": 0.88,
+            "co2_gain_ppm": 727
+          }
+        },
+        {
+          "serial_number": "3042730984",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.1,
+            "base_rh_pct": 51.8,
+            "occupancy": 0.6,
+            "co2_gain_ppm": 953
+          }
+        },
+        {
+          "serial_number": "3577304668",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 20.6,
+            "base_rh_pct": 42.1,
+            "occupancy": 0.61,
+            "co2_gain_ppm": 946
+          }
+        },
+        {
+          "serial_number": "3399089864",
+          "device_class": "room_device",
+          "simulation": {
+            "setpoint_c": 21.4,
+            "base_rh_pct": 49.7,
+            "occupancy": 0.88,
+            "co2_gain_ppm": 555
+          }
+        },
+        {
+          "serial_number": "2716168468",
+          "device_class": "io_module"
+        },
+        {
+          "serial_number": "2495535617",
+          "device_class": "io_module"
+        }
+      ]
+    }
+  ],
+  "services": [
+    {
+      "identity": "svc-sim-cloud-ingest",
+      "role": "cloud-ingest (placeholder for the MQTT->Pub/Sub bridge)",
+      "read": [
+        "eicp/v1/sim/+/gateways/+/d2c/#"
+      ],
+      "write": []
+    },
+    {
+      "identity": "svc-sim-cloud-command",
+      "role": "cloud-command (placeholder for the backend command path)",
+      "read": [],
+      "write": [
+        "eicp/v1/sim/+/gateways/+/c2d/#"
+      ]
+    }
+  ]
+}
