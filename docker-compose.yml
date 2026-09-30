@@ -22,7 +22,8 @@ services:
   # Synthetic fleet / simulation runtime (python -m enetec_sim), see docs/mqtt-tests/.
   sim:
     build: ./sim
-    image: enetec-sim:local
+    # Always built locally, never pulled from a registry.
+    pull_policy: build
     profiles: ["sim"]
     environment:
       SIM_BROKER_HOST: ${SIM_BROKER_HOST:-broker}
