@@ -1,0 +1,28 @@
+# Broker profile: HiveMQ (CE/Enterprise, candidate, ENTC-59). STATUS: template –
+# settings and log patterns below are unverified until the first run.
+#
+# Broker setup required for the harness (derive from synthetic/fleet.json):
+#   - TLS listener on `port`, client-authentication-mode REQUIRED, truststore = lab CA
+#   - identity from certificate CN and topic permissions per gateway/service:
+#     HiveMQ CE has no ACLs out of the box -> file-RBAC / security extension needed
+#   - server certificate trusted by `server_ca` and valid for `host`
+#   - hivemq.log + event.log exported for the run window -> SIM_BROKER_LOG
+
+name = "HiveMQ"
+status = "template"
+lab_managed = false
+host = "localhost"
+port = 8883
+# server_ca = "certs/hivemq/ca.crt"
+observe_s = 3.0
+session_expiry_s = 300
+reconnect_gateways = 10
+reconnect_window_s = 5.0
+
+[log]
+# HiveMQ lines start with e.g. 2026-09-30 15:00:00,123 (broker local time; run it in UTC).
+timestamp = '^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:,\d+)?)'
+connect_accepted = 'Client ID: \S+, IP: \S+.* connected'
+auth_failure = 'SSL|TLS|handshake|certificate'
+acl_denied = 'not authorized|permission|denied'
+disconnect = 'disconnected|was disconnected'

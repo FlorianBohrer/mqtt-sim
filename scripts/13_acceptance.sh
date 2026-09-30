@@ -6,11 +6,12 @@
 # (MTLS, ID, DUP, ACL, QOS, SES, REC), sammelt das Broker-Log des Laufs (LOG) und
 # erzeugt report.md / report.json mit PASS/FAIL je Anforderung.
 #
-#   make acceptance                                   Lab-Broker (Docker Compose)
-#   SIM_LOCAL=1 SIM_BROKER_LOG=/pfad/mosquitto.log make acceptance
-#                                                     lokales python3, laufender Broker
-#   SIM_TARGET=sim/targets/<broker>.toml SIM_BROKER_HOST=<host> SIM_BROKER_PORT=<port> \
-#   SIM_BROKER_LOG=<exportiertes-log> make acceptance anderer Broker (ENTC-59)
+#   make acceptance                         Lab-Broker (Docker Compose, Profil mosquitto-lab)
+#   make acceptance BROKER=emqx SIM_BROKER_LOG=<exportiertes-log>
+#                                           anderer Broker; Einstellungen im Profil
+#                                           sim/targets/<BROKER>.toml (Liste: make brokers)
+#   SIM_BROKER_HOST / SIM_BROKER_PORT       ueberschreiben Host/Port des Profils
+#   SIM_LOCAL=1                             lokales python3 statt sim-Container
 #
 # Reproduzierbar aus sauberem Stand: make clean && make acceptance
 # Verwendet die ClientIDs der Flotte mit frischen Sessions: parallel laufende Clients
@@ -37,7 +38,9 @@ printf 'CA, %s gateway and %s service certificates, negative identities: OK\n' \
   "$(wc -l < synthetic/gateways.txt | tr -d ' ')" "$(wc -l < synthetic/services.txt | tr -d ' ')"
 
 printf '\n[2/5] Broker\n'
-if [ -z "${SIM_BROKER_HOST:-}" ] && command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+PROFILE_NAME=$(sed -n 's/^name = "\(.*\)"/\1/p' "$TARGET")
+if grep -q '^lab_managed = true' "$TARGET" && [ -z "${SIM_BROKER_HOST:-}" ] &&
+   command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
   broker_running || docker compose up -d broker
   WAITED=0
   until docker compose logs broker 2>/dev/null | grep -q 'running'; do
@@ -47,15 +50,17 @@ if [ -z "${SIM_BROKER_HOST:-}" ] && command -v docker >/dev/null 2>&1 && docker 
   done
   printf 'Lab broker running (ACL loaded from mosquitto/config/acl).\n'
 else
-  printf 'Using broker at %s:%s (not managed by this script).\n' \
-    "${SIM_BROKER_HOST:-localhost}" "${SIM_BROKER_PORT:-8883}"
+  printf 'Using %s from %s (not started by this script).\n' "$PROFILE_NAME" "$TARGET"
+  grep -q '^status = "template"' "$TARGET" &&
+    printf 'NOTE: profile status "template" - broker settings/log patterns not yet verified.\n'
 fi
 
 RUN_ID=$(date -u +%Y%m%dT%H%M%SZ)-$$
 START_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 RESULTS="results/acceptance-$RUN_ID"
 mkdir -p "$RESULTS"
-LABEL="${BROKER_LABEL:-$(broker_label)}"
+if grep -q '^lab_managed = true' "$TARGET"; then LABEL="${BROKER_LABEL:-$(broker_label)}"
+else LABEL="${BROKER_LABEL:-$PROFILE_NAME}"; fi
 
 printf '\n[3/5] Acceptance cases\n'
 run_sim acceptance --phase run --run-dir "$RESULTS" --target "$TARGET" || die 'Harness run failed.'

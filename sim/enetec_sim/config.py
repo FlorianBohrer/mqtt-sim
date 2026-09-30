@@ -10,7 +10,8 @@ DEFAULT_CONFIG = LAB_ROOT / 'sim' / 'config.toml'
 DEFAULT_OUT = LAB_ROOT / 'synthetic'
 DEFAULT_ACL = LAB_ROOT / 'mosquitto' / 'config' / 'acl'
 DEFAULT_CERTS = LAB_ROOT / 'certs'
-DEFAULT_TARGET = LAB_ROOT / 'sim' / 'targets' / 'mosquitto-lab.toml'
+TARGETS_DIR = LAB_ROOT / 'sim' / 'targets'
+DEFAULT_TARGET = TARGETS_DIR / 'mosquitto-lab.toml'
 ACL_TEST_LOCK = LAB_ROOT / 'mosquitto' / 'config' / '.replacement-test-lock'
 
 
@@ -19,6 +20,14 @@ def load_config(path=DEFAULT_CONFIG):
     cfg = tomllib.loads(raw.decode('utf-8'))
     cfg['_sha256'] = hashlib.sha256(raw).hexdigest()
     return cfg
+
+
+def load_target(path):
+    """Broker profile (sim/targets/<broker>.toml): connection, TLS trust, log patterns."""
+    path = Path(path)
+    if not path.exists() and (TARGETS_DIR / f'{path}.toml').exists():
+        path = TARGETS_DIR / f'{path}.toml'  # allow plain profile names, e.g. "emqx"
+    return tomllib.loads(path.read_text())
 
 
 def gateway_base(cfg, plant_id, gateway_id):

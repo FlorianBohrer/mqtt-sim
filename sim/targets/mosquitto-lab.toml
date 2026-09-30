@@ -6,8 +6,12 @@
 # the log patterns below. The tests themselves stay unchanged.
 
 name = "Mosquitto lab broker"
-host = "localhost"            # overridden by --host / SIM_BROKER_HOST (compose: broker)
-port = 8883                   # overridden by --port / SIM_BROKER_PORT
+status = "verified"           # verified | template (patterns/settings not yet confirmed)
+lab_managed = true            # make acceptance starts it via docker compose
+host = "localhost"            # seen from the Mac; --host / SIM_BROKER_HOST override
+compose_host = "broker"       # seen from the sim container (compose service name)
+port = 8883                   # --port / SIM_BROKER_PORT override
+# server_ca = "certs/ca/ca.crt"  # CA that signed the broker's server cert (default: lab CA)
 observe_s = 3.0               # how long a delivery that must NOT happen is watched
 session_expiry_s = 300        # Session Expiry Interval used by the session tests
 reconnect_gateways = 10       # gateways dropped at once in REC-01

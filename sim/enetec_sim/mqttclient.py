@@ -9,7 +9,7 @@ import paho.mqtt.client as mqtt
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
 
-from .config import DEFAULT_CERTS
+from .config import DEFAULT_CERTS, LAB_ROOT
 
 RUN_PROPERTY = 'sim-run'
 
@@ -19,16 +19,25 @@ class Broker:
     host: str
     port: int
     certs: Path
+    server_ca: Path = None
 
     @property
     def cafile(self):
-        return self.certs / 'ca' / 'ca.crt'
+        """CA used to verify the broker's server certificate (default: the lab CA)."""
+        return self.server_ca or self.certs / 'ca' / 'ca.crt'
 
     @classmethod
-    def from_env(cls, host=None, port=None, certs=None):
-        return cls(host or os.environ.get('SIM_BROKER_HOST', 'localhost'),
-                   int(port or os.environ.get('SIM_BROKER_PORT', '8883')),
-                   Path(certs or os.environ.get('SIM_CERTS', DEFAULT_CERTS)))
+    def resolve(cls, target, host=None, port=None, certs=None):
+        """Broker address from CLI > environment > profile. Inside the sim container
+        `compose_host` applies, and localhost means the Docker host."""
+        in_container = os.environ.get('SIM_IN_CONTAINER') == '1'
+        host = host or os.environ.get('SIM_BROKER_HOST') or (
+            in_container and target.get('compose_host')) or target.get('host', 'localhost')
+        if in_container and host in ('localhost', '127.0.0.1'):
+            host = 'host.docker.internal'
+        port = int(port or os.environ.get('SIM_BROKER_PORT') or target.get('port', 8883))
+        server_ca = LAB_ROOT / target['server_ca'] if target.get('server_ca') else None
+        return cls(host, port, Path(certs or os.environ.get('SIM_CERTS', DEFAULT_CERTS)), server_ca)
 
 
 def identity_files(certs, identity):

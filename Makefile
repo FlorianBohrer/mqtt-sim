@@ -1,5 +1,11 @@
 .PHONY: check init up down logs valid-publish cross-gateway wrong-clientid inspect verify clean \
-	fleet negative-certs acceptance simulate sim-test
+	fleet negative-certs acceptance simulate sim-test brokers
+
+# Broker under test for acceptance/simulate: profile sim/targets/$(BROKER).toml
+# e.g. make acceptance BROKER=emqx   (list: make brokers)
+BROKER ?= mosquitto-lab
+SIM_TARGET ?= sim/targets/$(BROKER).toml
+export SIM_TARGET
 
 check:
 	./scripts/00_check_prerequisites.sh
@@ -47,6 +53,9 @@ acceptance:
 
 simulate:
 	./scripts/14_simulate.sh
+
+brokers:
+	@ls sim/targets/*.toml | sed 's#sim/targets/##; s#\.toml##'
 
 sim-test:
 	docker compose run --rm -T --entrypoint python sim -m unittest discover -s sim/tests -t sim -v

@@ -26,7 +26,11 @@ services:
     pull_policy: build
     profiles: ["sim"]
     environment:
-      SIM_BROKER_HOST: ${SIM_BROKER_HOST:-broker}
-      SIM_BROKER_PORT: ${SIM_BROKER_PORT:-8883}
+      # Empty = take host/port from the broker profile (sim/targets/<BROKER>.toml).
+      SIM_BROKER_HOST: ${SIM_BROKER_HOST:-}
+      SIM_BROKER_PORT: ${SIM_BROKER_PORT:-}
+      SIM_IN_CONTAINER: "1"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # brokers running on the Mac itself
     volumes:
       - ./:/lab

@@ -1,0 +1,28 @@
+# Broker profile: Bevywise MQTTRoute (candidate, ENTC-59). STATUS: template –
+# connection defaults only; log patterns are empty until a real log sample is known,
+# so LOG-01..04 stay INCONCLUSIVE instead of guessing.
+#
+# Broker setup required for the harness (derive from synthetic/fleet.json):
+#   - TLS listener with mandatory client certificate, trusted CA = lab CA
+#   - identity from certificate CN, per-gateway publish .../d2c/# and subscribe .../c2d/#,
+#     services one direction each, everything else denied
+#   - server certificate trusted by `server_ca` and valid for `host`
+#   - broker log exported for the run window -> SIM_BROKER_LOG
+
+name = "Bevywise MQTTRoute"
+status = "template"
+lab_managed = false
+host = "localhost"
+port = 8883
+# server_ca = "certs/bevywise/ca.crt"
+observe_s = 3.0
+session_expiry_s = 300
+reconnect_gateways = 10
+reconnect_window_s = 5.0
+
+[log]
+timestamp = '(\d{10}|\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2})'
+connect_accepted = ''
+auth_failure = ''
+acl_denied = ''
+disconnect = ''

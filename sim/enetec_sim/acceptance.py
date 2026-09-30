@@ -23,7 +23,7 @@ from pathlib import Path
 
 import paho.mqtt.client as mqtt
 
-from .config import gateway_base, write_json, write_jsonl
+from .config import gateway_base, load_target, write_json, write_jsonl  # noqa: F401 (re-export)
 from .mqttclient import Recorder, connect_properties, identity_files, new_client, wait_until
 
 UNKNOWN_GATEWAY = 'gw-sim-900001'  # certs/negative/unknown-gateway (script 12)
@@ -736,11 +736,12 @@ def log_cases(target, run, broker_log, run_dir):
         stamp = re.compile(patterns.get('timestamp', r'(\d{10})'))
         for line in Path(broker_log).read_text(errors='replace').splitlines():
             m = stamp.search(line)
-            if m and run['started_epoch'] - 5 <= int(m.group(1)) <= run['finished_epoch'] + 30:
+            epoch = _epoch(m.group(1)) if m else None
+            if epoch is not None and run['started_epoch'] - 5 <= epoch <= run['finished_epoch'] + 30:
                 lines.append(line)
     for case_id, title, key in LOG_CASES:
         result = {'id': case_id, 'requirement': 'R15', 'title': title, 'expected': 'LOGGED', 'mandatory': True}
-        if not lines or key not in patterns:
+        if not lines or not patterns.get(key):
             result.update(verdict='INCONCLUSIVE', observed='no broker log for the run window'
                           if not lines else f'no log pattern "{key}" in target profile')
         else:
@@ -763,6 +764,19 @@ def log_cases(target, run, broker_log, run_dir):
                                 f'{scanned} files scanned, no private key or credential pattern'
                                 + ('' if lines else '; broker log missing')})
     return results
+
+
+def _epoch(text):
+    """Unix seconds or an ISO timestamp (without offset: UTC) -> Unix seconds."""
+    if text.isdigit():
+        return int(text)
+    try:
+        stamp = datetime.fromisoformat(text.replace(',', '.').replace('Z', '+00:00'))
+    except ValueError:
+        return None
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=timezone.utc)
+    return int(stamp.timestamp())
 
 
 def report(target, run_dir, broker_log=None, label=None):
@@ -828,5 +842,3 @@ def _markdown(s):
     return '\n'.join(lines) + '\n'
 
 
-def load_target(path):
-    return tomllib.loads(Path(path).read_text())

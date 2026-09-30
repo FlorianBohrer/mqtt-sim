@@ -103,6 +103,20 @@ ob eine opake Nachricht ankommt. Jeder Fall nutzt eigene Topics unter
 
 ## 4. Einsatz gegen andere Broker (ENTC-59)
 
+Broker-Profile liegen in `sim/targets/` (`make brokers`):
+
+| Profil | Status | Aufruf |
+|---|---|---|
+| `mosquitto-lab` | verifiziert, wird per Compose gestartet | `make acceptance` |
+| `emqx` | Vorlage: Einstellungen/Log-Muster noch unbestätigt | `make acceptance BROKER=emqx SIM_BROKER_LOG=<log>` |
+| `hivemq` | Vorlage | `make acceptance BROKER=hivemq SIM_BROKER_LOG=<log>` |
+| `bevywise` | Vorlage, ohne Log-Muster (LOG-Fälle bleiben INCONCLUSIVE) | `make acceptance BROKER=bevywise SIM_BROKER_LOG=<log>` |
+
+`make simulate BROKER=<profil>` nutzt dasselbe Profil. Host und Port kommen aus dem Profil;
+`SIM_BROKER_HOST`/`SIM_BROKER_PORT` überschreiben sie. Aus dem `sim`-Container heraus wird
+`localhost` automatisch zu `host.docker.internal`. Jedes Vorlagen-Profil beschreibt im Kopf,
+wie der Broker aus `synthetic/fleet.json` zu konfigurieren ist.
+
 Die Fälle bleiben unverändert, nur die Broker-Seite ändert sich:
 
 1. Profil kopieren: `sim/targets/mosquitto-lab.toml` → `sim/targets/<broker>.toml`
