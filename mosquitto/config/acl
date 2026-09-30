@@ -1,0 +1,7 @@
+user gw-sim-000001
+topic write eicp/v1/sim/plt_sim_001/gateways/gw-sim-000001/d2c/#
+topic read  eicp/v1/sim/plt_sim_001/gateways/gw-sim-000001/c2d/#
+
+user gw-sim-000002
+topic write eicp/v1/sim/plt_sim_002/gateways/gw-sim-000002/d2c/#
+topic read  eicp/v1/sim/plt_sim_002/gateways/gw-sim-000002/c2d/#

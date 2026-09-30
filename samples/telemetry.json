@@ -1,0 +1,17 @@
+{
+  "messageId": "sim-msg-000001",
+  "messageType": "telemetry.report",
+  "schemaVersion": "1.0",
+  "timestamp": 1790674200,
+  "gatewayId": "gw-sim-000001",
+  "sequenceNumber": 1,
+  "payload": {
+    "deviceId": "1847330291",
+    "measuredAt": "2026-09-29T09:30:00Z",
+    "measurements": {
+      "temperatureC": 22.4,
+      "humidityPct": 47.8,
+      "co2Ppm": 712
+    }
+  }
+}

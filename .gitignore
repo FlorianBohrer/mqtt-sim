@@ -1,0 +1,11 @@
+# Generated lab material: keys/certificates, broker state, run evidence.
+certs/
+data/*
+!data/.gitkeep
+logs/*
+!logs/.gitkeep
+results/
+mosquitto/config/.replacement-test-lock/
+.DS_Store
+__pycache__/
+.pytest_cache/

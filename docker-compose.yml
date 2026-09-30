@@ -1,0 +1,20 @@
+services:
+  broker:
+    image: eclipse-mosquitto:2
+    container_name: enetec-mqtt-broker
+    restart: unless-stopped
+    ports:
+      - "8883:8883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:ro
+      - ./certs:/mosquitto/certs:ro
+      - ./data:/mosquitto/data
+      - ./logs:/mosquitto/log
+
+  client:
+    image: eclipse-mosquitto:2
+    profiles: ["tools"]
+    entrypoint: ["/bin/sh", "-c"]
+    volumes:
+      - ./certs:/certs:ro
+      - ./samples:/samples:ro
