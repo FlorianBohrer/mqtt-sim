@@ -47,7 +47,7 @@ broker_label() {
     VERSION=$(docker compose exec -T broker mosquitto -h 2>/dev/null | head -n 1)
     printf 'Mosquitto lab broker (%s)' "${VERSION:-version unknown}"
   else
-    printf 'broker at %s:%s' "${SIM_BROKER_HOST:-localhost}" "${SIM_BROKER_PORT:-8883}"
+    :   # not under Compose: the caller falls back to the profile name
   fi
 }
 

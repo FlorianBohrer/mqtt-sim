@@ -136,6 +136,26 @@ Der Abschnitt „Broker limitations found“ in `report.md` liefert je Abweichun
 broker-neutralen Befund. Die Einordnung NATIVE / CONFIGURATION / PLUGIN / EXTERNAL SERVICE /
 CUSTOM / UNSUPPORTED erfolgt anschließend je Kandidat in der ENTC-59-Matrix.
 
+### Zwei Broker vergleichen
+
+```bash
+make compare A=hivemq B=mosquitto-lab            # letzter vollständiger Lauf je Broker
+make compare A=hivemq B=emqx FRESH=1             # Abnahme für beide zuerst neu ausführen
+make compare                                     # ohne Angabe: zeigt Broker und vorhandene Läufe
+```
+
+Das Ergebnis liegt in `results/compare-<A>-vs-<B>-<zeit>/` (`comparison.md`, `comparison.json`,
+`summary.txt`) und endet mit einer Zusammenfassung. Der Vergleich nennt nur Fakten:
+Ergebnis je Anforderung (R01–R17) nebeneinander, Fälle mit unterschiedlichem Ergebnis samt
+Beobachtung, gemeinsame Schwächen und den Aufwand je Anforderung
+(NATIVE / CONFIGURATION / PLUGIN / EXTERNAL SERVICE / CUSTOM DEVELOPMENT / UNSUPPORTED, aus
+dem Abschnitt `[effort]` des Profils). Er wählt keinen Anbieter aus, weil Kosten, Betrieb,
+Support und Skalierung nicht Teil der Abnahme sind. Beispiel:
+[`reference/2026-10-01-compare-hivemq-vs-mosquitto.md`](reference/2026-10-01-compare-hivemq-vs-mosquitto.md).
+
+Mit `FRESH=1` bei nicht vom Lab verwalteten Brokern (z. B. Cloud-Instanz) sind
+`SIM_BROKER_LOG` bzw. die Profile für den Log-Export nötig; sonst bleiben die LOG-Fälle INCONCLUSIVE.
+
 ## 5. Referenzergebnis: Mosquitto 2.0.18 mit Lab-Konfiguration
 
 Vollständiger Bericht: [`reference/2026-09-30-mosquitto-2.0.18.md`](reference/2026-09-30-mosquitto-2.0.18.md).

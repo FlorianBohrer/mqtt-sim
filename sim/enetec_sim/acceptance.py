@@ -792,7 +792,7 @@ def rotation_switch(h):
 
 # --------------------------------------------------------------------------- phases
 
-def run_cases(cfg, fleet, broker, target, run_dir, gateway_a='gw-sim-000001', only=None):
+def run_cases(cfg, fleet, broker, target, run_dir, gateway_a='gw-sim-000001', only=None, profile=None):
     h = Harness(cfg, fleet, broker, target, run_dir, gateway_a)
     started = time.time()
     results = []
@@ -820,7 +820,7 @@ def run_cases(cfg, fleet, broker, target, run_dir, gateway_a='gw-sim-000001', on
             if r['id'] != 'MTLS-01' and r['verdict'] == 'PASS':
                 r['verdict'] = 'INCONCLUSIVE'
                 r['observed'] += ' [positive control MTLS-01 did not pass]'
-    run = {'run_id': run_dir.name, 'target': target.get('name'), 'broker': f'{broker.host}:{broker.port}',
+    run = {'run_id': run_dir.name, 'target': target.get('name'), 'profile': profile, 'broker': f'{broker.host}:{broker.port}',
            'gateways': {k: v['gateway_id'] for k, v in h.gw.items()}, 'observe_s': h.observe_s,
            'started_epoch': int(started), 'finished_epoch': int(time.time()) + 1, 'only': only,
            'results': results}
@@ -916,7 +916,8 @@ def report(target, run_dir, broker_log=None, label=None):
         requirements.append({'id': req_id, 'requirement': text, 'verdict': verdict, 'advisory': advisory,
                              'cases': [r['id'] for r in results if r['requirement'] == req_id]})
     counts = {v: sum(r['verdict'] == v for r in mandatory) for v in VERDICTS}
-    summary = {'run_id': run['run_id'], 'target': run['target'], 'broker_label': label or run['target'],
+    summary = {'run_id': run['run_id'], 'target': run['target'], 'profile': run.get('profile'),
+               'effort': target.get('effort', {}), 'broker_label': label or run['target'],
                'broker': run['broker'], 'gateways': run['gateways'],
                'generated_utc': datetime.now(timezone.utc).isoformat(timespec='seconds'),
                'accepted': accepted, 'exit': 0 if accepted else 1, 'mandatory_counts': counts,

@@ -33,10 +33,22 @@ for CERT in certs/gateways/*/gateway.crt certs/services/*/gateway.crt; do
     die "$CERT does not chain to the current lab CA. Run: make clean && make acceptance"
 done
 # Negative identities are cheap: always re-issue them from the current CA.
-OUT=$(run_script scripts/12_create_negative_identities.sh 2>&1) ||
-  { printf '%s\n' "$OUT" >&2; die 'Negative identities failed.'; }
-OUT=$(run_script scripts/15_create_legacy_identities.sh 2>&1) ||
-  { printf '%s\n' "$OUT" >&2; die 'Legacy/rotation identities failed.'; }
+# Negative, legacy and rotation identities are created once and then kept: the broker under
+# test (registry fingerprints, CRL) must keep matching them across runs. They are re-issued
+# only if missing or if the lab CA changed (make init / make clean).
+FIRST_LEGACY=$(head -n 1 synthetic/legacy_gateways.txt)
+ROTATION_GW=$(sed -n 's/^rotation_gateway = "\(.*\)"/\1/p' sim/config.toml)
+if [ ! -f certs/negative/crl.pem ] ||
+   ! openssl verify -CAfile certs/ca/ca.crt certs/negative/unknown-gateway/client.crt >/dev/null 2>&1; then
+  OUT=$(run_script scripts/12_create_negative_identities.sh 2>&1) ||
+    { printf '%s\n' "$OUT" >&2; die 'Negative identities failed.'; }
+fi
+if [ ! -f certs/legacy/registry.tsv ] ||
+   ! openssl verify -CAfile certs/ca/ca.crt "certs/legacy/$FIRST_LEGACY/client.crt" >/dev/null 2>&1 ||
+   ! openssl verify -CAfile certs/ca/ca.crt "certs/rotation/$ROTATION_GW/client.crt" >/dev/null 2>&1; then
+  OUT=$(run_script scripts/15_create_legacy_identities.sh 2>&1) ||
+    { printf '%s\n' "$OUT" >&2; die 'Legacy/rotation identities failed.'; }
+fi
 printf 'CA, %s gateway, %s service, %s legacy certificates, negative + rotation identities: OK\n' \
   "$(wc -l < synthetic/gateways.txt | tr -d ' ')" "$(wc -l < synthetic/services.txt | tr -d ' ')" \
   "$(wc -l < synthetic/legacy_gateways.txt | tr -d ' ')"
@@ -87,9 +99,8 @@ mkdir -p "$RESULTS"
 # Only the Lab-Mosquitto is asked for its version; other brokers are labelled by their profile.
 if [ "$BROKER_SERVICE" = broker ] && grep -q '^lab_managed = true' "$TARGET"; then
   LABEL="${BROKER_LABEL:-$(broker_label)}"
-else
-  LABEL="${BROKER_LABEL:-$PROFILE_NAME}"
 fi
+LABEL="${LABEL:-${BROKER_LABEL:-$PROFILE_NAME}}"
 
 printf '\n[3/5] Acceptance cases\n'
 run_sim acceptance --phase run --run-dir "$RESULTS" --target "$TARGET" || die 'Harness run failed.'

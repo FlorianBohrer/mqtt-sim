@@ -1,5 +1,5 @@
 .PHONY: check init up down logs valid-publish cross-gateway wrong-clientid inspect verify clean \
-	fleet negative-certs legacy-certs acceptance simulate sim-test brokers bevywise-config
+	fleet negative-certs legacy-certs acceptance simulate sim-test brokers bevywise-config compare
 
 # Broker under test for acceptance/simulate: profile sim/targets/$(BROKER).toml
 # e.g. make acceptance BROKER=emqx   (list: make brokers)
@@ -61,6 +61,10 @@ simulate:
 bevywise-config:
 	@if [ "$${SIM_LOCAL:-0}" = 1 ]; then PYTHONPATH=sim python3 -m enetec_sim bevywise-acl; \
 	else docker build -q -t enetec-sim:local sim >/dev/null && docker compose run --rm -T sim bevywise-acl; fi
+
+# Compare two brokers: make compare A=hivemq B=mosquitto-lab [FRESH=1]
+compare:
+	@A="$(A)" B="$(B)" FRESH="$(FRESH)" ./scripts/16_compare.sh
 
 brokers:
 	@ls sim/targets/*.toml | sed 's#sim/targets/##; s#\.toml##'

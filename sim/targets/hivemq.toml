@@ -28,3 +28,23 @@ connect_accepted = 'ENETEC-AUDIT connect-accepted clientId=\S+ identity=\S+'
 auth_failure = 'ENETEC-AUDIT connect-rejected|SSL|TLS handshake|certificate'
 acl_denied = 'ENETEC-AUDIT (publish|subscribe)-denied'
 disconnect = 'ENETEC-AUDIT disconnect'
+
+[effort]
+# Lab assessment per requirement: CLASS | note. Based on the observed acceptance results.
+R01 = "CONFIGURATION | tls-tcp-listener, truststore"
+R02 = "CONFIGURATION | client-authentication-mode REQUIRED"
+R03 = "CONFIGURATION | truststore"
+R04 = "CUSTOM DEVELOPMENT | CRL check in the extension; validity is native"
+R05 = "CUSTOM DEVELOPMENT | CE has no ACL; extension maps CN to permissions"
+R06 = "CUSTOM DEVELOPMENT | enforced in the extension (Enterprise Security Extension: unverified)"
+R07 = "CUSTOM DEVELOPMENT | permissions.tsv in the extension"
+R08 = "CUSTOM DEVELOPMENT | extension"
+R09 = "CUSTOM DEVELOPMENT | extension"
+R10 = "CUSTOM DEVELOPMENT | extension"
+R11 = "CUSTOM DEVELOPMENT | isClientConnected check in the extension"
+R12 = "NATIVE | MQTT 5 QoS 1"
+R13 = "NATIVE | persistent sessions"
+R14 = "NATIVE | sessions survive; backoff is a client matter"
+R15 = "CUSTOM DEVELOPMENT | ENETEC-AUDIT lines from the extension; TLS rejections not logged by default"
+R16 = "CUSTOM DEVELOPMENT | fingerprint registry in the extension"
+R17 = "CONFIGURATION | two certificates for one CN work"

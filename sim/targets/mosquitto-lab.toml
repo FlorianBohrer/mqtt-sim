@@ -27,3 +27,24 @@ connect_accepted = '''New client connected from \S+ as \S+ \(.*u'[^']+'\)'''
 auth_failure = 'OpenSSL Error|certificate verify failed|peer did not return a certificate'
 acl_denied = 'Denied (PUBLISH|SUBSCRIBE)'
 disconnect = 'Client \S+ (disconnected|closed its connection)|already connected, closing old connection'
+
+[effort]
+# Lab assessment per requirement: CLASS | note. Classes: NATIVE, CONFIGURATION, PLUGIN,
+# EXTERNAL SERVICE, CUSTOM DEVELOPMENT, UNSUPPORTED. Based on the observed acceptance results.
+R01 = "CONFIGURATION | require_certificate, cafile"
+R02 = "CONFIGURATION | require_certificate"
+R03 = "CONFIGURATION | cafile"
+R04 = "CONFIGURATION | validity checked; revocation needs crlfile (not set in lab config)"
+R05 = "CONFIGURATION | use_identity_as_username + acl_file"
+R06 = "UNSUPPORTED | CN == Client ID not enforced (ID-01 FAIL); custom plugin untested"
+R07 = "CONFIGURATION | acl_file; denied SUBSCRIBE is not signalled (PARTIAL)"
+R08 = "CONFIGURATION | acl_file"
+R09 = "CONFIGURATION | acl_file; denied SUBSCRIBE is not signalled (PARTIAL)"
+R10 = "CONFIGURATION | acl_file; denied SUBSCRIBE is not signalled (PARTIAL)"
+R11 = "UNSUPPORTED | session takeover (DUP-01 FAIL); custom plugin untested"
+R12 = "NATIVE | MQTT 5 QoS 1"
+R13 = "NATIVE | persistent sessions"
+R14 = "NATIVE | sessions survive; backoff is a client matter"
+R15 = "CONFIGURATION | log_type, connection_messages"
+R16 = "UNSUPPORTED | certificate without CN has no identity (LEG-01 FAIL)"
+R17 = "CONFIGURATION | two certificates for one CN work"
