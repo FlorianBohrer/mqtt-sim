@@ -18,6 +18,31 @@ def _percentile(values, pct):
     return values[min(len(values) - 1, round(pct / 100 * (len(values) - 1)))]
 
 
+def summary_block(report, run, host, port, evidence):
+    """Compact end-of-run summary of a simulation run."""
+    d2c, c2d, ses, chk = report['d2c'], report['c2d'], report['sessions'], report['checks']
+    width = 74
+    failed = [k for k, ok in chk.items() if not ok]
+    lines = ['=' * width, f"SUMMARY  architecture simulation  |  {host}:{port}", '=' * width,
+             f"Result: {report['verdict']}  (exit {report['exit']})   Run status: {run['status']}",
+             f"Run: {report['run_id']}   Gateways: {len(run['gateways'])}   Speed: x{run['speed']:g}", '',
+             f"Telemetry d2c   {d2c['received_unique']}/{d2c['expected']} delivered "
+             f"({d2c['missing']} missing, {d2c['unexpected']} unexpected), {d2c['duplicates']} QoS-1 duplicates, "
+             f"{d2c['buffered_delivered']} sent from offline buffer",
+             f"Commands c2d    {c2d['received_unique']}/{c2d['planned']} delivered, "
+             f"{c2d['during_outage_delivered']}/{c2d['during_outage_planned']} sent during an outage",
+             f"Sessions        {ses['session_present']}/{ses['offline_windows']} resumed after outage, "
+             f"{ses['unplanned_disconnects']} unplanned disconnects, {ses['harness_errors']} harness errors",
+             f"Latency (ms)    p50 {d2c['latency_ms']['p50']}, p95 {d2c['latency_ms']['p95']}, "
+             f"max {d2c['latency_ms']['max']}",
+             f"Checks          {len(chk) - len(failed)}/{len(chk)} PASS"
+             + (f"   FAILED: {', '.join(failed)}" if failed else '')]
+    if run.get('error'):
+        lines.append(f"Error: {run['error']}")
+    lines += ['', f'Evidence: {evidence}  (report.json, events.jsonl, broker.log)', '=' * width]
+    return '\n'.join(lines) + '\n'
+
+
 def verify(dataset_dir, run_dir):
     run = json.loads((run_dir / 'run.json').read_text())
     events = read_jsonl(run_dir / 'events.jsonl')

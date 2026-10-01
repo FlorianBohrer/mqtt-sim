@@ -908,6 +908,11 @@ def report(target, run_dir, broker_log=None, label=None):
         verdict = next((v for v in ('FAIL', 'INCONCLUSIVE', 'PARTIAL') if v in verdicts), 'PASS' if cases else 'N/A')
         advisory = [f"{r['id']} {r['verdict']}" for r in results
                     if r['requirement'] == req_id and not r['mandatory']]
+        if not cases and advisory:
+            # Advisory-only requirement (open decision): show its result, never counted for acceptance.
+            states = {a.split()[1] for a in advisory}
+            worst = next((v for v in ('FAIL', 'INCONCLUSIVE', 'PARTIAL') if v in states), 'PASS')
+            verdict = f'advisory {worst}'
         requirements.append({'id': req_id, 'requirement': text, 'verdict': verdict, 'advisory': advisory,
                              'cases': [r['id'] for r in results if r['requirement'] == req_id]})
     counts = {v: sum(r['verdict'] == v for r in mandatory) for v in VERDICTS}
@@ -920,6 +925,47 @@ def report(target, run_dir, broker_log=None, label=None):
     write_json(run_dir / 'report.json', summary)
     (run_dir / 'report.md').write_text(_markdown(summary))
     return summary
+
+
+def summary_text(s, evidence=None):
+    """Compact end-of-run summary: result, requirements at a glance, what did not pass."""
+    width = 74
+    counts = s['mandatory_counts']
+    total = sum(counts.values())
+    verdict = 'ACCEPTED' if s['accepted'] else 'NOT ACCEPTED'
+    lines = ['=' * width, f"SUMMARY  ENTC-63 acceptance  |  {s['broker_label']}", '=' * width,
+             f"Result: {verdict}  (exit {s['exit']})",
+             f"Mandatory cases: {counts['PASS']}/{total} PASS"
+             + ''.join(f", {counts[v]} {v}" for v in ('FAIL', 'PARTIAL', 'INCONCLUSIVE') if counts[v]),
+             f"Broker: {s['broker']}   Run: {s['run_id']}", '', 'Requirements:']
+    for r in s['requirements']:
+        mark = {'INCONCLUSIVE': 'INCONCL'}.get(r['verdict'], r['verdict'].replace('advisory ', 'adv '))
+        mark = mark.ljust(8)
+        text = r['requirement'] if len(r['requirement']) <= 58 else r['requirement'][:55] + '...'
+        extra = f"  [{', '.join(r['advisory'])}]" if r['advisory'] and r['verdict'] != 'PASS' else ''
+        lines.append(f"  {r['id']}  {mark}  {text}{extra}")
+    open_items = [r for r in s['results'] if r['mandatory'] and r['verdict'] != 'PASS']
+    advisory = [r for r in s['results'] if not r['mandatory'] and r['verdict'] != 'PASS']
+    if open_items:
+        lines += ['', 'Not passed (mandatory):']
+        lines += [f"  {r['id']:8} {r['verdict']:12} {r['title'][:60]}" for r in open_items]
+    if advisory:
+        lines += ['', 'Advisory, not counted:']
+        lines += [f"  {r['id']:8} {r['verdict']:12} {r['title'][:60]}" for r in advisory]
+    if s['mandatory_not_run']:
+        lines += ['', 'Not run: ' + ', '.join(s['mandatory_not_run']) + '  (incomplete run, never accepted)']
+    findings = {}
+    for r in s['results']:
+        if 'finding' in r:
+            findings.setdefault(r['finding'], []).append(r['id'])
+    if findings:
+        lines += ['', 'Broker limitations:']
+        lines += [f"  {', '.join(ids)}: {text[:150]}{'...' if len(text) > 150 else ''}"
+                  for text, ids in findings.items()]
+    if evidence:
+        lines += ['', f'Evidence: {evidence}  (report.md, report.json, events.jsonl, broker.log)']
+    lines.append('=' * width)
+    return '\n'.join(lines) + '\n'
 
 
 def _markdown(s):

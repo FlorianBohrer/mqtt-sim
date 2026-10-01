@@ -53,7 +53,10 @@ def cmd_simulate(args, cfg):
     run = simulate(cfg, fleet, Path(args.out) / 'dataset', broker, run_dir, args.speed, gateways)
     report = verify(Path(args.out) / 'dataset', run_dir)
     print((run_dir / 'summary.txt').read_text())
-    print(f"Run status: {run['status']}. Evidence: {run_dir}")
+    from .verify import summary_block
+    text = summary_block(report, run, broker.host, broker.port, f'results/{run_dir.name}')
+    (run_dir / 'summary-short.txt').write_text(text)
+    print(text)  # last output of every run: compact result summary
     return report['exit']
 
 
@@ -94,9 +97,12 @@ def cmd_acceptance(args, cfg):
         run_cases(cfg, fleet, broker, target, run_dir, args.gateway, only)
     if args.phase == 'run':
         return 0
+    from .acceptance import summary_text
     summary = report(target, run_dir, args.broker_log or os.environ.get('SIM_BROKER_LOG'), args.broker_label)
+    text = summary_text(summary, f'results/{run_dir.name}')
+    (run_dir / 'summary.txt').write_text(text)
     print('\n' + (run_dir / 'report.md').read_text())
-    print(f"Evidence: {run_dir}\nAcceptance: {'PASS' if summary['accepted'] else 'FAIL'} (exit {summary['exit']})")
+    print(text)  # last output of every run: compact result summary
     return summary['exit']
 
 

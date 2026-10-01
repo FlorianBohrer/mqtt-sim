@@ -32,5 +32,4 @@ fi
 RC=$?
 set -e
 capture_broker_log "$START_AT" "$RESULTS/broker.log"
-printf 'Broker log: %s/broker.log\nExit code: %s (0=PASS, 1=FAIL, 2=inconclusive)\n' "$RESULTS" "$RC"
 exit "$RC"

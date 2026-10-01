@@ -84,8 +84,12 @@ RUN_ID=$(date -u +%Y%m%dT%H%M%SZ)-$$
 START_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 RESULTS="results/acceptance-$RUN_ID"
 mkdir -p "$RESULTS"
-if grep -q '^lab_managed = true' "$TARGET"; then LABEL="${BROKER_LABEL:-$(broker_label)}"
-else LABEL="${BROKER_LABEL:-$PROFILE_NAME}"; fi
+# Only the Lab-Mosquitto is asked for its version; other brokers are labelled by their profile.
+if [ "$BROKER_SERVICE" = broker ] && grep -q '^lab_managed = true' "$TARGET"; then
+  LABEL="${BROKER_LABEL:-$(broker_label)}"
+else
+  LABEL="${BROKER_LABEL:-$PROFILE_NAME}"
+fi
 
 printf '\n[3/5] Acceptance cases\n'
 run_sim acceptance --phase run --run-dir "$RESULTS" --target "$TARGET" || die 'Harness run failed.'

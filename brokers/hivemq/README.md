@@ -35,9 +35,10 @@ und steht in `config.xml`.
 [`docs/mqtt-tests/reference/2026-10-01-hivemq-ce-2026.5.md`](../../docs/mqtt-tests/reference/2026-10-01-hivemq-ce-2026.5.md).
 Auch die Advisory-Fälle sind PASS: MTLS-07/08, LEG-01/02 (Legacy-Zertifikat über die Registry) und ROT-01/02.
 
-Getestet wurde hier mit der HiveMQ-Distribution und derselben `config.xml` und Erweiterung,
-nicht mit dem Docker-Image. Den Docker-Weg (`make acceptance BROKER=hivemq`) bitte einmal auf
-dem Mac bestätigen.
+Bestätigt in zwei Umgebungen mit identischem Ergebnis (31/31 PASS, inklusive aller Advisory-Fälle):
+lokal mit der HiveMQ-Distribution und am 2026-10-01 im Docker-Lab auf einem MacBook
+(`make acceptance BROKER=hivemq`: Maven-Build der Erweiterung, Image `enetec-hivemq:local`,
+Keystore, Start, Abnahme).
 
 **Beobachtungen:**
 - **TLS-Ablehnungen fehlen im Log.** HiveMQ CE protokolliert abgelaufene oder fremde Zertifikate
