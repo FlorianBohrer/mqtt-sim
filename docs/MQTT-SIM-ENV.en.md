@@ -99,14 +99,26 @@ in the acceptance suite are opaque random bytes.
 container. macOS and Linux are supported.
 
 ```bash
-# Option A (recommended): directly from the repository
-git clone -b claude/relaxed-einstein-96kmav https://github.com/FlorianBohrer/Todo_API.git
-cd Todo_API/enetec_mtls_lab
-
-# Option B: from the ZIP, then check the version (must match the expected commit)
-unzip -z enetec_mtls_lab.zip | tail -1
-unzip enetec_mtls_lab.zip && cd enetec_mtls_lab
+mkdir -p ~/Projects/enetec
+unzip -q ~/Downloads/enetec_mtls_lab.zip -d ~/Projects/enetec
+cd ~/Projects/enetec/enetec_mtls_lab
+cat VERSION
 ```
+
+The lab is a self-contained folder without Git, GitHub or any other dependency. Keep it at a fixed
+path without spaces and without iCloud sync (e.g. `~/Projects/enetec/`), because `certs/` contains
+private lab keys.
+
+**Installing a new version:** download the new ZIP and unzip it over the existing folder. `results/`,
+`certs/` and `data/` are kept because they are not part of the ZIP:
+
+```bash
+unzip -o -q ~/Downloads/enetec_mtls_lab.zip -d ~/Projects/enetec
+cat ~/Projects/enetec/enetec_mtls_lab/VERSION
+```
+
+The version is in the file `VERSION` (also `make version`). If the browser saved the ZIP under another
+name (e.g. `enetec_mtls_lab (1).zip`), use that name.
 
 
 **Note for zsh (macOS):** in an interactive terminal, `#` at the start of a line or after a command is not a comment by default. Copy only the commands without comments, or run `setopt interactive_comments` once.
@@ -207,7 +219,7 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 
 | Message | Cause and solution |
 |---|---|
-| `No rule to make target 'acceptance'` | old folder or old ZIP. Check the version (`git log --oneline -1` or `unzip -z`), start over in a fresh folder |
+| `No rule to make target 'acceptance'` | old folder or old ZIP. Check the version (`cat VERSION`, currently `2026-10-01-r1` or newer), unzip the new ZIP over the folder (`unzip -o`) |
 | `Negative identities failed` | old ZIP without the OpenSSL 3 fix, or Docker is not running |
 | `failed to get console` / `pull access denied for enetec-sim` | old ZIP; the current version builds the image with `docker build -q` |
 | `certs/... does not chain to the current lab CA` | certificates from an earlier CA; `make fleet` re-issues them, otherwise `make clean` |

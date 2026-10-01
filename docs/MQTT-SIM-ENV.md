@@ -100,14 +100,26 @@ der Abnahme sind opake Zufallsbytes.
 im Container. macOS und Linux werden unterstützt.
 
 ```bash
-# Variante A (empfohlen): direkt aus dem Repository
-git clone -b claude/relaxed-einstein-96kmav https://github.com/FlorianBohrer/Todo_API.git
-cd Todo_API/enetec_mtls_lab
-
-# Variante B: aus der ZIP, dann Version prüfen (muss zum erwarteten Commit passen)
-unzip -z enetec_mtls_lab.zip | tail -1
-unzip enetec_mtls_lab.zip && cd enetec_mtls_lab
+mkdir -p ~/Projects/enetec
+unzip -q ~/Downloads/enetec_mtls_lab.zip -d ~/Projects/enetec
+cd ~/Projects/enetec/enetec_mtls_lab
+cat VERSION
 ```
+
+Das Lab ist ein eigenständiger Ordner ohne Git, GitHub oder andere Abhängigkeiten. Als Ablageort
+empfehle ich einen festen Pfad ohne Leerzeichen und ohne iCloud-Sync (z. B. `~/Projects/enetec/`),
+weil `certs/` private Lab-Schlüssel enthält.
+
+**Neue Version einspielen:** neue ZIP herunterladen und über den bestehenden Ordner entpacken. Dabei
+bleiben `results/`, `certs/` und `data/` erhalten, weil sie nicht in der ZIP sind:
+
+```bash
+unzip -o -q ~/Downloads/enetec_mtls_lab.zip -d ~/Projects/enetec
+cat ~/Projects/enetec/enetec_mtls_lab/VERSION
+```
+
+Die Version steht in der Datei `VERSION` (auch `make version`). Hat der Browser die ZIP unter einem
+anderen Namen gespeichert (z. B. `enetec_mtls_lab (1).zip`), den Namen entsprechend einsetzen.
 
 
 **Hinweis zsh (macOS):** `#` am Zeilenanfang oder hinter einem Befehl ist im Terminal standardmäßig kein Kommentar. Kopiere deshalb nur die Befehle ohne Kommentare, oder führe einmal `setopt interactive_comments` aus.
@@ -208,7 +220,7 @@ Berichte: `docs/mqtt-tests/reference/`. Legacy-Analyse: [`mqtt-tests/legacy-cert
 
 | Meldung | Ursache und Lösung |
 |---|---|
-| `No rule to make target 'acceptance'` | alter Ordner oder alte ZIP. Version prüfen (`git log --oneline -1` bzw. `unzip -z`), in einem frischen Ordner neu beginnen |
+| `No rule to make target 'acceptance'` | alter Ordner oder alte ZIP. Version prüfen (`cat VERSION`, aktuell `2026-10-01-r1` oder neuer), neue ZIP über den Ordner entpacken (`unzip -o`) |
 | `Negative identities failed` | alte ZIP ohne OpenSSL-3-Fix, oder Docker läuft nicht |
 | `failed to get console` / `pull access denied for enetec-sim` | alte ZIP; aktuelle Version baut das Image mit `docker build -q` |
 | `certs/... does not chain to the current lab CA` | Zertifikate einer früheren CA; `make fleet` stellt sie neu aus, sonst `make clean` |

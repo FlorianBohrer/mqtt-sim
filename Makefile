@@ -1,5 +1,5 @@
 .PHONY: check init up down logs valid-publish cross-gateway wrong-clientid inspect verify clean \
-	fleet negative-certs legacy-certs acceptance simulate sim-test brokers bevywise-config bevywise-bundle compare
+	fleet negative-certs legacy-certs acceptance simulate sim-test brokers bevywise-config bevywise-bundle compare version
 
 # Broker under test for acceptance/simulate: profile sim/targets/$(BROKER).toml
 # e.g. make acceptance BROKER=emqx   (list: make brokers)
@@ -65,6 +65,10 @@ bevywise-config:
 # Bevywise installation bundle (certificates, conf values, ACL): make bevywise-bundle [BEVYWISE_HOST=name]
 bevywise-bundle: bevywise-config
 	@BEVYWISE_HOST="$(BEVYWISE_HOST)" ./brokers/bevywise/make_bundle.sh
+
+# Version of this lab package (also in the file VERSION)
+version:
+	@cat VERSION
 
 # Compare two brokers: make compare A=hivemq B=mosquitto-lab [FRESH=1]
 compare:
