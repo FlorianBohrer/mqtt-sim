@@ -1,0 +1,24 @@
+# Bevywise MQTTRoute / CrystalMQ – broker.conf, Ausschnitt fuer das ENETEC-Lab (ENTC-59).
+# Schluessel mit [DOK] stammen aus der Bevywise-Dokumentation; [OFFEN] = Name/Verhalten
+# nicht dokumentiert gefunden, mit Bevywise klaeren. Nur die genannten Werte anpassen,
+# den Rest der mitgelieferten broker.conf unveraendert lassen.
+
+# --- TLS / mTLS -------------------------------------------------------------
+TLS_ENABLED = TRUE                 # [DOK]
+TLS_PORT_NO = 8883                 # [DOK]
+# Zertifikate werden ueber Ordner gefunden [DOK]:
+#   ./Certificate/root/root.crt      <- certs/ca/ca.crt        (Lab-CA, vertraut Client-Zertifikaten)
+#   ./Certificate/server/server.crt  <- Broker-Zertifikat, SAN = Hostname aus dem Harness-Profil
+#   ./Certificate/server/server.key  <- zugehoeriger Schluessel
+# Client-Zertifikat verpflichtend ("strict mode": eigenes Zertifikat je Client) [DOK: Modus
+# existiert; Schluesselname OFFEN]. Ohne Pflicht-Zertifikat schlaegt MTLS-02 fehl.
+# Laut Doku prueft der Broker im Zertifikatsmodus "common name und Client-IP" [DOK] -
+# ob stattdessen CN == Client-ID erzwungen werden kann, ist OFFEN (ENETEC-Kernanforderung).
+
+# --- Authentifizierung --------------------------------------------------------
+# Passwortdatei-Modus NICHT verwenden (ENETEC: individuelle X.509-Zertifikate).
+AUTHENTICATION_ENABLED = NO        # [DOK] Passwort-Auth aus, Identitaet ueber das Zertifikat
+# Alternative fuer Registry-Zuordnung (Legacy-Zertifikate ohne CN, LEG-01):
+#   AUTHENTICATION = CUSTOM                         [DOK, mqtt.conf]
+#   CUSTOM_AUTHENTICATION_FILEPATH = ./extensions/custom_auth.py   [DOK]
+# Ob custom_authenticate() das Client-Zertifikat (Fingerprint/CN) erhaelt, ist OFFEN.

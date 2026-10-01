@@ -1,5 +1,5 @@
 .PHONY: check init up down logs valid-publish cross-gateway wrong-clientid inspect verify clean \
-	fleet negative-certs legacy-certs acceptance simulate sim-test brokers
+	fleet negative-certs legacy-certs acceptance simulate sim-test brokers bevywise-config
 
 # Broker under test for acceptance/simulate: profile sim/targets/$(BROKER).toml
 # e.g. make acceptance BROKER=emqx   (list: make brokers)
@@ -56,6 +56,11 @@ acceptance:
 
 simulate:
 	./scripts/14_simulate.sh
+
+# Bevywise: ACL request bodies from the fleet (brokers/bevywise/README.md)
+bevywise-config:
+	@if [ "$${SIM_LOCAL:-0}" = 1 ]; then PYTHONPATH=sim python3 -m enetec_sim bevywise-acl; \
+	else docker build -q -t enetec-sim:local sim >/dev/null && docker compose run --rm -T sim bevywise-acl; fi
 
 brokers:
 	@ls sim/targets/*.toml | sed 's#sim/targets/##; s#\.toml##'

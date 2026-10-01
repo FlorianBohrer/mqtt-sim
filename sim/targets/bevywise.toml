@@ -2,6 +2,7 @@
 # connection defaults only; log patterns are empty until a real log sample is known,
 # so LOG-01..04 stay INCONCLUSIVE instead of guessing.
 #
+# Full setup, config snippets and ACL import: brokers/bevywise/README.md
 # Broker setup required for the harness (derive from synthetic/fleet.json):
 #   - TLS listener with mandatory client certificate, trusted CA = lab CA
 #   - identity from certificate CN, per-gateway publish .../d2c/# and subscribe .../c2d/#,

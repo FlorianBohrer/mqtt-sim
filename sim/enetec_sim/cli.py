@@ -55,6 +55,16 @@ def cmd_simulate(args, cfg):
     return report['exit']
 
 
+def cmd_bevywise(args, cfg):
+    from .config import write_json
+    from .fleet import bevywise_acl_requests
+    fleet = json.loads((Path(args.out) / 'fleet.json').read_text())
+    target = Path(args.dest)
+    write_json(target, bevywise_acl_requests(fleet))
+    print(f'{target}: {len(bevywise_acl_requests(fleet))} ACL requests (one per Client ID)')
+    return 0
+
+
 def cmd_brokers(args, cfg):
     for path in sorted(TARGETS_DIR.glob('*.toml')):
         target = load_target(path)
@@ -111,6 +121,10 @@ def main(argv=None):
     p.add_argument('--speed', type=float, default=720.0, help='time compression (720: 24 h in 2 min)')
     p.add_argument('--gateways', help='comma-separated subset of gateway IDs')
     p.set_defaults(func=cmd_simulate)
+
+    p = sub.add_parser('bevywise-acl', help='ACL request bodies for the Bevywise REST API')
+    p.add_argument('--dest', default=str(LAB_ROOT / 'brokers' / 'bevywise' / 'generated' / 'acl-requests.json'))
+    p.set_defaults(func=cmd_bevywise)
 
     p = sub.add_parser('brokers', help='list the broker profiles in sim/targets/')
     p.set_defaults(func=cmd_brokers)
