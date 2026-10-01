@@ -9,9 +9,11 @@ run_sim() {
   if [ "${SIM_LOCAL:-0}" = 1 ]; then
     PYTHONPATH="$ROOT/sim${PYTHONPATH:+:$PYTHONPATH}" python3 -m enetec_sim "$@"
   else
-    # Build the local image once (cached afterwards); it is never pulled.
+    # Build the local image once per script run (Docker cache makes repeats fast).
+    # Plain "docker build -q" needs no console, unlike "docker compose build".
     if [ -z "${SIM_IMAGE_READY:-}" ]; then
-      docker compose build sim >/dev/null || die 'Building the sim image failed (docker compose build sim).'
+      docker build -q -t enetec-sim:local "$ROOT/sim" >/dev/null ||
+        die 'Building the sim image failed: docker build -t enetec-sim:local sim'
       SIM_IMAGE_READY=1
     fi
     docker compose run --rm -T sim "$@"

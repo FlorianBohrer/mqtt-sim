@@ -58,4 +58,5 @@ brokers:
 	@ls sim/targets/*.toml | sed 's#sim/targets/##; s#\.toml##'
 
 sim-test:
+	docker build -q -t enetec-sim:local sim >/dev/null
 	docker compose run --rm -T --entrypoint python sim -m unittest discover -s sim/tests -t sim -v

@@ -21,9 +21,10 @@ services:
 
   # Synthetic fleet / simulation runtime (python -m enetec_sim), see docs/mqtt-tests/.
   sim:
-    build: ./sim
-    # Always built locally, never pulled from a registry.
-    pull_policy: build
+    # Built locally by scripts/sim_common.sh (docker build -t enetec-sim:local sim),
+    # never pulled from a registry.
+    image: enetec-sim:local
+    pull_policy: never
     profiles: ["sim"]
     environment:
       # Empty = take host/port from the broker profile (sim/targets/<BROKER>.toml).
