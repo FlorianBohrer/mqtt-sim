@@ -31,17 +31,23 @@ def latest_run(profile, results_dir):
     path = TARGETS_DIR / f'{profile}.toml'
     if path.exists():
         name = load_target(path).get('name')
-    found = []
+    found, unusable = [], 0
     for report_path in Path(results_dir).glob('acceptance-*/report.json'):
         try:
             report = json.loads(report_path.read_text())
         except ValueError:
             continue
-        if _complete(report) and (report.get('profile') == profile or
-                                  (report.get('profile') is None and name and report.get('target') == name)):
+        if not (report.get('profile') == profile or
+                (report.get('profile') is None and name and report.get('target') == name)):
+            continue
+        if _complete(report):
             found.append((report.get('generated_utc', ''), report_path.parent, report))
+        else:
+            unusable += 1
     if not found:
-        raise SystemExit(f'No complete acceptance run found for broker "{profile}" in {results_dir}. '
+        hint = (f' {unusable} run(s) exist but produced no evidence (broker not reachable? check host/port in '
+                f'sim/targets/{profile}.toml and that the broker is running).' if unusable else '')
+        raise SystemExit(f'No usable acceptance run found for broker "{profile}" in {results_dir}.{hint} '
                          f'Run: make acceptance BROKER={profile}   (or make compare ... FRESH=1)')
     found.sort(key=lambda item: item[0])
     return found[-1][1], found[-1][2]

@@ -13,8 +13,8 @@
 name = "Bevywise MQTTRoute"
 status = "template"
 lab_managed = false
-host = "localhost"
-port = 8883
+host = "localhost"   # Bevywise on the Mac; for a hosted instance enter its host name
+port = 8886          # TLS_PORT_NO in broker.conf (8886 avoids the lab Mosquitto on 8883)
 # server_ca = "certs/bevywise/ca.crt"
 observe_s = 3.0
 session_expiry_s = 300

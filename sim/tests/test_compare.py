@@ -47,6 +47,15 @@ class CompareTest(unittest.TestCase):
         self.put('acceptance-2', empty)
         self.assertEqual(latest_run('a', self.res)[0].name, 'acceptance-1')
 
+    def test_only_evidence_free_runs_name_the_cause(self):
+        empty = report('a', {}, '2026-01-02')
+        empty['mandatory_counts'] = {'PASS': 0, 'FAIL': 0, 'PARTIAL': 0, 'INCONCLUSIVE': 31}
+        self.put('acceptance-2', empty)
+        with self.assertRaises(SystemExit) as ctx:
+            latest_run('a', self.res)
+        self.assertIn('no evidence', str(ctx.exception))
+        self.assertIn('not reachable', str(ctx.exception))
+
     def test_missing_run_explains_what_to_do(self):
         with self.assertRaises(SystemExit) as ctx:
             latest_run('nothing', self.res)

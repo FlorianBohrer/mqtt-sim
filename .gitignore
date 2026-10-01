@@ -9,3 +9,6 @@ mosquitto/config/.replacement-test-lock/
 .DS_Store
 __pycache__/
 .pytest_cache/
+
+# Bevywise installation bundle contains a (lab-only) private key
+brokers/bevywise/generated/bundle/

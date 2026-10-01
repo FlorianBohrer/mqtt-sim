@@ -23,7 +23,25 @@ Gegen einen echten Bevywise-Broker ist die Konfiguration **noch nicht gelaufen**
 | `apply-acl.sh` | spielt die Regeln über `POST /crystalmq/api/v1/acl` ein (`DRY_RUN=1` zeigt sie nur an) |
 | `../../sim/targets/bevywise.toml` | Harness-Profil (Host, Port, Server-CA, Log-Muster) |
 
-## Einrichtung
+## Schnellweg: Bevywise installieren und mit einem anderen Broker vergleichen
+
+1. Bevywise MQTTRoute von der Bevywise-Downloadseite installieren und einmal starten.
+2. Paket erzeugen: `make init && make fleet && make bevywise-bundle`. Läuft der Broker nicht lokal,
+   sondern unter einem eigenen Namen: `make bevywise-bundle BEVYWISE_HOST=<name-oder-ip>`.
+   Das Paket liegt in `brokers/bevywise/generated/bundle/` (Zertifikate, Konfigurationswerte, ACL-Regeln)
+   und wird nicht eingecheckt, weil es einen Lab-Schlüssel enthält.
+3. Ordner `Certificate/root` und `Certificate/server` aus dem Paket in den Ordner `Certificate/` der
+   Installation kopieren. Werte aus `conf/*.example` in `broker.conf` und `mqtt.conf` übernehmen
+   (TLS an, Port 8886, `TOPIC_ACL = TRUE`) und den Broker neu starten.
+4. ACL einspielen: `BEVYWISE_API_URL=https://<host>:<api-port> ./brokers/bevywise/apply-acl.sh`.
+5. In `sim/targets/bevywise.toml` bei Bedarf `host` eintragen (Port 8886 ist voreingestellt).
+6. Abnahme und Vergleich: `make compare A=bevywise B=emqx FRESH=1`. Für die Log-Fälle zusätzlich
+   `SIM_BROKER_LOG=<Pfad zum Bevywise-Log>` setzen; ohne Log bleiben LOG-01…05 INCONCLUSIVE.
+
+Ein offizielles Docker-Image von Bevywise gibt es nach meiner Recherche nicht (nur ein nicht
+dokumentiertes Fremd-Image), deshalb wird der Broker nicht vom Lab gestartet.
+
+## Einrichtung im Detail
 
 1. **Lab-Identitäten erzeugen:** `make init && make fleet && make negative-certs && make legacy-certs`.
 2. **Zertifikate in den Broker kopieren:**
