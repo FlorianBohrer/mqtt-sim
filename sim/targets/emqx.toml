@@ -24,3 +24,24 @@ connect_accepted = 'client_connected|connected|clientid'
 auth_failure = 'ssl|tls|handshake|certificate'
 acl_denied = 'authorization_permission_denied|not_authorized|cannot_publish|denied'
 disconnect = 'disconnected|socket_closed|takenover|discarded'
+
+[effort]
+# Lab assessment per requirement: CLASS | note. Based on the acceptance run of 2026-10-01
+# (EMQX 5.8.6 container, Docker lab). "TBD" = not tested.
+R01 = "CONFIGURATION | listeners.ssl verify_peer, cacertfile"
+R02 = "CONFIGURATION | fail_if_no_peer_cert"
+R03 = "CONFIGURATION | cacertfile"
+R04 = "CONFIGURATION | validity checked; EKU not enforced (MTLS-07 FAIL); CRL needs enable_crl_check and CRL distribution points in the certificates (MTLS-08 FAIL, TBD)"
+R05 = "CONFIGURATION | peer_cert_as_username = cn + file authorization"
+R06 = "UNSUPPORTED | CN == Client ID not enforced (ID-01 FAIL); peer_cert_as_clientid = cn replaces the Client ID instead of rejecting (TBD)"
+R07 = "CONFIGURATION | authorization no_match = deny, deny_action = ignore (SUBACK 0x87)"
+R08 = "CONFIGURATION | file authorization"
+R09 = "CONFIGURATION | file authorization"
+R10 = "CONFIGURATION | file authorization"
+R11 = "UNSUPPORTED | session takeover (DUP-01 FAIL); hook or plugin needed (TBD)"
+R12 = "NATIVE | MQTT 5 QoS 1"
+R13 = "NATIVE | persistent sessions"
+R14 = "NATIVE | sessions survive; backoff is a client matter"
+R15 = "CONFIGURATION | console log (patterns still to be tightened)"
+R16 = "UNSUPPORTED | certificate without CN has no username (LEG-01 FAIL); external authentication service (TBD)"
+R17 = "CONFIGURATION | two certificates for one CN work"

@@ -53,15 +53,18 @@ REQUIREMENTS = [
 
 # Broker-neutral explanation shown in the report when a case does not PASS.
 FINDINGS = {
-    'MTLS-08': 'No revocation check is active (CRL, OCSP or registry lookup). Revocation strategy is OPEN '
-               '(ENTC-58/ENTC-31); for Mosquitto `crlfile certs/negative/crl.pem` makes this case pass.',
+    'MTLS-07': 'The broker accepts a client certificate without the clientAuth extended key usage. '
+               'The certificate profile is an OPEN decision (ENTC-31); enforce it in the broker or in the PKI.',
+    'MTLS-08': 'No revocation check is active (CRL, OCSP or registry lookup), so a revoked certificate can still '
+               'connect. Revocation strategy is OPEN (ENTC-58/ENTC-31). Check the broker\'s CRL/OCSP support '
+               '(e.g. Mosquitto crlfile, EMQX enable_crl_check) and test with certs/negative/crl.pem.',
     'ID-01': 'The broker accepts a Client ID that differs from the certificate identity and lets it displace the '
              'legitimate session. EICP v1.4 requires Client ID == Gateway ID; enforcement must come from the broker '
              '(classify NATIVE / CONFIGURATION / PLUGIN / CUSTOM for ENTC-59).',
     'DUP-01': 'The broker applies the MQTT session takeover. ENETEC requires rejecting the second connection and '
               'keeping the active session (ENETEC.md §6.3); needs broker support or an extension.',
-    'LEG-01': 'The broker cannot derive the Gateway ID from a certificate without CN/SAN (Mosquitto with '
-              'use_identity_as_username: CONNACK 134). Legacy AWS IoT certificates need a registry lookup '
+    'LEG-01': 'The broker cannot derive the Gateway ID from a certificate without CN/SAN, so the legacy gateway is '
+              'rejected or has no permissions. Legacy AWS IoT certificates need a registry lookup '
               '(certificate fingerprint -> Gateway ID) or re-issuance with the Gateway ID in CN/SAN (ENTC-31).',
     'LEG-02': 'Legacy certificates of different gateways share the same subject; the broker must tell them '
               'apart by certificate (fingerprint/serial), not by subject.',
@@ -753,6 +756,8 @@ def rotation_overlap(h):
     for label, files in (('old', h.files(gid)), ('new', new_files)):
         probe = h.client(f'ROT-01:{label}', gid, files)
         outcome, detail = probe.open()
+        if outcome in ('UNREACHABLE', 'NO_RESPONSE'):
+            raise Inconclusive(f'ROT-01:{label}: {outcome} ({detail})')
         code = probe.publish(_own_d2c(h, gid, 'ROT-01'), h.payload('ROT-01')) if outcome == 'ACCEPTED' else None
         probe.close()
         notes.append((label, outcome, code))

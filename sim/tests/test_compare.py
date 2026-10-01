@@ -40,6 +40,13 @@ class CompareTest(unittest.TestCase):
         path, rep = latest_run('a', self.res)
         self.assertEqual(path.name, 'acceptance-2')
 
+    def test_run_without_evidence_is_skipped(self):
+        self.put('acceptance-1', report('a', {}, '2026-01-01'))
+        empty = report('a', {}, '2026-01-02')
+        empty['mandatory_counts'] = {'PASS': 0, 'FAIL': 0, 'PARTIAL': 0, 'INCONCLUSIVE': 31}  # broker unreachable
+        self.put('acceptance-2', empty)
+        self.assertEqual(latest_run('a', self.res)[0].name, 'acceptance-1')
+
     def test_missing_run_explains_what_to_do(self):
         with self.assertRaises(SystemExit) as ctx:
             latest_run('nothing', self.res)

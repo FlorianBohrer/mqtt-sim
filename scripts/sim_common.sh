@@ -5,6 +5,9 @@
 
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
+# No Docker "What's next / Gordon" hints after a non-zero exit (a failed acceptance is a result).
+export DOCKER_CLI_HINTS=false
+
 run_sim() {
   if [ "${SIM_LOCAL:-0}" = 1 ]; then
     PYTHONPATH="$ROOT/sim${PYTHONPATH:+:$PYTHONPATH}" python3 -m enetec_sim "$@"

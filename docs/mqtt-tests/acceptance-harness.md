@@ -13,7 +13,7 @@ implementiert und keine Applikations-Payload dekodiert.
 ## 1. Verifikationsbefehl
 
 ```bash
-make acceptance        # = scripts/13_acceptance.sh
+make acceptance
 ```
 
 - **Exit 0 nur dann, wenn jeder Pflichtfall PASS ist.** Andernfalls Exit 1, also auch bei
@@ -139,10 +139,14 @@ CUSTOM / UNSUPPORTED erfolgt anschließend je Kandidat in der ENTC-59-Matrix.
 ### Zwei Broker vergleichen
 
 ```bash
-make compare A=hivemq B=mosquitto-lab            # letzter vollständiger Lauf je Broker
-make compare A=hivemq B=emqx FRESH=1             # Abnahme für beide zuerst neu ausführen
-make compare                                     # ohne Angabe: zeigt Broker und vorhandene Läufe
+make compare A=hivemq B=mosquitto-lab
+make compare A=hivemq B=emqx FRESH=1
+make compare
 ```
+
+Die erste Zeile nimmt den letzten Lauf mit Messwerten je Broker, die zweite führt die Abnahme für
+beide vorher neu aus, die dritte (ohne Angaben) zeigt Broker und vorhandene Läufe. Läufe ohne
+Evidenz (Broker nicht erreichbar, nur INCONCLUSIVE) werden dabei übersprungen.
 
 Das Ergebnis liegt in `results/compare-<A>-vs-<B>-<zeit>/` (`comparison.md`, `comparison.json`,
 `summary.txt`) und endet mit einer Zusammenfassung. Der Vergleich nennt nur Fakten:

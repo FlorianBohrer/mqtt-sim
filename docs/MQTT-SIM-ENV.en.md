@@ -108,6 +108,9 @@ unzip -z enetec_mtls_lab.zip | tail -1
 unzip enetec_mtls_lab.zip && cd enetec_mtls_lab
 ```
 
+
+**Note for zsh (macOS):** in an interactive terminal, `#` at the start of a line or after a command is not a comment by default. Copy only the commands without comments, or run `setopt interactive_comments` once.
+
 Nothing else is needed. On the first run, `make acceptance` builds everything itself:
 
 1. Image `enetec-sim:local` (Python 3.12, paho-mqtt, OpenSSL 3)
@@ -186,13 +189,14 @@ Existing profiles and guides: [`brokers/emqx/`](../brokers/emqx/README.md),
 
 | Broker | Mandatory cases | Where tested |
 |---|---|---|
-| HiveMQ CE 2026.5 + ENETEC extension | **31/31 PASS, accepted** | locally and in the Docker lab on macOS |
+| HiveMQ CE 2026.5 + ENETEC extension | **31/31 PASS, accepted** | locally and in the Docker lab on macOS (two runs) |
 | Mosquitto 2.0.18 (lab) | 23 PASS, 2 FAIL, 6 PARTIAL | locally (Docker run pending) |
-| EMQX 5.8 | not run yet | – |
-| Bevywise | configuration prepared, not run yet | – |
+| EMQX 5.8 | 29/31 PASS, **not accepted** (Client ID binding, duplicate Client ID); denied subscriptions are signalled | Docker lab on macOS |
+| Bevywise | configuration prepared; no broker available, run without evidence (all INCONCLUSIVE) | – |
 
 **Key findings**
 - **Mosquitto:** a Client ID that differs from the certificate is accepted and displaces the real session. A duplicate Client ID leads to session takeover. Denied subscriptions are acknowledged (only delivery stays blocked).
+- **EMQX:** deny by default, direction separation and cross-gateway blocks pass completely, with the denial signalled (SUBACK 0x87). Like Mosquitto it fails on CN ≠ Client ID and on duplicate Client ID; in addition, wrong key usage (EKU), revocation (without CRL distribution points) and legacy certificates without CN are not caught (informational only).
 - **HiveMQ CE** has no authorization of its own. The requirements are only met with a lab extension (identity, Client ID binding, duplicate rejection, revocation, deny by default). For production: connect it to the backend registry, or use the commercial Enterprise Security Extension.
 - **Legacy certificates (AWS IoT)** contain no Gateway ID. A broker needs a registry mapping (fingerprint → Gateway ID), or the gateways get new certificates with the ID in the CN.
 - **Duplicate Client ID** has a trade-off: after a silent connection loss the broker rejects reconnects until the keep-alive expires (up to about 180 s).
@@ -231,7 +235,7 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 - Log checks are pattern searches per profile.
 
 **Next steps:**
-1. Run EMQX and Bevywise in the Docker lab and compare all brokers.
+1. Run Mosquitto in the Docker lab and Bevywise against a real instance, then compare all brokers.
 2. Weighted decision matrix (cost, operations, support, scalability) in addition to acceptance.
 3. Load test for the 15,000 connections.
 4. Add the open mandatory cases (restart, failover, revocation on an active connection, bootstrap).

@@ -99,13 +99,18 @@ Nach einer Änderung an `sim/config.toml` also `make fleet` ausführen und das E
 ## 5. Ablauf
 
 ```bash
-make init            # Lab-CA, Broker-Zertifikat, gw-sim-000001/2 (unverändert)
-make fleet           # Flotte, Datensatz, ACL + Zertifikate für alle Gateways und Services
-make up              # Mosquitto (lädt die generierte ACL)
-make simulate        # 24-h-Datensatz x720 (~2 min) -> results/simulation-<run>/
-make acceptance      # ENTC-63-Abnahme (siehe acceptance-harness.md)
-make sim-test        # Unit-Tests im Container
+make init
+make fleet
+make up
+make simulate
+make acceptance
+make sim-test
 ```
+
+Reihenfolge: Lab-CA und Broker-Zertifikat (`init`), Flotte, Datensatz, ACL und Zertifikate (`fleet`),
+Mosquitto starten (`up`), 24-h-Datensatz mit ×720 (~2 min) abspielen (`simulate`, Ergebnis in
+`results/simulation-<run>/`), ENTC-63-Abnahme (`acceptance`, siehe `acceptance-harness.md`) und
+Unit-Tests im Container (`sim-test`).
 
 - Python läuft im Compose-Service `sim` (python:3.12-alpine + paho-mqtt 2.1.0). Eine lokale
   Python-Installation ist nicht nötig.

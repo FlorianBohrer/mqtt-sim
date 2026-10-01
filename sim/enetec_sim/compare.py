@@ -19,7 +19,10 @@ def _rank(verdict):
 
 
 def _complete(report):
-    return not report.get('mandatory_not_run')
+    """A usable run: every mandatory case ran and at least one produced evidence (not only INCONCLUSIVE)."""
+    counts = report.get('mandatory_counts', {})
+    evidence = counts.get('PASS', 0) + counts.get('FAIL', 0) + counts.get('PARTIAL', 0)
+    return not report.get('mandatory_not_run') and evidence > 0
 
 
 def latest_run(profile, results_dir):

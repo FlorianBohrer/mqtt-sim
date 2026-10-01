@@ -324,9 +324,12 @@ Details, requirement mapping and the Mosquitto reference result:
 ## 13. Synthetic fleet and architecture simulation
 
 ```bash
-make fleet      # synthetic fleet, 24 h dataset, generated ACL, certificates
-make simulate   # replay the dataset (QoS 1, outages, reconnect, commands) and verify it
+make fleet
+make simulate
 ```
+
+`make fleet` creates the synthetic fleet, the 24 h dataset, the generated ACL and the certificates.
+`make simulate` replays the dataset (QoS 1, outages, reconnect, commands) and verifies it.
 
 The fleet config is `sim/config.toml`; the generated, committed data lives in `synthetic/`.
 The data model, sources/assumptions and reference run are described in
