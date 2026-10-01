@@ -19,6 +19,20 @@ services:
       - ./certs:/certs:ro
       - ./samples:/samples:ro
 
+  # EMQX 5 as ENTC-59 candidate: make acceptance BROKER=emqx (brokers/emqx/README.md).
+  # Same lab CA, certificates and fleet ACL as the Mosquitto broker.
+  emqx:
+    image: emqx/emqx:5.8.6
+    container_name: enetec-emqx
+    profiles: ["emqx"]
+    ports:
+      - "8884:8883"     # mTLS (Mac: localhost:8884, compose network: emqx:8883)
+      - "18083:18083"   # dashboard (admin / public, local lab only)
+    volumes:
+      - ./brokers/emqx/emqx.conf:/opt/emqx/etc/emqx.conf:ro
+      - ./brokers/emqx/acl.conf:/opt/emqx/etc/acl.conf:ro
+      - ./certs:/opt/emqx/etc/certs/lab:ro
+
   # Synthetic fleet / simulation runtime (python -m enetec_sim), see docs/mqtt-tests/.
   sim:
     # Built locally by scripts/sim_common.sh (docker build -t enetec-sim:local sim),

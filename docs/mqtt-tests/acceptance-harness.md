@@ -110,9 +110,9 @@ Broker-Profile liegen in `sim/targets/` (`make brokers`):
 | Profil | Status | Aufruf |
 |---|---|---|
 | `mosquitto-lab` | verifiziert, wird per Compose gestartet | `make acceptance` |
-| `emqx` | Vorlage: Einstellungen/Log-Muster noch unbestätigt | `make acceptance BROKER=emqx SIM_BROKER_LOG=<log>` |
+| `emqx` | EMQX 5.8 als Lab-Container, wird automatisch gestartet; Log-Muster noch zu bestätigen ([`brokers/emqx/`](../../brokers/emqx/README.md)) | `make acceptance BROKER=emqx` |
 | `hivemq` | Vorlage | `make acceptance BROKER=hivemq SIM_BROKER_LOG=<log>` |
-| `bevywise` | Vorlage, ohne Log-Muster (LOG-Fälle bleiben INCONCLUSIVE) | `make acceptance BROKER=bevywise SIM_BROKER_LOG=<log>` |
+| `bevywise` | Vorlage, ohne Log-Muster (LOG-Fälle bleiben INCONCLUSIVE); Einrichtung in [`brokers/bevywise/`](../../brokers/bevywise/README.md) | `make acceptance BROKER=bevywise SIM_BROKER_LOG=<log>` |
 
 `make simulate BROKER=<profil>` nutzt dasselbe Profil. Host und Port kommen aus dem Profil;
 `SIM_BROKER_HOST`/`SIM_BROKER_PORT` überschreiben sie. Aus dem `sim`-Container heraus wird

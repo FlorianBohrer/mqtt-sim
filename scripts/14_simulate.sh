@@ -16,6 +16,8 @@ cd "$ROOT"
 [ -f certs/services/svc-sim-cloud-ingest/gateway.crt ] || die 'Fleet certificates missing. Run make fleet first.'
 TARGET="${SIM_TARGET:-sim/targets/mosquitto-lab.toml}"
 [ -f "$TARGET" ] || die "Broker profile not found: $TARGET (list: make brokers)"
+BROKER_SERVICE=$(sed -n 's/^compose_service = "\(.*\)".*/\1/p' "$TARGET")
+BROKER_SERVICE="${BROKER_SERVICE:-broker}"
 RUN_ID=$(date -u +%Y%m%dT%H%M%SZ)-$$
 START_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 RESULTS="results/simulation-$RUN_ID"

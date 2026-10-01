@@ -45,10 +45,10 @@ fleet:
 	./scripts/11_synthetic_fleet.sh
 
 negative-certs:
-	./scripts/12_create_negative_identities.sh
+	./scripts/sim_run.sh scripts/12_create_negative_identities.sh
 
 legacy-certs:
-	./scripts/15_create_legacy_identities.sh
+	./scripts/sim_run.sh scripts/15_create_legacy_identities.sh
 
 # ENTC-63 verification command: exit 0 only if all mandatory acceptance cases pass.
 acceptance:

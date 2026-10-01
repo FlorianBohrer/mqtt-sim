@@ -1,30 +1,26 @@
-# Broker profile: EMQX 5 (candidate, ENTC-59). STATUS: template – settings and log
-# patterns below are unverified until the first run against a real EMQX.
-#
-# Broker setup required for the harness (derive from synthetic/fleet.json):
-#   - SSL listener on `port` with ssl_options: cacertfile = lab CA (certs/ca/ca.crt),
-#     verify = verify_peer, fail_if_no_peer_cert = true
-#   - mqtt.peer_cert_as_username = cn  (certificate CN = identity for authorization)
-#   - authorization: file source, one allow rule per gateway (publish .../d2c/#,
-#     subscribe .../c2d/#) and per service, then {deny, all}; no_match = deny
-#   - server certificate trusted by `server_ca` and valid for `host`
-#   - text log (log.file) exported for the run window -> SIM_BROKER_LOG
+# Broker profile: EMQX 5.8 (candidate, ENTC-59), started by make acceptance BROKER=emqx
+# as docker compose service "emqx" with brokers/emqx/emqx.conf and the generated
+# brokers/emqx/acl.conf. STATUS: template until the first run confirms the log patterns.
 
-name = "EMQX 5"
+name = "EMQX 5.8 (lab container)"
 status = "template"
-lab_managed = false
-host = "localhost"            # e.g. local container published on 8883, or the PoC hostname
-port = 8883
-# server_ca = "certs/emqx/ca.crt"
+lab_managed = true
+compose_service = "emqx"
+ready_log = 'is running now'
+host = "localhost"            # from the Mac
+port = 8884                   # host port mapped to the container's 8883
+compose_host = "emqx"         # from the sim container
+compose_port = 8883
+# server_ca = "certs/ca/ca.crt"   # default: lab CA signed the broker certificate
 observe_s = 3.0
 session_expiry_s = 300
 reconnect_gateways = 10
 reconnect_window_s = 5.0
 
 [log]
-# EMQX text log lines start with an ISO timestamp, e.g. 2026-09-30T15:00:00.123+00:00 [warning] ...
-timestamp = '^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)'
-connect_accepted = 'client_connected|connected'
-auth_failure = 'ssl_handshake|tls_alert|certificate'
-acl_denied = 'authorization_permission_denied|cannot_publish_to_topic_due_to_not_authorized'
+# docker compose logs lines: "enetec-emqx  | 2026-10-01T10:00:00.123456+00:00 [warning] ..."
+timestamp = '(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)'
+connect_accepted = 'client_connected|connected|clientid'
+auth_failure = 'ssl|tls|handshake|certificate'
+acl_denied = 'authorization_permission_denied|not_authorized|cannot_publish|denied'
 disconnect = 'disconnected|socket_closed|takenover|discarded'

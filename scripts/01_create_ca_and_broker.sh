@@ -70,6 +70,7 @@ extendedKeyUsage = serverAuth
 [alt_names]
 DNS.1 = broker
 DNS.2 = localhost
+DNS.3 = emqx
 IP.1 = 127.0.0.1
 CONF
 

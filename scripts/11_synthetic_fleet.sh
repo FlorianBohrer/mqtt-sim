@@ -22,7 +22,12 @@ create_missing() {
   GROUP=$1
   while IFS= read -r ID; do
     [ -n "$ID" ] || continue
-    [ ! -f "certs/$GROUP/$ID/gateway.crt" ] || continue
+    # Keep valid certificates; re-issue those from an earlier CA (e.g. after make init).
+    if [ -f "certs/$GROUP/$ID/gateway.crt" ] &&
+       openssl verify -CAfile certs/ca/ca.crt "certs/$GROUP/$ID/gateway.crt" >/dev/null 2>&1; then
+      continue
+    fi
+    rm -rf "certs/$GROUP/$ID"
     OUT=$(./scripts/02_create_gateway.sh "$ID" "$GROUP" 2>&1) ||
       { printf '%s\n' "$OUT" >&2; die "certificate creation failed for $ID"; }
     CREATED=$((CREATED + 1))

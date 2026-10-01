@@ -27,30 +27,37 @@ TARGET="${SIM_TARGET:-sim/targets/mosquitto-lab.toml}"
 
 printf '[1/5] Test PKI and synthetic fleet\n'
 [ -r certs/ca/ca.key ] || ./scripts/01_create_ca_and_broker.sh >/dev/null 2>&1 || die 'CA creation failed.'
+openssl x509 -in certs/broker/broker.crt -noout -text 2>/dev/null | grep -q 'DNS:emqx' ||
+  die 'Broker certificate predates the EMQX profile (SAN without "emqx"). Run: make clean && make acceptance'
 ./scripts/11_synthetic_fleet.sh >/dev/null || die 'Fleet generation failed.'
 for CERT in certs/gateways/*/gateway.crt certs/services/*/gateway.crt; do
   openssl verify -CAfile certs/ca/ca.crt "$CERT" >/dev/null 2>&1 ||
     die "$CERT does not chain to the current lab CA. Run: make clean && make acceptance"
 done
 # Negative identities are cheap: always re-issue them from the current CA.
-./scripts/12_create_negative_identities.sh >/dev/null || die 'Negative identities failed.'
-./scripts/15_create_legacy_identities.sh >/dev/null || die 'Legacy/rotation identities failed.'
+OUT=$(run_script scripts/12_create_negative_identities.sh 2>&1) ||
+  { printf '%s\n' "$OUT" >&2; die 'Negative identities failed.'; }
+OUT=$(run_script scripts/15_create_legacy_identities.sh 2>&1) ||
+  { printf '%s\n' "$OUT" >&2; die 'Legacy/rotation identities failed.'; }
 printf 'CA, %s gateway, %s service, %s legacy certificates, negative + rotation identities: OK\n' \
   "$(wc -l < synthetic/gateways.txt | tr -d ' ')" "$(wc -l < synthetic/services.txt | tr -d ' ')" \
   "$(wc -l < synthetic/legacy_gateways.txt | tr -d ' ')"
 
 printf '\n[2/5] Broker\n'
 PROFILE_NAME=$(sed -n 's/^name = "\(.*\)"/\1/p' "$TARGET")
+BROKER_SERVICE=$(sed -n 's/^compose_service = "\(.*\)".*/\1/p' "$TARGET")
+BROKER_SERVICE="${BROKER_SERVICE:-broker}"
+READY_LOG=$(sed -n "s/^ready_log = '\(.*\)'.*/\1/p" "$TARGET")
 if grep -q '^lab_managed = true' "$TARGET" && [ -z "${SIM_BROKER_HOST:-}" ] &&
    command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-  broker_running || docker compose up -d broker
+  broker_running || docker compose --profile "$BROKER_SERVICE" up -d "$BROKER_SERVICE"
   WAITED=0
-  until docker compose logs broker 2>/dev/null | grep -q 'running'; do
-    [ "$WAITED" -lt 30 ] || die 'Lab broker did not start; see docker compose logs broker.'
+  until docker compose logs "$BROKER_SERVICE" 2>/dev/null | grep -Eq "${READY_LOG:-running}"; do
+    [ "$WAITED" -lt 90 ] || die "Broker did not start; see docker compose logs $BROKER_SERVICE"
     sleep 1
     WAITED=$((WAITED + 1))
   done
-  printf 'Lab broker running (ACL loaded from mosquitto/config/acl).\n'
+  printf '%s running (compose service %s).\n' "$PROFILE_NAME" "$BROKER_SERVICE"
 else
   printf 'Using %s from %s (not started by this script).\n' "$PROFILE_NAME" "$TARGET"
   grep -q '^status = "template"' "$TARGET" &&

@@ -20,12 +20,30 @@ run_sim() {
   fi
 }
 
+# Shell script inside the sim container (OpenSSL 3), or on the host with SIM_LOCAL=1.
+# Used for the certificate scripts 12/15, whose "openssl ca" usage differs on LibreSSL.
+run_script() {
+  if [ "${SIM_LOCAL:-0}" = 1 ]; then
+    "$ROOT/$1"
+  else
+    if [ -z "${SIM_IMAGE_READY:-}" ]; then
+      docker build -q -t enetec-sim:local "$ROOT/sim" >/dev/null ||
+        die 'Building the sim image failed: docker build -t enetec-sim:local sim'
+      SIM_IMAGE_READY=1
+    fi
+    docker compose run --rm -T --entrypoint sh sim "$1"
+  fi
+}
+
+# Compose service of the broker under test (broker = Lab-Mosquitto, emqx = EMQX).
+BROKER_SERVICE="${BROKER_SERVICE:-broker}"
+
 broker_running() {
-  command -v docker >/dev/null 2>&1 && [ -n "$(docker compose ps -q broker 2>/dev/null)" ]
+  command -v docker >/dev/null 2>&1 && [ -n "$(docker compose ps -q "$BROKER_SERVICE" 2>/dev/null)" ]
 }
 
 broker_label() {
-  if broker_running; then
+  if [ "$BROKER_SERVICE" = broker ] && broker_running; then
     VERSION=$(docker compose exec -T broker mosquitto -h 2>/dev/null | head -n 1)
     printf 'Mosquitto lab broker (%s)' "${VERSION:-version unknown}"
   else
@@ -36,7 +54,7 @@ broker_label() {
 # Broker-Log als Audit-Evidenz neben die Testergebnisse legen.
 capture_broker_log() {
   if broker_running; then
-    docker compose logs --no-color --since "$1" broker > "$2" 2>&1 || true
+    docker compose logs --no-color --since "$1" "$BROKER_SERVICE" > "$2" 2>&1 || true
   else
     printf 'No Compose broker running; attach the broker log manually.\n' > "$2"
   fi
@@ -44,7 +62,7 @@ capture_broker_log() {
 
 # Neue ACL ohne Neustart laden (SIGHUP wie in Test 09/10).
 reload_broker_acl() {
-  if broker_running; then
+  if [ "$BROKER_SERVICE" = broker ] && broker_running; then
     docker compose exec -T broker kill -HUP 1 && printf 'Broker ACL reloaded (SIGHUP).\n'
   else
     printf 'Broker not running under Compose: reload its ACL manually (SIGHUP) if needed.\n'

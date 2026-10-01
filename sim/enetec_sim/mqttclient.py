@@ -35,7 +35,8 @@ class Broker:
             in_container and target.get('compose_host')) or target.get('host', 'localhost')
         if in_container and host in ('localhost', '127.0.0.1'):
             host = 'host.docker.internal'
-        port = int(port or os.environ.get('SIM_BROKER_PORT') or target.get('port', 8883))
+        port = int(port or os.environ.get('SIM_BROKER_PORT')
+                   or (in_container and target.get('compose_port')) or target.get('port', 8883))
         server_ca = LAB_ROOT / target['server_ca'] if target.get('server_ca') else None
         return cls(host, port, Path(certs or os.environ.get('SIM_CERTS', DEFAULT_CERTS)), server_ca)
 
