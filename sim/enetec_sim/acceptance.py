@@ -46,6 +46,8 @@ REQUIREMENTS = [
     ('R13', 'Clean Start = false resumes the persistent session across disconnect/reconnect'),
     ('R14', 'Reconnect can be exercised without a reconnect storm'),
     ('R15', 'Security-relevant broker logs are available and contain no keys or credentials'),
+    ('R16', 'Legacy certificates without Gateway ID (AWS IoT profile) are mapped to the right gateway'),
+    ('R17', 'Certificate rotation: old and new certificate overlap, switch with rollback'),
 ]
 
 
@@ -58,6 +60,13 @@ FINDINGS = {
              '(classify NATIVE / CONFIGURATION / PLUGIN / CUSTOM for ENTC-59).',
     'DUP-01': 'The broker applies the MQTT session takeover. ENETEC requires rejecting the second connection and '
               'keeping the active session (ENETEC.md §6.3); needs broker support or an extension.',
+    'LEG-01': 'The broker cannot derive the Gateway ID from a certificate without CN/SAN (Mosquitto with '
+              'use_identity_as_username: CONNACK 134). Legacy AWS IoT certificates need a registry lookup '
+              '(certificate fingerprint -> Gateway ID) or re-issuance with the Gateway ID in CN/SAN (ENTC-31).',
+    'LEG-02': 'Legacy certificates of different gateways share the same subject; the broker must tell them '
+              'apart by certificate (fingerprint/serial), not by subject.',
+    'ROT-01': 'Two valid certificates for the same gateway must be accepted during the rotation overlap.',
+    'ROT-02': 'Switching to the new certificate, or falling back to the old one, did not work as required.',
     'SUBSCRIBE': 'The broker grants the SUBSCRIBE (SUBACK < 128) and filters on delivery: isolation holds, but the '
                  'denial is not signalled to the client and a denied subscription is not visible as such.',
 }
@@ -678,6 +687,107 @@ def reconnect_spread(h):
 
 def _plant(h, gid):
     return next(g['plant_id'] for g in h.fleet['gateways'] if g['gateway_id'] == gid)
+
+
+# --------------------------------------------------------------------------- cases: legacy / rotation
+
+def _legacy_files(h, gateway_id):
+    folder = h.broker.certs / 'legacy' / gateway_id
+    files = folder / 'client.crt', folder / 'client.key'
+    if not all(f.exists() for f in files):
+        raise Inconclusive(f'{folder} missing: run scripts/15_create_legacy_identities.sh')
+    return files
+
+
+def _legacy_ids(h):
+    ids = [g['gateway_id'] for g in h.fleet.get('legacy_gateways', [])]
+    if len(ids) < 2:
+        raise Inconclusive('fleet has fewer than two legacy gateways (sim/config.toml [legacy])')
+    return ids
+
+
+def _rotation(h):
+    gid = h.cfg.get('legacy', {}).get('rotation_gateway')
+    folder = h.broker.certs / 'rotation' / str(gid)
+    files = folder / 'client.crt', folder / 'client.key'
+    if not gid or not all(f.exists() for f in files):
+        raise Inconclusive(f'{folder} missing: run scripts/15_create_legacy_identities.sh')
+    return gid, files
+
+
+def _own_d2c(h, gid, case_id):
+    plant = next(g['plant_id'] for g in h.fleet['gateways'] + h.fleet.get('legacy_gateways', [])
+                 if g['gateway_id'] == gid)
+    return f'{gateway_base(h.cfg, plant, gid)}/d2c/simulation/{h.run_id}/{case_id}'
+
+
+@case('LEG-01', 'R16', 'Legacy certificate (RSA 2048, no CN/SAN) connects as its gateway and publishes', 'ACCEPT',
+      mandatory=False)
+def legacy_connect(h):
+    gid = _legacy_ids(h)[0]
+    obs = _probe_publish(h, 'LEG-01', gid, _own_d2c(h, gid, 'LEG-01'), witness=(h.ingest, h.d2c_all),
+                         files=_legacy_files(h, gid))
+    if obs['connect'] != 'ACCEPTED':
+        return 'FAIL', f"{gid}: {obs['connect']}"
+    ok = obs['puback'] in ACCEPTED_CODES and obs['delivered']
+    return ('PASS' if ok else 'FAIL'), f"{gid}: PUBACK {obs['puback']}; delivered {obs['delivered']}"
+
+
+@case('LEG-02', 'R16', 'Legacy certificate of gateway 2 (same subject) cannot act as gateway 1', 'DENY',
+      mandatory=False)
+def legacy_isolation(h):
+    first, second = _legacy_ids(h)[:2]
+    obs = _probe_publish(h, 'LEG-02', second, _own_d2c(h, first, 'LEG-02'), witness=(h.ingest, h.d2c_all),
+                         client_id=first, files=_legacy_files(h, second))
+    if obs['connect'] != 'ACCEPTED':
+        return 'PASS', f"certificate of {second} with Client ID {first}: {obs['connect']}"
+    verdict, text = _publish_denied(obs)
+    return verdict, f'certificate of {second} as {first}: ' + text
+
+
+@case('ROT-01', 'R17', 'Old and new (CSR-based, RSA 2048) certificate of one gateway are both accepted', 'ACCEPT',
+      mandatory=False)
+def rotation_overlap(h):
+    gid, new_files = _rotation(h)
+    notes = []
+    for label, files in (('old', h.files(gid)), ('new', new_files)):
+        probe = h.client(f'ROT-01:{label}', gid, files)
+        outcome, detail = probe.open()
+        code = probe.publish(_own_d2c(h, gid, 'ROT-01'), h.payload('ROT-01')) if outcome == 'ACCEPTED' else None
+        probe.close()
+        notes.append((label, outcome, code))
+    ok = all(o == 'ACCEPTED' and c in ACCEPTED_CODES for _, o, c in notes)
+    return ('PASS' if ok else 'FAIL'), '; '.join(f'{l}: {o}, PUBACK {c}' for l, o, c in notes)
+
+
+@case('ROT-02', 'R17', 'Switch old -> new certificate, failed new identity falls back to the old one',
+      'SWITCH_AND_ROLLBACK', mandatory=False)
+def rotation_switch(h):
+    gid, new_files = _rotation(h)
+    topic = _own_d2c(h, gid, 'ROT-02')
+    steps = []
+    old = h.client('ROT-02:old', gid, h.files(gid))
+    if old.open()[0] != 'ACCEPTED':
+        raise Inconclusive('old certificate not accepted')
+    # One connection per Client ID: disconnect the old identity before trying the new one.
+    old.close()
+    new = h.client('ROT-02:new', gid, new_files)
+    outcome, _ = new.open()
+    code = new.publish(topic, h.payload('ROT-02')) if outcome == 'ACCEPTED' else None
+    new.close()
+    steps.append(f'switch to new: {outcome}, PUBACK {code}')
+    switched = outcome == 'ACCEPTED' and code in ACCEPTED_CODES
+    # A broken "new" identity (untrusted issuer, same CN) must fail; the old one must still work.
+    broken = h.client('ROT-02:broken-new', gid, h.negative('untrusted-ca'))
+    broken_outcome, _ = broken.open()
+    if broken_outcome in ('UNREACHABLE', 'NO_RESPONSE'):
+        raise Inconclusive('broker unreachable during rollback step')
+    back = h.client('ROT-02:rollback', gid, h.files(gid))
+    back_outcome, _ = back.open()
+    back_code = back.publish(topic, h.payload('ROT-02')) if back_outcome == 'ACCEPTED' else None
+    steps.append(f'broken new: {broken_outcome}; rollback to old: {back_outcome}, PUBACK {back_code}')
+    ok = switched and broken_outcome == 'REJECTED' and back_outcome == 'ACCEPTED' and back_code in ACCEPTED_CODES
+    return ('PASS' if ok else 'FAIL'), '; '.join(steps)
 
 
 # --------------------------------------------------------------------------- phases

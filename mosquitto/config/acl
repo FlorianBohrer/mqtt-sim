@@ -42,6 +42,18 @@ user gw-sim-000010
 topic write eicp/v1/sim/plt_019f67ee-7a70-7ac4-af69-93722be61f89/gateways/gw-sim-000010/d2c/#
 topic read  eicp/v1/sim/plt_019f67ee-7a70-7ac4-af69-93722be61f89/gateways/gw-sim-000010/c2d/#
 
+# Legacy gateways (certificate without CN): these rules only apply if the broker maps
+# the certificate to the Gateway ID via a registry. With use_identity_as_username
+# (identity = CN) Mosquitto cannot reach them; acceptance cases LEG-* show this.
+
+user 0000000000000005
+topic write eicp/v1/sim/plt_sim_legacy/gateways/0000000000000005/d2c/#
+topic read  eicp/v1/sim/plt_sim_legacy/gateways/0000000000000005/c2d/#
+
+user 0000000000000006
+topic write eicp/v1/sim/plt_sim_legacy/gateways/0000000000000006/d2c/#
+topic read  eicp/v1/sim/plt_sim_legacy/gateways/0000000000000006/c2d/#
+
 # Cloud stand-ins: one direction each, never both.
 
 user svc-sim-cloud-ingest

@@ -34,8 +34,10 @@ for CERT in certs/gateways/*/gateway.crt certs/services/*/gateway.crt; do
 done
 # Negative identities are cheap: always re-issue them from the current CA.
 ./scripts/12_create_negative_identities.sh >/dev/null || die 'Negative identities failed.'
-printf 'CA, %s gateway and %s service certificates, negative identities: OK\n' \
-  "$(wc -l < synthetic/gateways.txt | tr -d ' ')" "$(wc -l < synthetic/services.txt | tr -d ' ')"
+./scripts/15_create_legacy_identities.sh >/dev/null || die 'Legacy/rotation identities failed.'
+printf 'CA, %s gateway, %s service, %s legacy certificates, negative + rotation identities: OK\n' \
+  "$(wc -l < synthetic/gateways.txt | tr -d ' ')" "$(wc -l < synthetic/services.txt | tr -d ' ')" \
+  "$(wc -l < synthetic/legacy_gateways.txt | tr -d ' ')"
 
 printf '\n[2/5] Broker\n'
 PROFILE_NAME=$(sed -n 's/^name = "\(.*\)"/\1/p' "$TARGET")

@@ -12,6 +12,8 @@ def generate(cfg, out_dir, acl_path):
     write_json(out_dir / 'fleet.json', fleet)
     (out_dir / 'gateways.txt').write_text(''.join(g['gateway_id'] + '\n' for g in fleet['gateways']))
     (out_dir / 'services.txt').write_text(''.join(s['identity'] + '\n' for s in fleet['services']))
+    (out_dir / 'legacy_gateways.txt').write_text(''.join(g['gateway_id'] + '\n'
+                                                         for g in fleet.get('legacy_gateways', [])))
     write_jsonl(out_dir / 'dataset' / 'telemetry.jsonl', data['telemetry'])
     write_jsonl(out_dir / 'dataset' / 'commands.jsonl', data['commands'])
     write_json(out_dir / 'dataset' / 'connectivity.json', data['connectivity'])

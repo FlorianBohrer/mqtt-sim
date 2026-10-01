@@ -20,7 +20,7 @@ class CommittedDataTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             out, acl = Path(tmp) / 'synthetic', Path(tmp) / 'acl'
             generate(load_config(), out, acl)
-            for rel in ('fleet.json', 'gateways.txt', 'services.txt', 'dataset/telemetry.jsonl',
+            for rel in ('fleet.json', 'gateways.txt', 'services.txt', 'legacy_gateways.txt', 'dataset/telemetry.jsonl',
                         'dataset/commands.jsonl', 'dataset/connectivity.json', 'dataset/summary.json'):
                 with self.subTest(rel):
                     self.assertEqual((out / rel).read_bytes(), (LAB_ROOT / 'synthetic' / rel).read_bytes(),
@@ -53,6 +53,16 @@ class FleetTest(unittest.TestCase):
         for plant in self.fleet['plants']:
             if plant['plant_id'] not in pinned_plants:
                 self.assertRegex(plant['plant_id'], PLANT_UUID7)
+
+    def test_legacy_gateways_have_no_certificate_identity(self):
+        legacy = self.fleet['legacy_gateways']
+        self.assertEqual([g['gateway_id'] for g in legacy], self.cfg['legacy']['gateway_ids'])
+        for gw in legacy:
+            self.assertRegex(gw['gateway_id'], r'^\d{16}$')
+            self.assertIsNone(gw['certificate_cn'])
+            self.assertEqual(gw['client_id'], gw['gateway_id'])
+        # Legacy gateways are not part of the simulated traffic.
+        self.assertFalse({g['gateway_id'] for g in legacy} & {g['gateway_id'] for g in self.fleet['gateways']})
 
     def test_acl_is_gateway_scoped(self):
         acl = render_acl(self.fleet)

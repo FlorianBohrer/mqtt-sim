@@ -3,7 +3,7 @@
   "generator": {
     "name": "enetec_sim",
     "seed": 20260930,
-    "config_sha256": "b28f9b651345a1363ace9ddf07eebc699e8a5ced55ec361a237bf7f7f4b49123"
+    "config_sha256": "b29ca6100bd6848d24724c822b5756566246d719afb51894ef0b90c451def9fd"
   },
   "topics": {
     "base": "eicp/v1/sim",
@@ -1234,6 +1234,36 @@
       "write": [
         "eicp/v1/sim/+/gateways/+/c2d/#"
       ]
+    }
+  ],
+  "legacy_gateways": [
+    {
+      "gateway_id": "0000000000000005",
+      "plant_id": "plt_sim_legacy",
+      "profile": "legacy-aws-iot",
+      "lifecycle": "operational",
+      "certificate_subject": "/C=UK/ST=United",
+      "certificate_cn": null,
+      "identity_source": "registry: certificate SHA-256 fingerprint -> Gateway ID",
+      "client_id": "0000000000000005",
+      "topics": {
+        "d2c": "eicp/v1/sim/plt_sim_legacy/gateways/0000000000000005/d2c/#",
+        "c2d": "eicp/v1/sim/plt_sim_legacy/gateways/0000000000000005/c2d/#"
+      }
+    },
+    {
+      "gateway_id": "0000000000000006",
+      "plant_id": "plt_sim_legacy",
+      "profile": "legacy-aws-iot",
+      "lifecycle": "operational",
+      "certificate_subject": "/C=UK/ST=United",
+      "certificate_cn": null,
+      "identity_source": "registry: certificate SHA-256 fingerprint -> Gateway ID",
+      "client_id": "0000000000000006",
+      "topics": {
+        "d2c": "eicp/v1/sim/plt_sim_legacy/gateways/0000000000000006/d2c/#",
+        "c2d": "eicp/v1/sim/plt_sim_legacy/gateways/0000000000000006/c2d/#"
+      }
     }
   ]
 }

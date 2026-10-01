@@ -50,6 +50,9 @@ class BrokerIntegrationTest(unittest.TestCase):
         for svc in cls.fleet['services']:
             sh('scripts/02_create_gateway.sh', svc['identity'], 'services')
         sh('scripts/12_create_negative_identities.sh')
+        (lab / 'sim').mkdir()
+        shutil.copy(LAB_ROOT / 'sim' / 'config.toml', lab / 'sim' / 'config.toml')
+        sh('scripts/15_create_legacy_identities.sh')
 
         # The lab broker config, only with local paths and a free port.
         port = _free_port()
@@ -92,6 +95,10 @@ class BrokerIntegrationTest(unittest.TestCase):
                      'ACL-01', 'ACL-02', 'ACL-03', 'ACL-04', 'ACL-05', 'ACL-06', 'ACL-07',
                      'QOS-01', 'QOS-02', 'SES-01', 'REC-01', 'LOG-01', 'LOG-02', 'LOG-03', 'LOG-04', 'LOG-05'):
             self.assertEqual(verdicts[case], 'PASS', f'{case}: {summary["results"]}')
+        # Rotation works with plain mTLS; a CN-less legacy certificate cannot be mapped by Mosquitto.
+        for case in ('ROT-01', 'ROT-02', 'LEG-02'):
+            self.assertEqual(verdicts[case], 'PASS', f'{case}: {summary["results"]}')
+        self.assertEqual(verdicts['LEG-01'], 'FAIL')
         # No unauthorized delivery anywhere (PARTIAL = blocked but not signalled).
         for case in ('ACL-08', 'ACL-09', 'ACL-10', 'ACL-11', 'ACL-12', 'ACL-13'):
             self.assertIn(verdicts[case], ('PASS', 'PARTIAL'), case)

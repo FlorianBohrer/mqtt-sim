@@ -1,5 +1,5 @@
 .PHONY: check init up down logs valid-publish cross-gateway wrong-clientid inspect verify clean \
-	fleet negative-certs acceptance simulate sim-test brokers
+	fleet negative-certs legacy-certs acceptance simulate sim-test brokers
 
 # Broker under test for acceptance/simulate: profile sim/targets/$(BROKER).toml
 # e.g. make acceptance BROKER=emqx   (list: make brokers)
@@ -46,6 +46,9 @@ fleet:
 
 negative-certs:
 	./scripts/12_create_negative_identities.sh
+
+legacy-certs:
+	./scripts/15_create_legacy_identities.sh
 
 # ENTC-63 verification command: exit 0 only if all mandatory acceptance cases pass.
 acceptance:

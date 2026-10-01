@@ -91,6 +91,8 @@ ob eine opake Nachricht ankommt. Jeder Fall nutzt eigene Topics unter
 | R13 | Clean Start = false / persistente Session | SES-01; *advisory:* SES-02 (Clean Start = true verwirft die Session) | Command, das während des Offline-Zustands gesendet wird, kommt nach dem Reconnect an; `session_present = 1` |
 | R14 | Reconnect ohne Sturm | REC-01 | 10 Gateways verlieren gleichzeitig den Link; erster Reconnect mit stratifiziertem Full Jitter (fester Seed, je Gateway ein Zeitslot) über 5 s, danach exponentieller Backoff mit Jitter. Alle Sessions werden wieder aufgenommen, die Versuche verteilen sich über ≥ 50 % des Fensters |
 | R15 | Security-Logs verfügbar, ohne Secrets | LOG-01 (Connect mit Client- und Zertifikatsidentität), LOG-02 (TLS-/Auth-Fehler), LOG-03 (ACL-Ablehnung), LOG-04 (Disconnect), LOG-05 (kein Private Key/Passwort in Broker-Log oder Evidenz) | Treffer im Broker-Log des Laufzeitfensters; LOG-05: keine Treffer |
+| R16 | Legacy-Zertifikate ohne Gateway-ID (AWS-IoT-Profil) werden dem richtigen Gateway zugeordnet | *advisory:* LEG-01, LEG-02 | siehe [`legacy-certificates.md`](legacy-certificates.md) |
+| R17 | Zertifikatsrotation: Überlappung alt/neu, Wechsel mit Rückfall | *advisory:* ROT-01, ROT-02 | siehe [`legacy-certificates.md`](legacy-certificates.md) |
 
 **Ergebniswerte:**
 - **PASS:** gefordertes Verhalten beobachtet.

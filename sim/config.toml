@@ -37,6 +37,19 @@ io_modules_per_gateway = [0, 2]
 flaky_link_share = 0.25
 clock_skew_s = [-3.0, 3.0]
 
+[legacy]
+# SOURCE (ENETEC, Test-Gateway 0000000000000005): Legacy-Zertifikate aus AWS IoT Fleet
+# Provisioning haben RSA 2048, Subject nur "C=UK, ST=United", KEIN CN/SAN -> die
+# Gateway-ID steht nicht im Zertifikat (AWS: Zuordnung ueber die Thing-Registry).
+# Die Lab-Kopien werden von der Lab-CA signiert (AWS-CA nicht nachgebildet).
+# Sie sind NICHT Teil des Simulations-Datensatzes, nur der Acceptance-Faelle LEG-*.
+plant_id = "plt_sim_legacy"
+gateway_ids = ["0000000000000005", "0000000000000006"]
+subject = "/C=UK/ST=United"
+key = "rsa:2048"
+# Rotation (ROT-*): zweites, per CSR "auf dem Geraet" erzeugtes Zertifikat fuer dieses Gateway.
+rotation_gateway = "gw-sim-000001"
+
 [services]
 # Cloud-Platzhalter; spaeter durch die MQTT->Pub/Sub-Bridge ersetzt.
 ingest = "svc-sim-cloud-ingest"
