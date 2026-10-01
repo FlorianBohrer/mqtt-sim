@@ -75,11 +75,14 @@ def compare(profile_a, profile_b, results_dir, run_a=None, run_b=None):
     cases_b = {r['id']: r for r in rep_b['results']}
     effort_a, effort_b = _parse_effort(rep_a), _parse_effort(rep_b)
 
-    requirements, better_a, better_b, equal = [], [], [], []
+    requirements, better_a, better_b, equal, unknown = [], [], [], [], []
     for req_id in reqs_a:
         va, vb = reqs_a[req_id]['verdict'], reqs_b.get(req_id, {}).get('verdict', 'N/A')
-        delta = 'A' if _rank(va) < _rank(vb) else 'B' if _rank(vb) < _rank(va) else '='
-        {'A': better_a, 'B': better_b, '=': equal}[delta].append(req_id)
+        if 'INCONCLUSIVE' in (va, vb, va.replace('advisory ', ''), vb.replace('advisory ', '')):
+            delta = '?'   # no evidence on one side: not comparable, never "better"
+        else:
+            delta = 'A' if _rank(va) < _rank(vb) else 'B' if _rank(vb) < _rank(va) else '='
+        {'A': better_a, 'B': better_b, '=': equal, '?': unknown}[delta].append(req_id)
         requirements.append({'id': req_id, 'requirement': reqs_a[req_id]['requirement'], 'a': va, 'b': vb,
                              'better': delta, 'effort_a': effort_a.get(req_id), 'effort_b': effort_b.get(req_id)})
     differing, shared = [], []
@@ -123,6 +126,7 @@ def compare(profile_a, profile_b, results_dir, run_a=None, run_b=None):
         caveats.append('No effort classes (NATIVE/CONFIGURATION/PLUGIN/CUSTOM/UNSUPPORTED) in the profiles.')
     return {'generated_utc': datetime.now(timezone.utc).isoformat(timespec='seconds'),
             'a': a, 'b': b, 'statement': statement, 'better_a': better_a, 'better_b': better_b, 'equal': equal,
+            'not_comparable': unknown,
             'requirements': requirements, 'differing_cases': differing, 'shared_limitations': shared,
             'caveats': caveats}
 
@@ -141,13 +145,15 @@ def summary_text(c, evidence=None):
                      f"{s['mandatory_total'] - s['not_passed']}/{s['mandatory_total']} mandatory PASS")
     lines += ['', c['statement'], '', f"{'':5}{'requirement':50} {'A':9} {'B':9}"]
     for r in c['requirements']:
-        mark = {'A': ' <A', 'B': ' B>', '=': ''}[r['better']]
+        mark = {'A': ' <A', 'B': ' B>', '=': '', '?': ' ?'}[r['better']]
         text = r['requirement'] if len(r['requirement']) <= 48 else r['requirement'][:45] + '...'
         lines.append(f"{r['id']:5}{text:50} {r['a'].replace('advisory ', 'adv '):9} "
                      f"{r['b'].replace('advisory ', 'adv '):9}{mark}")
     lines += ['', f"Better in A: {', '.join(c['better_a']) or '-'}",
               f"Better in B: {', '.join(c['better_b']) or '-'}",
               f"Same result: {len(c['equal'])} of {len(c['requirements'])} requirements"]
+    if c['not_comparable']:
+        lines.append('Not comparable (no evidence on one side, marked ?): ' + ', '.join(c['not_comparable']))
     if c['shared_limitations']:
         lines.append('Both fall short on: ' + ', '.join(x['id'] for x in c['shared_limitations']))
     for caveat in c['caveats']:
@@ -175,7 +181,7 @@ def markdown(c):
     fmt = lambda e: f"{e[0]}: {esc(e[1])}" if e and e[1] else (e[0] if e else '—')
     for r in c['requirements']:
         lines.append(f"| {r['id']} | {esc(r['requirement'])} | **{r['a']}** | **{r['b']}** | "
-                     f"{ {'A': 'A', 'B': 'B', '=': '='}[r['better']] } | {fmt(r['effort_a'])} | {fmt(r['effort_b'])} |")
+                     f"{ {'A': 'A', 'B': 'B', '=': '=', '?': '? (no evidence)'}[r['better']] } | {fmt(r['effort_a'])} | {fmt(r['effort_b'])} |")
     if c['differing_cases']:
         lines += ['', '## Cases with different results', '',
                   '| Case | Test | A | B | A observed | B observed |', '|---|---|---|---|---|---|']

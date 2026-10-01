@@ -18,12 +18,17 @@ reconnect_gateways = 10
 reconnect_window_s = 5.0
 
 [log]
-# docker compose logs lines: "enetec-emqx  | 2026-10-01T10:00:00.123456+00:00 [warning] ..."
+# Observed in the Docker run of 2026-10-01 (docker compose logs, lines start with an ISO timestamp):
+#   [info] clientid: gw-sim-000001, msg: terminate, peername: ...          (disconnect)
+#   [notice] TLS server: In state wait_cert at tls_handshake_1_3.erl:...    (TLS failure)
+#   [info] tag: AUTHZ, clientid: ..., msg: authorization_permission_denied  (ACL denial)
+# Accepted connections are NOT visible at info level in that run; LOG-01 stays strict and may FAIL
+# until a connect line is confirmed (then add its message to connect_accepted).
 timestamp = '(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)'
-connect_accepted = 'client_connected|connected|clientid'
-auth_failure = 'ssl|tls|handshake|certificate'
-acl_denied = 'authorization_permission_denied|not_authorized|cannot_publish|denied'
-disconnect = 'disconnected|socket_closed|takenover|discarded'
+connect_accepted = 'msg: (client_connected|connected|authenticated)'
+auth_failure = 'TLS server: In state|tls_alert|ssl_error'
+acl_denied = 'authorization_permission_denied'
+disconnect = 'msg: (terminate|disconnected|socket_closed|takeover|discarded)'
 
 [effort]
 # Lab assessment per requirement: CLASS | note. Based on the acceptance run of 2026-10-01

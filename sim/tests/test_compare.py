@@ -73,6 +73,15 @@ class CompareTest(unittest.TestCase):
         self.assertIn('| R06 |', markdown(c))
         self.assertIn('Better in A: R06, R07', summary_text(c))
 
+    def test_inconclusive_is_not_better_than_fail(self):
+        self.put('acceptance-a', report('a', {'R06': 'INCONCLUSIVE', 'R07': 'PASS'}, '2026-01-01'))
+        self.put('acceptance-b', report('b', {'R06': 'FAIL'}, '2026-01-01'))
+        c = compare('a', 'b', self.res)
+        self.assertEqual(c['not_comparable'], ['R06'])
+        self.assertNotIn('R06', c['better_a'])
+        self.assertIn('Not comparable', summary_text(c))
+        self.assertIn('? (no evidence)', markdown(c))
+
     def test_shared_limitation_and_equal_brokers(self):
         self.put('acceptance-a', report('a', {'R11': 'FAIL'}, '2026-01-01'))
         self.put('acceptance-b', report('b', {'R11': 'FAIL'}, '2026-01-01'))
