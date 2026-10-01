@@ -1,28 +1,30 @@
-# Broker profile: HiveMQ (CE/Enterprise, candidate, ENTC-59). STATUS: template –
-# settings and log patterns below are unverified until the first run.
-#
-# Broker setup required for the harness (derive from synthetic/fleet.json):
-#   - TLS listener on `port`, client-authentication-mode REQUIRED, truststore = lab CA
-#   - identity from certificate CN and topic permissions per gateway/service:
-#     HiveMQ CE has no ACLs out of the box -> file-RBAC / security extension needed
-#   - server certificate trusted by `server_ca` and valid for `host`
-#   - hivemq.log + event.log exported for the run window -> SIM_BROKER_LOG
+# Broker profile: HiveMQ CE 2026.5 + ENETEC identity extension (candidate, ENTC-59).
+# make acceptance BROKER=hivemq builds brokers/hivemq (Dockerfile: Maven build of the
+# extension + HiveMQ CE), creates the keystore and starts compose service "hivemq".
+# HiveMQ CE has no ACLs of its own: identity, Client ID binding, duplicate rejection,
+# revocation and topic permissions come from brokers/hivemq/extension (open source, lab).
 
-name = "HiveMQ"
-status = "template"
-lab_managed = false
+name = "HiveMQ CE 2026.5 + enetec-identity extension"
+status = "verified"
+lab_managed = true
+compose_service = "hivemq"
+ready_log = 'Started HiveMQ'
+image_build = "brokers/hivemq"        # docker build context
+image = "enetec-hivemq:local"
+prepare_script = "brokers/hivemq/prepare_keystore.sh"   # runs in the sim container
 host = "localhost"
-port = 8883
-# server_ca = "certs/hivemq/ca.crt"
+port = 8885                   # host port mapped to the container's 8883
+compose_host = "hivemq"
+compose_port = 8883
 observe_s = 3.0
 session_expiry_s = 300
 reconnect_gateways = 10
 reconnect_window_s = 5.0
 
 [log]
-# HiveMQ lines start with e.g. 2026-09-30 15:00:00,123 (broker local time; run it in UTC).
-timestamp = '^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:,\d+)?)'
-connect_accepted = 'Client ID: \S+, IP: \S+.* connected'
-auth_failure = 'SSL|TLS|handshake|certificate'
-acl_denied = 'not authorized|permission|denied'
-disconnect = 'disconnected|was disconnected'
+# Lines like "2026-10-01 08:34:00,834 INFO  - ENETEC-AUDIT connect-accepted ..." (container UTC)
+timestamp = '(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3})'
+connect_accepted = 'ENETEC-AUDIT connect-accepted clientId=\S+ identity=\S+'
+auth_failure = 'ENETEC-AUDIT connect-rejected|SSL|TLS handshake|certificate'
+acl_denied = 'ENETEC-AUDIT (publish|subscribe)-denied'
+disconnect = 'ENETEC-AUDIT disconnect'

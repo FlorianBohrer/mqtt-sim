@@ -19,7 +19,8 @@ class CommittedDataTest(unittest.TestCase):
     def test_committed_files_are_reproducible(self):
         with tempfile.TemporaryDirectory() as tmp:
             out, acl, emqx = Path(tmp) / 'synthetic', Path(tmp) / 'acl', Path(tmp) / 'emqx-acl.conf'
-            generate(load_config(), out, acl, emqx)
+            hivemq = Path(tmp) / 'permissions.tsv'
+            generate(load_config(), out, acl, emqx, hivemq)
             for rel in ('fleet.json', 'gateways.txt', 'services.txt', 'legacy_gateways.txt', 'dataset/telemetry.jsonl',
                         'dataset/commands.jsonl', 'dataset/connectivity.json', 'dataset/summary.json'):
                 with self.subTest(rel):
@@ -27,6 +28,7 @@ class CommittedDataTest(unittest.TestCase):
                                      f'{rel} is stale: run make fleet and commit the result')
             self.assertEqual(acl.read_bytes(), (LAB_ROOT / 'mosquitto/config/acl').read_bytes())
             self.assertEqual(emqx.read_bytes(), (LAB_ROOT / 'brokers/emqx/acl.conf').read_bytes())
+            self.assertEqual(hivemq.read_bytes(), (LAB_ROOT / 'brokers/hivemq/permissions.tsv').read_bytes())
 
 
 class FleetTest(unittest.TestCase):

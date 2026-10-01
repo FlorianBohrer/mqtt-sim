@@ -6,7 +6,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .config import (DEFAULT_ACL, EMQX_ACL, DEFAULT_CONFIG, DEFAULT_OUT, DEFAULT_TARGET, LAB_ROOT, TARGETS_DIR,
+from .config import (DEFAULT_ACL, EMQX_ACL, HIVEMQ_PERMISSIONS, DEFAULT_CONFIG, DEFAULT_OUT, DEFAULT_TARGET, LAB_ROOT, TARGETS_DIR,
                      load_config, load_target)
 
 
@@ -27,7 +27,8 @@ def _broker(args):
 def cmd_generate(args, cfg):
     from .generate import generate
     fleet, summary = generate(cfg, Path(args.out), None if args.no_acl else Path(args.acl),
-                              None if args.no_acl else EMQX_ACL)
+                              None if args.no_acl else EMQX_ACL,
+                              None if args.no_acl else HIVEMQ_PERMISSIONS)
     t = summary['telemetry']
     print(f"fleet: {summary['fleet']['plants']} plants, {summary['fleet']['gateways']} gateways, "
           f"{summary['fleet']['devices']} devices -> {args.out}")

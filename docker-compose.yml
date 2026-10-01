@@ -33,6 +33,19 @@ services:
       - ./brokers/emqx/acl.conf:/opt/emqx/etc/acl.conf:ro
       - ./certs:/opt/emqx/etc/certs/lab:ro
 
+  # HiveMQ CE + ENETEC identity extension: make acceptance BROKER=hivemq (brokers/hivemq/).
+  # Image built by scripts/13_acceptance.sh (docker build -t enetec-hivemq:local brokers/hivemq).
+  hivemq:
+    image: enetec-hivemq:local
+    pull_policy: never
+    container_name: enetec-hivemq
+    profiles: ["hivemq"]
+    ports:
+      - "8885:8883"     # mTLS (Mac: localhost:8885, compose network: hivemq:8883)
+    volumes:
+      - ./certs:/opt/hivemq/lab-certs:ro
+      - ./brokers/hivemq/permissions.tsv:/opt/hivemq/extensions/enetec-identity/conf/permissions.tsv:ro
+
   # Synthetic fleet / simulation runtime (python -m enetec_sim), see docs/mqtt-tests/.
   sim:
     # Built locally by scripts/sim_common.sh (docker build -t enetec-sim:local sim),

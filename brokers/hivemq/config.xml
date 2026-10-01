@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<!-- HiveMQ CE configuration for the ENETEC mTLS lab (ENTC-59 / ENTC-63).
+     Only an mTLS listener; identity, Client ID binding and topic permissions come from
+     the enetec-identity extension (extension/). Synthetic lab identities only. -->
+<hivemq xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="config.xsd">
+
+    <listeners>
+        <tls-tcp-listener>
+            <port>8883</port>
+            <bind-address>0.0.0.0</bind-address>
+            <tls>
+                <!-- built from certs/broker/* by prepare_keystore.sh -->
+                <keystore>
+                    <path>${ENV:ENETEC_KEYSTORE}</path>
+                    <password>enetec-lab</password>
+                    <private-key-password>enetec-lab</private-key-password>
+                </keystore>
+                <!-- lab CA, built at container start by start.sh -->
+                <truststore>
+                    <path>${ENV:ENETEC_TRUSTSTORE}</path>
+                    <password>enetec-lab</password>
+                </truststore>
+                <client-authentication-mode>REQUIRED</client-authentication-mode>
+                <protocols>
+                    <protocol>TLSv1.3</protocol>
+                    <protocol>TLSv1.2</protocol>
+                </protocols>
+            </tls>
+        </tls-tcp-listener>
+    </listeners>
+
+    <mqtt>
+        <session-expiry>
+            <max-interval>7200</max-interval>
+        </session-expiry>
+    </mqtt>
+
+    <anonymous-usage-statistics>
+        <enabled>false</enabled>
+    </anonymous-usage-statistics>
+</hivemq>

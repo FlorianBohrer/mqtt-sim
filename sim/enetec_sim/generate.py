@@ -1,10 +1,10 @@
 """Write the synthetic fleet, dataset and generated Mosquitto ACL to disk."""
 from .config import ACL_TEST_LOCK, write_json, write_jsonl
 from .dataset import build_dataset
-from .fleet import build_fleet, render_acl, render_emqx_acl
+from .fleet import build_fleet, render_acl, render_emqx_acl, render_hivemq_permissions
 
 
-def generate(cfg, out_dir, acl_path, emqx_acl_path=None):
+def generate(cfg, out_dir, acl_path, emqx_acl_path=None, hivemq_permissions_path=None):
     if acl_path is not None and ACL_TEST_LOCK.exists():
         raise SystemExit(f'ACL test lock present ({ACL_TEST_LOCK}); finish or recover test 09/10 first.')
     fleet = build_fleet(cfg)
@@ -26,4 +26,7 @@ def generate(cfg, out_dir, acl_path, emqx_acl_path=None):
         # Same rules for the EMQX broker profile (brokers/emqx/).
         emqx_acl_path.parent.mkdir(parents=True, exist_ok=True)
         emqx_acl_path.write_text(render_emqx_acl(fleet))
+    if hivemq_permissions_path is not None:
+        hivemq_permissions_path.parent.mkdir(parents=True, exist_ok=True)
+        hivemq_permissions_path.write_text(render_hivemq_permissions(fleet))
     return fleet, data['summary']

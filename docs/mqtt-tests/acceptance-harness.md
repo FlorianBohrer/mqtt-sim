@@ -111,7 +111,7 @@ Broker-Profile liegen in `sim/targets/` (`make brokers`):
 |---|---|---|
 | `mosquitto-lab` | verifiziert, wird per Compose gestartet | `make acceptance` |
 | `emqx` | EMQX 5.8 als Lab-Container, wird automatisch gestartet; Log-Muster noch zu bestätigen ([`brokers/emqx/`](../../brokers/emqx/README.md)) | `make acceptance BROKER=emqx` |
-| `hivemq` | Vorlage | `make acceptance BROKER=hivemq SIM_BROKER_LOG=<log>` |
+| `hivemq` | HiveMQ CE 2026.5 + Lab-Erweiterung (Identität, Client-ID-Bindung, Duplikat-Ablehnung, Widerruf, Deny-by-default), wird gebaut und gestartet; lokal **ACCEPTED** ([`brokers/hivemq/`](../../brokers/hivemq/README.md)) | `make acceptance BROKER=hivemq` |
 | `bevywise` | Vorlage, ohne Log-Muster (LOG-Fälle bleiben INCONCLUSIVE); Einrichtung in [`brokers/bevywise/`](../../brokers/bevywise/README.md) | `make acceptance BROKER=bevywise SIM_BROKER_LOG=<log>` |
 
 `make simulate BROKER=<profil>` nutzt dasselbe Profil. Host und Port kommen aus dem Profil;

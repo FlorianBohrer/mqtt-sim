@@ -27,8 +27,6 @@ TARGET="${SIM_TARGET:-sim/targets/mosquitto-lab.toml}"
 
 printf '[1/5] Test PKI and synthetic fleet\n'
 [ -r certs/ca/ca.key ] || ./scripts/01_create_ca_and_broker.sh >/dev/null 2>&1 || die 'CA creation failed.'
-openssl x509 -in certs/broker/broker.crt -noout -text 2>/dev/null | grep -q 'DNS:emqx' ||
-  die 'Broker certificate predates the EMQX profile (SAN without "emqx"). Run: make clean && make acceptance'
 ./scripts/11_synthetic_fleet.sh >/dev/null || die 'Fleet generation failed.'
 for CERT in certs/gateways/*/gateway.crt certs/services/*/gateway.crt; do
   openssl verify -CAfile certs/ca/ca.crt "$CERT" >/dev/null 2>&1 ||
@@ -48,9 +46,27 @@ PROFILE_NAME=$(sed -n 's/^name = "\(.*\)"/\1/p' "$TARGET")
 BROKER_SERVICE=$(sed -n 's/^compose_service = "\(.*\)".*/\1/p' "$TARGET")
 BROKER_SERVICE="${BROKER_SERVICE:-broker}"
 READY_LOG=$(sed -n "s/^ready_log = '\(.*\)'.*/\1/p" "$TARGET")
+COMPOSE_HOST=$(sed -n 's/^compose_host = "\(.*\)".*/\1/p' "$TARGET")
+IMAGE_BUILD=$(sed -n 's/^image_build = "\(.*\)".*/\1/p' "$TARGET")
+IMAGE=$(sed -n 's/^image = "\(.*\)".*/\1/p' "$TARGET")
+PREPARE=$(sed -n 's/^prepare_script = "\(.*\)".*/\1/p' "$TARGET")
+if grep -q '^lab_managed = true' "$TARGET" && [ -n "$COMPOSE_HOST" ]; then
+  openssl x509 -in certs/broker/broker.crt -noout -text 2>/dev/null | grep -q "DNS:$COMPOSE_HOST" ||
+    die "Broker certificate has no SAN \"$COMPOSE_HOST\" (older lab). Run: make clean && make acceptance BROKER=..."
+fi
+if [ -n "$PREPARE" ]; then
+  OUT=$(run_script "$PREPARE" 2>&1) || { printf '%s\n' "$OUT" >&2; die "$PREPARE failed."; }
+fi
 if grep -q '^lab_managed = true' "$TARGET" && [ -z "${SIM_BROKER_HOST:-}" ] &&
    command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-  broker_running || docker compose --profile "$BROKER_SERVICE" up -d "$BROKER_SERVICE"
+  if [ -n "$IMAGE_BUILD" ]; then
+    printf 'Building %s from %s (first run downloads Maven/HiveMQ images) ...\n' "$IMAGE" "$IMAGE_BUILD"
+    docker build -q -t "$IMAGE" "$IMAGE_BUILD" >/dev/null || die "docker build -t $IMAGE $IMAGE_BUILD failed"
+  fi
+  # Always (re)create: the broker must load the certificates, registry and CRL of this run.
+  docker compose --profile "$BROKER_SERVICE" up -d --force-recreate "$BROKER_SERVICE" >/dev/null 2>&1 ||
+    die "docker compose up $BROKER_SERVICE failed"
+  sleep 2
   WAITED=0
   until docker compose logs "$BROKER_SERVICE" 2>/dev/null | grep -Eq "${READY_LOG:-running}"; do
     [ "$WAITED" -lt 90 ] || die "Broker did not start; see docker compose logs $BROKER_SERVICE"
