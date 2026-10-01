@@ -2,6 +2,8 @@
 
 **Stand:** 2026-10-01 · **Bezug:** ENTC-63 (Testrahmen), ENTC-58 (Architektur), ENTC-59 (Broker-Auswahl), ENTC-31 (Zertifikate), ENTC-61 (Nachrichtenspezifikation)
 
+*English version: [MQTT-SIM-ENV.en.md](MQTT-SIM-ENV.en.md)*
+
 Diese Datei erklärt, wie die Simulationsumgebung entstanden ist, wie sie funktioniert, wie man sie
 aufsetzt und wie man sie benutzt. Detailtiefe zu einzelnen Themen steht in den verlinkten Dokumenten
 unter `docs/mqtt-tests/` und `brokers/`.

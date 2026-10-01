@@ -34,7 +34,7 @@ eicp/v1/sim/{plantId}/gateways/{gatewayId}/...
 
 The CA private key is used only for signing. It is never installed in a Gateway folder.
 
-> **Guide (German):** development history, setup and usage of the whole simulation environment: [docs/MQTT-SIM-ENV.md](docs/MQTT-SIM-ENV.md)
+> **Guide:** development history, setup and usage of the whole simulation environment: [docs/MQTT-SIM-ENV.en.md](docs/MQTT-SIM-ENV.en.md) (English), [docs/MQTT-SIM-ENV.md](docs/MQTT-SIM-ENV.md) (Deutsch)
 
 ## 1. Prerequisites
 
