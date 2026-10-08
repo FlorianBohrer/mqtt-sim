@@ -2,6 +2,7 @@
 set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$ROOT"
+. "$ROOT/scripts/poc_wire_check.sh"
 
 CERT_GW="gw-sim-000001"
 WRONG_ID="gw-sim-999999"

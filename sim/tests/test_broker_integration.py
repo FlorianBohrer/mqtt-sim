@@ -4,17 +4,21 @@ Skipped unless `mosquitto` and `openssl` are on PATH (the sim container has neit
 run locally: cd sim && python3 -m unittest tests.test_broker_integration -v).
 """
 import copy
+import json
 import os
 import shutil
+import signal
 import socket
 import subprocess
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from enetec_sim.config import DEFAULT_TARGET, LAB_ROOT, load_config
-from enetec_sim.generate import generate
+from enetec_sim.generate import generate, write_acls
 from enetec_sim.acceptance import load_target, report, run_cases
 from enetec_sim.mqttclient import Broker
 from enetec_sim.simulate import simulate
@@ -66,15 +70,43 @@ class BrokerIntegrationTest(unittest.TestCase):
             conf += 'user root\n'
         (lab / 'data').mkdir()
         (lab / 'mosquitto.conf').write_text(conf)
-        cls.proc = subprocess.Popen(['mosquitto', '-c', str(lab / 'mosquitto.conf')],
+        cls.port = port
+        cls.start_broker()
+        cls.broker = Broker('localhost', port, lab / 'certs')
+
+    @classmethod
+    def start_broker(cls):
+        cls.proc = subprocess.Popen(['mosquitto', '-c', str(cls.lab / 'mosquitto.conf')],
                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
             with socket.socket() as s:
-                if s.connect_ex(('127.0.0.1', port)) == 0:
+                if s.connect_ex(('127.0.0.1', cls.port)) == 0:
                     break
             time.sleep(0.1)
-        cls.broker = Broker('localhost', port, lab / 'certs')
+
+    @classmethod
+    def hook_actions(cls):
+        """The host side of scripts/13_acceptance.sh for a locally started Mosquitto."""
+        acl = cls.lab / 'mosquitto' / 'config' / 'acl'
+
+        def restart(_):
+            cls.proc.terminate()   # SIGTERM: Mosquitto writes its persistence file
+            cls.proc.wait(10)
+            cls.start_broker()
+
+        def revoke(_):
+            subprocess.run(['sh', 'scripts/17_revoke_live.sh'], cwd=cls.lab, check=True, capture_output=True)
+            cls.proc.send_signal(signal.SIGHUP)
+
+        def withdraw(params):
+            write_acls(cls.fleet, acl, withdraw=params['identity'])
+            cls.proc.send_signal(signal.SIGHUP)
+
+        def restore(_):
+            write_acls(cls.fleet, acl)
+            cls.proc.send_signal(signal.SIGHUP)
+        return {'restart': restart, 'revoke': revoke, 'acl-withdraw': withdraw, 'acl-restore': restore}
 
     @classmethod
     def tearDownClass(cls):
@@ -85,7 +117,14 @@ class BrokerIntegrationTest(unittest.TestCase):
     def test_acceptance_harness(self):
         target = load_target(DEFAULT_TARGET)
         run_dir = self.lab / 'results' / 'acceptance-it'
-        run_cases(self.cfg, self.fleet, self.broker, target, run_dir)
+        runner = HookRunner(run_dir / 'hooks', self.hook_actions())
+        runner.start()
+        try:
+            with mock.patch.dict(os.environ, {'SIM_HOOKS': '1'}):
+                run_cases(self.cfg, self.fleet, self.broker, target, run_dir)
+        finally:
+            runner.stop.set()
+            runner.join(5)
         summary = report(target, run_dir, self.lab / 'mosquitto.log', 'integration test')
         verdicts = {r['id']: r['verdict'] for r in summary['results']}
         # Every case must reach a decision; nothing may be inconclusive.
@@ -93,8 +132,21 @@ class BrokerIntegrationTest(unittest.TestCase):
         # Security properties Mosquitto with the lab config does provide.
         for case in ('MTLS-01', 'MTLS-02', 'MTLS-03', 'MTLS-04', 'MTLS-05', 'MTLS-06', 'ID-02',
                      'ACL-01', 'ACL-02', 'ACL-03', 'ACL-04', 'ACL-05', 'ACL-06', 'ACL-07',
-                     'QOS-01', 'QOS-02', 'SES-01', 'REC-01', 'LOG-01', 'LOG-02', 'LOG-03', 'LOG-04', 'LOG-05'):
+                     'QOS-01', 'QOS-02', 'SES-01', 'REC-01', 'LOG-01', 'LOG-02', 'LOG-03', 'LOG-04', 'LOG-05',
+                     'PAY-01', 'PAY-02', 'LWT-01', 'LWT-02', 'EXP-01', 'ACL-14'):
             self.assertEqual(verdicts[case], 'PASS', f'{case}: {summary["results"]}')
+        # Mosquitto does not bind the Client ID to the certificate (v1.3: derived Client ID).
+        for case in ('ID-01', 'ID-03', 'DUP-01'):
+            self.assertEqual(verdicts[case], 'FAIL', case)
+        # No crlfile in the lab config: the revocation reaches neither the open nor a new connection.
+        self.assertEqual(verdicts['REV-01'], 'FAIL')
+        # The restart hook ran and the gateway came back; whether the session survives is broker behaviour
+        # (Mosquitto 2.0.18 here: persistence file written, session_present false after the restart).
+        restart = next(r for r in summary['results'] if r['id'] == 'RST-01')
+        self.assertIn(restart['verdict'], ('PASS', 'FAIL'))
+        self.assertIn('reconnected after', restart['observed'])
+        self.assertEqual(summary['not_applicable'], {'PAY-03': 'profile sets no max_packet_bytes '
+                                                                '(packet limit OPEN, ENTC-61)'})
         # Rotation works with plain mTLS; a CN-less legacy certificate cannot be mapped by Mosquitto.
         for case in ('ROT-01', 'ROT-02', 'LEG-02'):
             self.assertEqual(verdicts[case], 'PASS', f'{case}: {summary["results"]}')
@@ -114,6 +166,29 @@ class BrokerIntegrationTest(unittest.TestCase):
         report = verify(self.lab / 'synthetic' / 'dataset', run_dir)
         self.assertEqual(report['verdict'], 'PASS', report['checks'])
         self.assertGreater(report['c2d']['during_outage_delivered'], 0)
+
+
+class HookRunner(threading.Thread):
+    """Answers the harness hook requests (<run>/hooks/<action>.request) like scripts/13_acceptance.sh."""
+
+    def __init__(self, folder, actions):
+        super().__init__(daemon=True)
+        self.folder, self.actions, self.stop = folder, actions, threading.Event()
+
+    def run(self):
+        self.folder.mkdir(parents=True, exist_ok=True)
+        while not self.stop.is_set():
+            for request in self.folder.glob('*.request'):
+                action = request.name[:-len('.request')]
+                params = json.loads(request.read_text() or '{}')
+                request.rename(request.with_suffix('.taken'))
+                try:
+                    self.actions[action](params)
+                    answer = 'ok'
+                except Exception as exc:  # reported to the case as INCONCLUSIVE
+                    answer = f'failed: {exc}'
+                (self.folder / f'{action}.done').write_text(answer + '\n')
+            time.sleep(0.1)
 
 
 if __name__ == '__main__':

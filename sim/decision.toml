@@ -1,0 +1,59 @@
+# Gewichtete Entscheidungsmatrix fuer die Broker-Auswahl (ENTC-59): make decide
+#
+# Die Matrix trifft keine Entscheidung, sie macht sie nachvollziehbar:
+#   - security_acceptance wird aus dem letzten Acceptance-Lauf je Broker-Profil berechnet,
+#   - development_effort aus den Aufwandsklassen [effort] des Profils, sofern hier kein
+#     belegter Wert steht,
+#   - alle anderen Kriterien sind Handbewertungen und brauchen eine Quelle.
+# Ein fehlender Wert zaehlt NICHT als 0, sondern als OFFEN. Solange bei einem Kandidaten der
+# Shortlist Gewicht offen ist, nennt make decide keinen Favoriten.
+#
+# Kennzeichnung wie in ENETEC.md: SOURCE = belegt (Quelle angeben), ASSUMPTION = Annahme.
+# Skala 0..5 (5 = am besten).
+
+[weights]
+# ASSUMPTION: Vorschlag des Labs, mit SOLHEA/ENETEC abzustimmen. Werden auf 100 % normiert.
+security_acceptance = 35   # ENTC-63 Pflichtfaelle (Harness)
+development_effort  = 20   # noetige Eigenentwicklung fuer Standard-Anforderungen
+operations_ha       = 15   # HA/Cluster, Betrieb, Monitoring
+scale               = 10   # ~15.000 gleichzeitige Verbindungen (Lasttest)
+gcp_integration     = 10   # Broker -> GCP Pub/Sub
+vendor_support      = 5    # Erreichbarkeit/Support des Anbieters
+cost                = 5    # Lizenz + Betrieb
+
+[labels]
+security_acceptance = "Security acceptance (ENTC-63 mandatory cases)"
+development_effort = "Custom development needed for standard requirements"
+operations_ha = "HA / clustering / operations"
+scale = "Scale: ~15,000 concurrent connections"
+gcp_integration = "GCP Pub/Sub integration"
+vendor_support = "Vendor responsiveness / support"
+cost = "Cost (license and operations)"
+
+# Kandidaten. profile = Broker-Profil in sim/targets/ (fuer die berechneten Kriterien).
+# shortlist = false: wird angezeigt, aber nicht gerankt.
+[candidates.emqx]
+name = "EMQX"
+profile = "emqx"
+shortlist = true   # SOURCE: Current State 08.10 §9, fuehrender Kandidat fuer den weiteren PoC
+
+[candidates.bevywise]
+name = "Bevywise MQTTRoute / CrystalMQ"
+profile = "bevywise"
+shortlist = true   # SOURCE: Current State 08.10 §9, Alternative
+development_effort = { score = 1, source = "SOURCE: vendor assessment (Current State 08.10 §9): certificate mapping/revocation, dynamic Gateway-Plant authorization and clustered enforcement need customer-specific work, 4-6 weeks" }
+
+[candidates.cedalo]
+name = "Cedalo / Pro Mosquitto"
+shortlist = true   # SOURCE: Current State 08.10 §9, als unabhaengiger Benchmark vorgeschlagen (nicht bestaetigt)
+
+[candidates.hivemq]
+name = "HiveMQ (CE + ENETEC lab extension)"
+profile = "hivemq"
+shortlist = false  # SOURCE: Current State 08.10 §9, kommerzieller Anbieter antwortet nicht; Lab-Ergebnis != Produktabnahme
+vendor_support = { score = 1, source = "SOURCE: Current State 08.10 §9, commercial provider not responding" }
+
+[candidates.mosquitto-lab]
+name = "Mosquitto 2.0 (lab baseline)"
+profile = "mosquitto-lab"
+shortlist = false  # Referenz des Labs, kein Anbieter-Kandidat

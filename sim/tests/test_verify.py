@@ -91,7 +91,7 @@ class VerifyTest(unittest.TestCase):
     def test_foreign_topic_and_lost_session_fail(self):
         events = copy.deepcopy(self.events)
         receipt = next(e for e in events if e['event'] == 'd2c_received')
-        receipt['topic'] = receipt['topic'].replace(receipt['gatewayId'], 'gw-sim-999999')
+        receipt['topic'] = 'enetec/v1/c00000000000000000000/state'   # someone else's namespace
         next(e for e in events if e['event'] == 'connack')['session_present'] = False
         report = self._verify(events)
         self.assertFalse(report['checks']['d2c_topic_identity_consistent'])

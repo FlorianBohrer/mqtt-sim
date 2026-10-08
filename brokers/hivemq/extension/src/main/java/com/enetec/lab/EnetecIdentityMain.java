@@ -17,9 +17,12 @@ import java.nio.file.Path;
  * <ul>
  *   <li>identity = certificate CN, or the Gateway ID from the fingerprint registry for
  *       legacy certificates without CN (AWS IoT profile);</li>
- *   <li>CONNECT is rejected if the Client ID differs from that identity, if the certificate
- *       is on the revocation list, or if the Client ID already has an active connection;</li>
+ *   <li>CONNECT is rejected if the Client ID is not the one authorized for that identity (client id
+ *       file, else the identity itself), if the certificate is on the revocation list, or if the Client
+ *       ID already has an active connection;</li>
  *   <li>publish/subscribe are allowed only by the permissions file, everything else is denied;</li>
+ *   <li>changed policy files are reloaded at run time and applied to open connections
+ *       (revoked certificate: disconnect; withdrawn permission: subscription removed);</li>
  *   <li>every decision is logged with the prefix ENETEC-AUDIT.</li>
  * </ul>
  * Paths and switches come from environment variables, see {@link Policy#fromEnvironment()}.
@@ -32,14 +35,17 @@ public class EnetecIdentityMain implements ExtensionMain {
     public void extensionStart(final ExtensionStartInput input, final ExtensionStartOutput output) {
         try {
             final Policy policy = Policy.fromEnvironment();
-            final CertificateAuthenticator authenticator = new CertificateAuthenticator(policy);
-            final TopicAuthorizer authorizer = new TopicAuthorizer(policy);
+            final PolicyHolder holder = new PolicyHolder(policy);
+            final CertificateAuthenticator authenticator = new CertificateAuthenticator(holder);
+            final TopicAuthorizer authorizer = new TopicAuthorizer(holder);
+            final AuditListener listener = new AuditListener(holder);
             Services.securityRegistry().setAuthenticatorProvider(providerInput -> authenticator);
             Services.securityRegistry().setAuthorizerProvider(providerInput -> authorizer);
-            Services.eventRegistry().setClientLifecycleEventListener(providerInput -> new AuditListener());
-            AUDIT.info("ENETEC-AUDIT extension-started permissions={} registry={} revoked={} "
+            Services.eventRegistry().setClientLifecycleEventListener(providerInput -> listener);
+            holder.start();
+            AUDIT.info("ENETEC-AUDIT extension-started permissions={} clientIds={} registry={} revoked={} "
                             + "enforceClientId={} rejectDuplicateClientId={}",
-                    policy.permissionCount(), policy.registrySize(), policy.revokedCount(),
+                    policy.permissionCount(), policy.clientIdCount(), policy.registrySize(), policy.revokedCount(),
                     policy.enforceClientId(), policy.rejectDuplicateClientId());
         } catch (final Exception e) {
             AUDIT.error("ENETEC-AUDIT extension-failed {}", e.toString());

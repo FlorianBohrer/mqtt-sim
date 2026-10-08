@@ -1,6 +1,6 @@
 # ENETEC MQTT Simulation Environment: Development, Structure, Usage
 
-**Date:** 2026-10-01 · **Related:** ENTC-63 (test harness), ENTC-58 (architecture), ENTC-59 (broker selection), ENTC-31 (certificates), ENTC-61 (message specification)
+**Date:** 2026-10-08 · **Related:** ENTC-63 (test harness), ENTC-58 (architecture), ENTC-59 (broker selection), ENTC-31 (certificates), ENTC-61 (message specification)
 
 *Deutsche Fassung: [MQTT-SIM-ENV.md](MQTT-SIM-ENV.md)*
 
@@ -16,16 +16,21 @@ ENETEC is moving from AWS IoT Core to Google Cloud. The MQTT backbone between ga
 needs a new broker for this. Before one is selected, the **gateway ↔ MQTT broker** communication layer
 should be validated with simulated gateways, with results that anyone can reproduce and verify.
 
-The environment answers three questions:
+The environment answers four questions:
 
 1. **Does a broker meet the security requirements?** (mTLS, identity, access rights, duplicate
-   Client ID, QoS 1, sessions, logs) → the acceptance suite (`make acceptance`).
+   Client ID, QoS 1, sessions, logs, Last Will, restart, revocation) → the acceptance suite (`make acceptance`).
 2. **Does it behave correctly under realistic traffic?** (24 hours of telemetry, outages, reconnect
    storm, commands to offline gateways) → the simulation (`make simulate`).
 3. **How do two brokers compare directly?** → the comparison (`make compare`).
+4. **What does the weighted decision basis look like?** → the decision matrix (`make decide`).
 
-It does not replace a decision. Cost, operations, support and scalability are not part of the
-acceptance suite (see section 9).
+It does not replace a decision. Cost, operations, support and scalability only enter the matrix as
+sourced hand scores; open points stay open (see section 9).
+
+**Since 2026-10-08** the lab speaks the topic layout of MQTT wire contract v1.3 by default:
+`enetec/v1/{clientId}/state` (device → cloud) and `enetec/v1/{clientId}/cmd` (cloud → device), with a
+Client ID derived from the serial number. The earlier layout stays available as `WIRE=lab-eicp`.
 
 ## 2. How it was developed
 
@@ -39,6 +44,8 @@ acceptance suite (see section 9).
 | **6. Legacy and rotation** | The real AWS IoT certificate of test gateway `0000000000000005` had no CN (only `C=UK, ST=United`, RSA 2048). This led to the LEG and ROT cases. | R16/R17 (informational at first) |
 | **7. More brokers** | Configurations for Bevywise, EMQX and HiveMQ. HiveMQ CE has no authorization of its own, so there is a small lab extension. | HiveMQ passes 31/31, also in the Docker run |
 | **8. Comparison** | Select two profiles, results side by side, effort classes per requirement. | `make compare A=… B=…` |
+| **9. Wire contract v1.3** (08 Oct) | Topics `enetec/v1/{clientId}/state\|cmd`, Client ID as a pseudonym of the serial (ENTC-47; algorithm still open, a placeholder in the lab), registry certificate → serial → Client ID. The earlier layout remains as a compatibility profile. | `make acceptance` (v13), `WIRE=lab-eicp` |
+| **10. Open cases from the Current State** (08 Oct) | Binary transport, Last Will (also to foreign topics), Message Expiry, payload sizes, broker restart, revocation and ACL withdrawal on an active connection. The last three need an action on the broker in the middle of the run (hooks). Plus the weighted decision matrix. | R18–R24, `make decide` |
 
 **Lessons learned along the way**
 - **Negative cases need a positive control.** Without it, "broker not reachable" would have been counted as "rejected". Now a timeout never counts as PASS, and without a passing control everything becomes INCONCLUSIVE.
@@ -46,6 +53,7 @@ acceptance suite (see section 9).
 - **macOS ships LibreSSL.** The certificate scripts 12 and 15 therefore run in the container with OpenSSL 3.
 - **`docker compose build` needs a terminal.** The image is built with `docker build -q`.
 - **Identities must stay stable across runs.** If negative and legacy certificates were re-created on every run, the broker (registry, CRL) would no longer match. They are only re-issued when needed.
+- **Changes to a running broker take time.** A withdrawal only counts once it takes effect within the observation window; waiting too briefly would have failed a broker that reloads every 2 s for the wrong reason.
 
 ## 3. Structure
 
@@ -54,39 +62,44 @@ acceptance suite (see section 9).
                               │ make fleet
         ┌─────────────────────┼──────────────────────────────┐
         ▼                     ▼                              ▼
-  synthetic/            certificates (certs/)        broker permissions, generated:
-  fleet.json            lab CA, per gateway/service, mosquitto/config/acl
-  dataset/*             negative, legacy, rotation   brokers/emqx/acl.conf
-                                                     brokers/hivemq/permissions.tsv
+  synthetic/              certificates (certs/)        broker permissions, generated:
+  fleet.json              lab CA, per gateway/service, mosquitto/config/acl
+  client_identities.tsv   negative, legacy, rotation   brokers/emqx/acl.conf
+  dataset/*                                            brokers/hivemq/permissions.tsv, client_ids.tsv
         │                     │
         ▼                     ▼
   sim container (Python, paho-mqtt 2.1, OpenSSL 3)
-   ├─ acceptance : 31 mandatory cases + advisory cases ──►  results/acceptance-<run>/
-   ├─ simulate   : 24 h of traffic against the broker  ──►  results/simulation-<run>/
-   └─ compare    : two brokers side by side            ──►  results/compare-<A>-vs-<B>-<time>/
+   ├─ acceptance : mandatory and advisory cases       ──►  results/acceptance-<run>/
+   │     └─ hooks (restart, revocation, ACL withdrawal) ◄── scripts/13_acceptance.sh
+   ├─ simulate   : 24 h of traffic against the broker ──►  results/simulation-<run>/
+   ├─ compare    : two brokers side by side           ──►  results/compare-<A>-vs-<B>-<time>/
+   └─ decide     : weighted matrix (decision.toml)    ──►  results/decision-<time>/
         │ MQTT 5 + mTLS
         ▼
   Broker under test: Mosquitto │ HiveMQ CE + extension │ EMQX │ Bevywise (external)
 ```
 
-**Actors in the test:** each gateway has its own certificate (Client ID = Gateway ID = CN). The
-cloud stand-ins `svc-sim-cloud-ingest` (reads all d2c) and `svc-sim-cloud-command` (writes all c2d)
-stand for the later Pub/Sub bridge and the command path. Peripheral devices are data only, not MQTT
-clients (as in EICP).
+**Actors in the test:** each gateway has its own certificate (CN = the lab's Gateway ID) and an
+authorized Client ID. In profile v13 that is a pseudonym of the serial, e.g. `gw-sim-000001` →
+`c4b06565c3cea7d66c4a6`; in profile `lab-eicp` it is the CN. The cloud stand-ins
+`svc-sim-cloud-ingest` (reads all `state`) and `svc-sim-cloud-command` (writes all `cmd`) stand for the
+later Pub/Sub bridge and the command path. Peripheral devices are data only, not MQTT clients.
 
 **Source rules.** Nothing is invented. In `sim/config.toml` every assumption is marked SOURCE
-(project document), INTERPRETED, ASSUMPTION or OPEN. The only message is `telemetry.report` in the
-format of `samples/telemetry.json`; commands run in the neutral namespace `c2d/simulation/…`. Payloads
-in the acceptance suite are opaque random bytes.
+(project document), INTERPRETED, ASSUMPTION or OPEN. The Client ID derivation is a placeholder
+(`lab-sha256-v0`) because the real algorithm is open. The simulation sends `telemetry.report` in the
+format of `samples/telemetry.json` as a **synthetic JSON fixture**, not in the v1.3 binary format.
+Payloads in the acceptance suite are opaque bytes.
 
 ### Directories
 
 | Path | Contents |
 |---|---|
-| `sim/config.toml` | Configuration of the fleet and traffic |
-| `sim/enetec_sim/` | Python program (generator, simulation, acceptance, comparison) |
+| `sim/config.toml` | Configuration of the fleet, the traffic and the wire profile |
+| `sim/decision.toml` | Weights, candidates and sourced hand scores of the decision matrix |
+| `sim/enetec_sim/` | Python program (generator, simulation, acceptance, comparison, matrix) |
 | `sim/targets/*.toml` | Broker profiles |
-| `sim/tests/` | 30 unit and integration tests |
+| `sim/tests/` | Unit and integration tests |
 | `synthetic/` | Generated fleet and dataset (checked in, reproducible) |
 | `scripts/` | Certificates and start scripts; scripts 04–10 are the original individual tests |
 | `brokers/<broker>/` | Configuration and guide per broker |
@@ -142,16 +155,18 @@ when needed.
 |---|---|
 | `make acceptance` | Acceptance against the lab Mosquitto. Exit 0 only if all mandatory cases pass |
 | `make acceptance BROKER=hivemq` | Acceptance against another profile (`make brokers` lists them) |
+| `make acceptance WIRE=lab-eicp` | with the earlier topic layout and Client ID = CN |
 | `make simulate` | 24 h of traffic, time-compressed (×720, about 2 minutes), then evaluation |
 | `make simulate BROKER=hivemq SPEED=2880 GATEWAYS=gw-sim-000001,gw-sim-000006` | with options |
 | `make compare A=hivemq B=mosquitto-lab` | compare two brokers (latest complete run per broker) |
 | `make compare A=hivemq B=emqx FRESH=1` | run acceptance for both again, then compare |
-| `make fleet` | Regenerate fleet, dataset, ACLs and certificates (after changing `sim/config.toml`) |
+| `make decide` | weighted decision matrix from `sim/decision.toml` and the latest runs |
+| `make fleet` | Regenerate fleet, dataset, ACLs and certificates (after changing `sim/config.toml`); `make fleet WIRE=lab-eicp` for the individual tests 04–10 |
 | `make sim-test` | Unit tests in the container |
 | `make brokers` | Available profiles |
 | `make clean` | Delete local certificates and broker data |
 
-**Every run ends with a summary** (result, requirements R01–R17 at a glance, cases not passed, broker
+**Every run ends with a summary** (result, wire profile, requirements R01–R24 at a glance, cases not passed, broker
 limitations, path to the evidence). After a run that did not pass, make prints one more line
 `make: *** Error 1`; that is just make and means exit code 1.
 
@@ -167,16 +182,20 @@ Result folder `results/acceptance-<time>/`: `report.md` (table), `report.json`, 
 | PARTIAL | Access is effectively blocked, but the rejection is not signalled |
 | INCONCLUSIVE | No evidence (broker not reachable, setup error, log missing) |
 | advisory | Informational case for an open decision; does not count towards acceptance |
+| N/A | The case does not apply to the selected wire profile (e.g. ID-03 under `lab-eicp`) |
 
 ### The cases
 
 | Group | Cases | Checks |
 |---|---|---|
 | MTLS | 01–08 | valid certificate; no certificate, foreign CA, self-signed, expired, not yet valid, wrong EKU, revoked |
-| ID | 01–02 | certificate ≠ Client ID; binding of permissions to the certificate |
+| ID | 01–03 | foreign Client ID; binding of permissions to the certificate; CN instead of the derived Client ID (v13 only) |
 | DUP | 01 | duplicate Client ID: reject the new connection, keep the existing one |
-| ACL | 01–13 | own d2c/c2d allowed; other gateway/plant, wrong direction, wildcard, unknown gateway denied |
+| ACL | 01–14 | own `state`/`cmd` allowed; other gateway/installation, wrong direction, wildcard, unknown gateway denied; ACL-14 withdrawal on an active connection (advisory, hook) |
 | QOS / SES / REC | 01–02 / 01–02 / 01 | QoS 1 incl. redelivery, persistent session, reconnect without a storm |
+| PAY | 01–03 | binary transport byte-exact (mandatory); 128 B / 12 KB; above the packet limit (advisory) |
+| LWT / EXP | 01–02 / 01 | Last Will on link loss (advisory); foreign Will topic blocked (mandatory); Message Expiry (advisory) |
+| RST / REV | 01 / 01 | broker restart with session; revocation on an active connection (advisory, hooks) |
 | LOG | 01–05 | connect, TLS errors, ACL denials, disconnects in the log; no keys in the log |
 | LEG / ROT | 01–02 / 01–02 | legacy certificate without CN; rotation with overlap and rollback |
 
@@ -188,25 +207,40 @@ Full rules: [`mqtt-tests/acceptance-harness.md`](mqtt-tests/acceptance-harness.m
 2. Fill in `name`, `host`, `port`, `server_ca` if needed, and under `[log]` the patterns for the
    broker log. With `lab_managed = false` the run does not start the broker itself.
 3. Configure the broker from the fleet: trust the lab CA as client CA, require a client certificate,
-   use the CN as identity, permissions from `synthetic/fleet.json` (per gateway only write its own
-   `d2c` and read its own `c2d`; one direction each for the cloud stand-ins; deny everything else).
+   use the CN as identity, accept only the authorized Client ID (`synthetic/client_identities.tsv`),
+   permissions from `synthetic/fleet.json` (per gateway only write its own `state` and read its own
+   `cmd`; one direction each for the cloud stand-ins; deny everything else).
 4. Optional `[effort]` in the profile: effort class per requirement
    (NATIVE / CONFIGURATION / PLUGIN / EXTERNAL SERVICE / CUSTOM DEVELOPMENT / UNSUPPORTED).
-5. `make acceptance BROKER=my-broker SIM_BROKER_LOG=/path/to/broker.log`
+5. Optional for restart, revocation and ACL withdrawal: `[hooks] crl_reload` / `acl_reload` in the
+   profile (lab broker) or `SIM_HOOK_RESTART`, `SIM_HOOK_CRL_RELOAD`, `SIM_HOOK_ACL_RELOAD` (own broker).
+6. `make acceptance BROKER=my-broker SIM_BROKER_LOG=/path/to/broker.log`
+7. Add the candidate to `sim/decision.toml` so that it appears in `make decide`.
 
 Existing profiles and guides: [`brokers/emqx/`](../brokers/emqx/README.md),
 [`brokers/hivemq/`](../brokers/hivemq/README.md), [`brokers/bevywise/`](../brokers/bevywise/README.md) (German).
 
-## 7. Status of the results (2026-10-01)
+## 7. Status of the results (2026-10-08)
 
-| Broker | Mandatory cases | Where tested |
-|---|---|---|
-| HiveMQ CE 2026.5 + ENETEC extension | **31/31 PASS, accepted** | locally and in the Docker lab on macOS (two runs) |
-| Mosquitto 2.0.18 (lab) | 23 PASS, 2 FAIL, 6 PARTIAL | locally (Docker run pending) |
-| EMQX 5.8 | 29/31 PASS, **not accepted** (Client ID binding, duplicate Client ID); denied subscriptions are signalled | Docker lab on macOS |
-| Bevywise | configuration prepared; no broker available, run without evidence (all INCONCLUSIVE) | – |
+**Wire profile v13 (current):**
+
+| Broker | Mandatory cases | Advisory | Where tested |
+|---|---|---|---|
+| HiveMQ CE 2026.5 + ENETEC extension | **34/34 PASS** | restart, revocation on an active connection, ACL withdrawal: PASS | locally (without Docker) |
+| Mosquitto 2.0.18 (lab) | 25 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL | RST-01 FAIL (session gone after restart), REV-01 FAIL, ACL-14 PASS | locally (without Docker) |
+| EMQX 5.8 | not run in the v13 profile yet | – | – |
+| Bevywise | configuration prepared (v13 rules), no broker available | – | – |
+
+According to the Current State of 08 Oct, HiveMQ is no longer actively pursued; the result shows what
+an extension can achieve and is not a product acceptance.
+
+**Profile lab-eicp (until 2026-10-01, historical):** HiveMQ 31/31, Mosquitto 23 PASS / 2 FAIL / 6 PARTIAL,
+EMQX 29/31 (Client ID binding, duplicate Client ID), Bevywise without evidence.
 
 **Key findings**
+- **Client ID binding (v13):** a derived Client ID requires the broker to look up the mapping certificate → authorized Client ID. Mosquitto cannot do this (ID-03 FAIL); HiveMQ only with the extension (`client_ids.tsv`).
+- **Revocation on an active connection** needs more than a CRL at connect time: the HiveMQ extension watches the CRL and disconnects affected sessions; Mosquitto with the lab configuration reaches neither open nor new connections.
+- **Broker restart:** Mosquitto 2.0.18 wrote its persistence file, yet the session was gone after the restart (local run, to be repeated with the Docker image).
 - **Mosquitto:** a Client ID that differs from the certificate is accepted and displaces the real session. A duplicate Client ID leads to session takeover. Denied subscriptions are acknowledged (only delivery stays blocked).
 - **EMQX:** deny by default, direction separation and cross-gateway blocks pass completely, with the denial signalled (SUBACK 0x87). Like Mosquitto it fails on CN ≠ Client ID and on duplicate Client ID; in addition, wrong key usage (EKU), revocation (without CRL distribution points) and legacy certificates without CN are not caught (informational only).
 - **HiveMQ CE** has no authorization of its own. The requirements are only met with a lab extension (identity, Client ID binding, duplicate rejection, revocation, deny by default). For production: connect it to the backend registry, or use the commercial Enterprise Security Extension.
@@ -219,7 +253,10 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 
 | Message | Cause and solution |
 |---|---|
-| `No rule to make target 'acceptance'` | old folder or old ZIP. Check the version (`cat VERSION`, currently `2026-10-01-r1` or newer), unzip the new ZIP over the folder (`unzip -o`) |
+| `No rule to make target 'acceptance'` | old folder or old ZIP. Check the version (`cat VERSION`, currently `2026-10-08-r1` or newer), unzip the new ZIP over the folder (`unzip -o`) |
+| `This original PoC test uses the earlier topic layout` | the individual tests 04–10 need the earlier layout: `make fleet WIRE=lab-eicp`, back with `make fleet` |
+| RST-01 / REV-01 / ACL-14 INCONCLUSIVE with `hook … not available` or `unsupported` | broker not started by the lab, or profile without `[hooks]`: set `SIM_HOOK_RESTART` / `SIM_HOOK_CRL_RELOAD` / `SIM_HOOK_ACL_RELOAD`. Does not change the acceptance result |
+| `Different wire profiles` in `make compare` | the two runs use different topic layouts; rerun both with the same `WIRE` (`FRESH=1`) |
 | `Negative identities failed` | old ZIP without the OpenSSL 3 fix, or Docker is not running |
 | `failed to get console` / `pull access denied for enetec-sim` | old ZIP; the current version builds the image with `docker build -q` |
 | `certs/... does not chain to the current lab CA` | certificates from an earlier CA; `make fleet` re-issues them, otherwise `make clean` |
@@ -233,11 +270,9 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 
 **Not covered:**
 - Load with ~15,000 gateways
-- Broker restart and HA failover
-- Revocation on an existing connection (only tests 09/10 as individual scripts)
+- HA failover (RST-01 only restarts a single node)
 - Bootstrap phase (permission switch after claim)
-- LWT
-- Payloads up to 12 KB and oversize
+- Application correlation `command_id` ↔ `origin_command_id` (needs real firmware)
 - Integration with Google Pub/Sub
 
 **Technical limits:**
@@ -247,17 +282,17 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 - Log checks are pattern searches per profile.
 
 **Next steps:**
-1. Run Mosquitto in the Docker lab and Bevywise against a real instance, then compare all brokers.
-2. Weighted decision matrix (cost, operations, support, scalability) in addition to acceptance.
-3. Load test for the 15,000 connections.
-4. Add the open mandatory cases (restart, failover, revocation on an active connection, bootstrap).
-5. Prepare the results as a Jira comment for ENTC-63/ENTC-59.
+1. Run EMQX (leading candidate) in the v13 profile; for ACL-14 configure a reload of the file ACL via the EMQX API as `acl_reload`.
+2. Bevywise against a real instance; request Cedalo/Pro Mosquitto as a benchmark.
+3. Agree the weights in `sim/decision.toml` with SOLHEA/ENETEC and fill in the hand scores with sources.
+4. Load test for the 15,000 connections and Pub/Sub integration, reported separately from functional acceptance.
+5. Adopt the Client ID derivation algorithm (ENTC-47) and the packet limit (ENTC-61) once decided.
 
 ## 10. Further documents
 
 | Document | Contents |
 |---|---|
-| [`mqtt-tests/acceptance-harness.md`](mqtt-tests/acceptance-harness.md) | Requirements R01–R17, PASS rules, broker comparison (German) |
+| [`mqtt-tests/acceptance-harness.md`](mqtt-tests/acceptance-harness.md) | Wire profile, requirements R01–R24, PASS rules, hooks, comparison, decision matrix (German) |
 | [`mqtt-tests/synthetic-simulation.md`](mqtt-tests/synthetic-simulation.md) | Data model, assumptions, simulation, reference run (German) |
 | [`mqtt-tests/legacy-certificates.md`](mqtt-tests/legacy-certificates.md) | Analysis of the AWS certificate, rotation, questions for ENETEC (German) |
 | [`mqtt-tests/reference/`](mqtt-tests/reference/) | Reports of the reference runs and the comparison |

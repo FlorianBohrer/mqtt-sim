@@ -1,6 +1,14 @@
 # Synthetische ENETEC-Flotte und Architektur-Simulation
 
-**Stand:** 2026-09-30 · **Bezug:** ENTC-63 (primär), ENTC-58, ENTC-59 · **Semantik-Quelle:** ENTC-61 / EICP v1.4
+**Stand:** 2026-10-08 · **Bezug:** ENTC-63 (primär), ENTC-58, ENTC-59 · **Semantik-Quelle:** ENTC-61 / MQTT wire contract v1.3
+
+> **Wire-Profil:** Seit 2026-10-08 nutzt die Simulation standardmäßig v1.3:
+> `enetec/v1/{clientId}/state` statt `…/d2c/telemetry/report` und `enetec/v1/{clientId}/cmd` statt
+> `…/c2d/simulation/command`, Client-ID = abgeleitetes Pseudonym der Gateway-Seriennummer
+> (Platzhalter `lab-sha256-v0`, Algorithmus OFFEN, ENTC-47). Mit `WIRE=lab-eicp` läuft sie wie
+> bisher. Die Begriffe d2c/c2d stehen unten für die Richtungen Gerät → Cloud / Cloud → Gerät.
+> Die JSON-Nachrichten sind ein synthetisches Fixture, nicht das v1.3-Binärformat. Flotte und
+> Datensatz sind in beiden Profilen identisch, nur Topics und Client-IDs unterscheiden sich.
 
 Dieses Dokument beschreibt die synthetischen Daten und die Architektur-Simulation für die
 Kommunikationsschicht **Gateway ↔ MQTT-Broker**. Die Sicherheits- und Abnahmetests (ENTC-63)
@@ -46,10 +54,10 @@ im eigenen Plant-/Gateway-Pfad.
 
 | Aspekt | Umsetzung | Kennzeichnung |
 |---|---|---|
-| Topic-Schema | `eicp/v1/sim/{plantId}/gateways/{gatewayId}/{d2c\|c2d}/{domain}/{operation}` | SOURCE (EICP) |
+| Topic-Schema | v13: `enetec/v1/{clientId}/state\|cmd`; lab-eicp: `eicp/v1/sim/{plantId}/gateways/{gatewayId}/{d2c\|c2d}/{domain}/{operation}` | SOURCE (MQTT v1.3) / SOURCE (EICP, historisch) |
 | Plant-ID | neue Plants `plt_<UUIDv7>`; `plt_sim_001/002` bleiben für die Skripte 04–10 erhalten | SOURCE / Lab-Kompatibilität |
 | Gateway-ID | `gw-sim-NNNNNN` (Lab-Konvention); das echte Format ist offen | OPEN |
-| Identität | Zertifikats-CN == MQTT-Client-ID == Gateway-ID | SOURCE (EICP v1.4) |
+| Identität | Zertifikats-CN = Gateway-ID; Client-ID v13 = Pseudonym der Seriennummer (`synthetic/client_identities.tsv`), lab-eicp = CN | SOURCE (ENTC-47) / Algorithmus OPEN; lab-eicp: LEGACY LAB ASSUMPTION |
 | Device-ID | `deviceId` = 32-Bit-Hardware-Seriennummer, keine zusätzliche ID | SOURCE (ENETEC.md §5.5) |
 | Gateway-Typen | SmartComfort365, Pure365 Bridge (Verteilung 60/40) | SOURCE (Mental Model v1.0) / ASSUMPTION |
 | Topologie | je Gateway: 1 Systemregler, 3–16 Raumgeräte, 0–2 I/O-Module; Wohnobjekt 1 Gateway, Gewerbe 2–3 | INTERPRETED |
@@ -133,7 +141,7 @@ Beobachtung mit dem Plan. Exit-Codes: `0` = PASS, `1` = FAIL, `2` = Lauf unvolls
 | `puback_all_success` | jeder PUBLISH erhielt PUBACK < 128 |
 | `d2c_complete` | jede erwartete `messageId` kam beim Cloud-Ingest an (Duplikate sind bei QoS 1 zulässig und werden gezählt) |
 | `d2c_no_unexpected` | keine Nachricht, die laut Plan verworfen oder unbekannt ist |
-| `d2c_topic_identity_consistent` | Topic-Plant/-Gateway == `gatewayId` im synthetischen Envelope == Flotten-Registry |
+| `d2c_topic_identity_consistent` | Topic == geplantes Topic des Absenders (eigener Namensraum laut Wire-Profil) und `gatewayId` im synthetischen Envelope == Flotten-Registry |
 | `c2d_complete` | jedes Command erreichte sein Gateway, auch wenn es während eines Ausfalls gesendet wurde (persistente Session) |
 | `c2d_only_to_addressed_gateway` | kein Command bei einem fremden Gateway |
 | `session_resumed_after_every_outage` | jeder Reconnect mit Clean Start = false liefert `session_present = 1` |

@@ -82,6 +82,23 @@ class CompareTest(unittest.TestCase):
         self.assertIn('Not comparable', summary_text(c))
         self.assertIn('? (no evidence)', markdown(c))
 
+    def test_different_wire_profiles_are_flagged(self):
+        old = report('a', {}, '2026-01-01')   # report without "wire": runs before 2026-10-08 (lab-eicp)
+        new = dict(report('b', {}, '2026-01-01'), wire='topics v13, client id derived (lab-sha256-v0)')
+        self.put('acceptance-a', old)
+        self.put('acceptance-b', new)
+        c = compare('a', 'b', self.res)
+        self.assertTrue(any('Different wire profiles' in x for x in c['caveats']))
+        self.assertIn('Different wire profiles', summary_text(c))
+
+    def test_runs_of_the_current_wire_profile_are_preferred(self):
+        v13 = 'topics v13, client id derived (lab-sha256-v0)'
+        self.put('acceptance-1', dict(report('a', {}, '2026-01-01'), wire=v13))
+        self.put('acceptance-2', report('a', {}, '2026-01-02'))   # newer, but lab-eicp
+        self.assertEqual(latest_run('a', self.res, v13)[0].name, 'acceptance-1')
+        self.assertEqual(latest_run('a', self.res)[0].name, 'acceptance-2')
+        self.assertEqual(latest_run('a', self.res, 'topics v99')[0].name, 'acceptance-2')   # none: newest
+
     def test_shared_limitation_and_equal_brokers(self):
         self.put('acceptance-a', report('a', {'R11': 'FAIL'}, '2026-01-01'))
         self.put('acceptance-b', report('b', {'R11': 'FAIL'}, '2026-01-01'))

@@ -23,10 +23,13 @@ from pathlib import Path
 
 import paho.mqtt.client as mqtt
 
-from .config import gateway_base, load_target, write_json, write_jsonl  # noqa: F401 (re-export)
-from .mqttclient import Recorder, connect_properties, identity_files, new_client, wait_until
+from . import wire
+from .config import load_target, write_json, write_jsonl  # noqa: F401 (re-export)
+from .mqttclient import Recorder, connect_properties, expiry_properties, identity_files, new_client, wait_until
 
 UNKNOWN_GATEWAY = 'gw-sim-900001'  # certs/negative/unknown-gateway (script 12)
+PROBE_SIZES = (128, 12288)  # v1.3 reference 128 B (not final); historical 12 KB sizing assumption
+HOOK_TIMEOUT_S = 180
 ACCEPTED_CODES = (0, 16)           # PUBACK: success / success without matching subscriber
 VERDICTS = ('PASS', 'FAIL', 'PARTIAL', 'INCONCLUSIVE')
 
@@ -36,11 +39,11 @@ REQUIREMENTS = [
     ('R03', 'Certificate signed by an untrusted CA is rejected'),
     ('R04', 'Invalid certificates (validity, key usage, revocation) are rejected'),
     ('R05', 'Certificate identity is bound to the Gateway ID (authorization follows the certificate)'),
-    ('R06', 'MQTT Client ID = Gateway ID is enforced (otherwise the broker limitation is documented)'),
+    ('R06', 'Only the Client ID authorized for the certificate identity is accepted'),
     ('R07', 'ACLs deny by default'),
-    ('R08', 'A gateway publishes only to its own d2c namespace'),
-    ('R09', 'A gateway subscribes only to its own c2d namespace'),
-    ('R10', 'Cross-plant and cross-gateway topic access is denied'),
+    ('R08', 'A gateway publishes only to its own Device->Cloud topic (v1.3: state)'),
+    ('R09', 'A gateway subscribes only to its own Cloud->Device topic (v1.3: cmd)'),
+    ('R10', 'Topics of other gateways and installations are not accessible (incl. Last Will)'),
     ('R11', 'A duplicate Client ID does not silently take over the active session'),
     ('R12', 'QoS 1: acknowledged, at-least-once delivery incl. redelivery after connection loss'),
     ('R13', 'Clean Start = false resumes the persistent session across disconnect/reconnect'),
@@ -48,6 +51,13 @@ REQUIREMENTS = [
     ('R15', 'Security-relevant broker logs are available and contain no keys or credentials'),
     ('R16', 'Legacy certificates without Gateway ID (AWS IoT profile) are mapped to the right gateway'),
     ('R17', 'Certificate rotation: old and new certificate overlap, switch with rollback'),
+    ('R18', 'Binary payloads are delivered byte-exact in both directions (opaque, not decoded)'),
+    ('R19', 'Last Will is published on link loss'),
+    ('R20', 'An expired queued command (Message Expiry) is not delivered after reconnect'),
+    ('R21', 'Payload sizes: probe sizes pass, payloads above the broker limit are rejected'),
+    ('R22', 'Broker restart: persistent session and queued QoS 1 command survive'),
+    ('R23', 'Revocation reaches an active session: new connections rejected, session terminated'),
+    ('R24', 'ACL withdrawal applies to an active session (publish and existing subscription)'),
 ]
 
 
@@ -58,11 +68,25 @@ FINDINGS = {
     'MTLS-08': 'No revocation check is active (CRL, OCSP or registry lookup), so a revoked certificate can still '
                'connect. Revocation strategy is OPEN (ENTC-58/ENTC-31). Check the broker\'s CRL/OCSP support '
                '(e.g. Mosquitto crlfile, EMQX enable_crl_check) and test with certs/negative/crl.pem.',
-    'ID-01': 'The broker accepts a Client ID that differs from the certificate identity and lets it displace the '
-             'legitimate session. EICP v1.4 requires Client ID == Gateway ID; enforcement must come from the broker '
-             '(classify NATIVE / CONFIGURATION / PLUGIN / CUSTOM for ENTC-59).',
-    'DUP-01': 'The broker applies the MQTT session takeover. ENETEC requires rejecting the second connection and '
-              'keeping the active session (ENETEC.md §6.3); needs broker support or an extension.',
+    'ID-01': 'The broker accepts a Client ID that is not the one authorized for the certificate and lets it '
+             'displace the legitimate session. Mismatched identity bindings must be rejected (ENTC-47/58: '
+             'credential -> serial -> authorized Client ID); classify NATIVE / CONFIGURATION / PLUGIN / CUSTOM '
+             'for ENTC-59.',
+    'ID-03': 'The broker accepts a Client ID other than the derived one authorized for the certificate '
+             '(here: the plain certificate CN). The binding credential -> authorized Client ID needs a registry '
+             'lookup in the broker (plugin, auth hook or external service).',
+    'DUP-01': 'The broker applies the MQTT session takeover. The acceptance requirement is to avoid a silent '
+              'takeover of the active session (Current State 08.10, section 5); needs broker support or an extension.',
+    'LWT-02': 'The broker publishes a Last Will to a topic the client may not publish to. Will messages must pass '
+              'the same topic authorization as normal publishes.',
+    'REV-01': 'Revoking a certificate does not reach the connection that is already open (or not even new '
+              'connections). Active session termination is OPEN (ENTC-31); needs a revocation feed plus an '
+              'admin/kick API or an extension.',
+    'ACL-14': 'Withdrawn permissions do not apply to the connection that is already open (typically: existing '
+              'subscriptions keep delivering). Needs per-message authorization or an explicit unsubscribe/kick.',
+    'RST-01': 'The persistent session or its queued QoS 1 command did not survive the broker restart. Check the '
+              'durable session storage of the broker (e.g. EMQX durable sessions, Mosquitto persistence) and repeat '
+              'with the intended HA setup (failover is OPEN, ENTC-58).',
     'LEG-01': 'The broker cannot derive the Gateway ID from a certificate without CN/SAN, so the legacy gateway is '
               'rejected or has no permissions. Legacy AWS IoT certificates need a registry lookup '
               '(certificate fingerprint -> Gateway ID) or re-issuance with the Gateway ID in CN/SAN (ENTC-31).',
@@ -83,18 +107,22 @@ class Inconclusive(Exception):
 class Case:
     id: str
     requirement: str
-    title: str
+    title: object      # text, or {topic profile: text}
     expected: str
     mandatory: bool
     fn: object
+    applies: object = None   # h -> None if the case applies, else the reason it does not
+
+    def title_for(self, cfg):
+        return self.title.get(cfg['wire']['topics'], self.title['v13']) if isinstance(self.title, dict) else self.title
 
 
 CASES = []
 
 
-def case(case_id, requirement, title, expected, mandatory=True):
+def case(case_id, requirement, title, expected, mandatory=True, applies=None):
     def register(fn):
-        CASES.append(Case(case_id, requirement, title, expected, mandatory, fn))
+        CASES.append(Case(case_id, requirement, title, expected, mandatory, fn, applies))
         return fn
     return register
 
@@ -145,6 +173,10 @@ class ProbeClient:
             self.errors.append(text)
             self._log('client_log', text=text)
 
+    def will(self, topic, payload):
+        self.client.will_set(topic, payload, qos=1, retain=False)
+        self._log('will_set', topic=topic, payload_sha256=hashlib.sha256(payload).hexdigest()[:16])
+
     def open(self, clean_start=True, session_expiry=None, timeout=6):
         """Returns (ACCEPTED | REJECTED | UNREACHABLE | NO_RESPONSE, detail).
 
@@ -178,8 +210,8 @@ class ProbeClient:
     def alive(self):
         return self.client.is_connected() and not self.closed_by_peer()
 
-    def publish(self, topic, payload, timeout=6):
-        info = self.client.publish(topic, payload, qos=1, retain=False)
+    def publish(self, topic, payload, timeout=6, properties=None):
+        info = self.client.publish(topic, payload, qos=1, retain=False, properties=properties)
         wait_until(lambda: info.mid in self.acks or bool(self.closed), timeout)
         return self.acks.get(info.mid)
 
@@ -231,8 +263,9 @@ class Harness:
         self.observe_s = target.get('observe_s', 3.0)
         self.session_expiry = target.get('session_expiry_s', 300)
         self.gw = _pick_gateways(fleet, gateway_a)
+        self.by_id = {g['gateway_id']: g for g in fleet['gateways'] + fleet.get('legacy_gateways', [])}
         self.ingest, self.command = cfg['services']['ingest'], cfg['services']['command']
-        self.d2c_all = f"{cfg['topics']['base']}/+/gateways/+/d2c/#"
+        self.d2c_all = wire.all_up(cfg)
         self.clients = []
 
     def files(self, identity):
@@ -250,29 +283,46 @@ class Harness:
         self.clients.append(probe)
         return probe
 
+    def cid_of(self, identity):
+        """Client ID authorized for a credential identity (services keep their identity)."""
+        gw = self.by_id.get(identity)
+        return gw['client_id'] if gw else identity
+
     def connect(self, label, identity, client_id=None, **kwargs):
         """Open a connection that must succeed; otherwise the case is inconclusive."""
-        probe = self.client(label, client_id or identity, self.files(identity))
+        probe = self.client(label, client_id or self.cid_of(identity), self.files(identity))
         outcome, detail = probe.open(**kwargs)
         if outcome != 'ACCEPTED':
             raise Inconclusive(f'{label}: authorized connection failed ({detail})')
         return probe
 
     def id(self, key):
+        """Credential identity (certificate CN) of gateway A, B or C."""
         return self.gw[key]['gateway_id']
 
-    def base(self, key, plant_of=None):
-        return gateway_base(self.cfg, self.gw[plant_of or key]['plant_id'], self.id(key))
+    def cid(self, key):
+        """Client ID authorized for gateway A, B or C."""
+        return self.gw[key]['client_id']
 
     def topic(self, key, direction, case_id, plant_of=None):
-        return f'{self.base(key, plant_of)}/{direction}/simulation/{self.run_id}/{case_id}'
+        """Topic of gateway `key` in `direction` (d2c / c2d). The lab-eicp leaf carries run and case."""
+        gw = dict(self.gw[key], plant_id=self.gw[plant_of or key]['plant_id'])
+        return self.topic_of(gw, direction, case_id)
+
+    def topic_of(self, gw, direction, case_id):
+        build = wire.up_topic if direction == 'd2c' else wire.down_topic
+        return build(self.cfg, gw, f'simulation/{self.run_id}/{case_id}')
+
+    def filter(self, key, direction):
+        """ACL grant of gateway `key` in `direction`, also used as its subscription filter."""
+        return (wire.up_filter if direction == 'd2c' else wire.down_filter)(self.cfg, self.gw[key])
 
     def payload(self, case_id):
         return f'ENTC63|{case_id}|'.encode() + os.urandom(24).hex().encode()
 
     def purge_session(self, identity):
         """Remove a persistent session left by a case (Clean Start, expiry 0)."""
-        probe = self.client(f'purge:{identity}', identity, self.files(identity))
+        probe = self.client(f'purge:{identity}', self.cid_of(identity), self.files(identity))
         if probe.open(clean_start=True, session_expiry=0)[0] == 'ACCEPTED':
             probe.close()
 
@@ -310,25 +360,22 @@ def _probe_publish(h, case_id, actor, topic, witness=None, client_id=None, files
         watcher = h.connect(f'{case_id}:witness', witness[0])
         if not granted(watcher.subscribe(witness[1])):
             raise Inconclusive('witness could not subscribe')
-    probe = h.client(case_id, client_id or actor, files or h.files(actor))
+    probe = h.client(case_id, client_id or h.cid_of(actor), files or h.files(actor))
     outcome, detail = probe.open()
     if outcome in ('UNREACHABLE', 'NO_RESPONSE'):
         raise Inconclusive(f'{case_id}: {outcome} ({detail})')
     if outcome != 'ACCEPTED':
         return {'connect': f'{outcome} ({detail})', 'puback': None, 'delivered': 0, 'closed': True}
     if witness == 'self':
+        # Only used for the actor's own Cloud->Device topic: it may read there, not write.
         watcher = probe
-        if not granted(probe.subscribe(witness_filter_for_self(topic))):
+        if not granted(probe.subscribe(wire.down_filter(h.cfg, h.by_id[actor]))):
             raise Inconclusive('actor could not subscribe to watch its own publish')
     code = probe.publish(topic, payload)
     delivered = watcher.received(payload, h.observe_s) if watcher else None
     closed = bool(probe.closed_by_peer())
     probe.close()
     return {'connect': 'ACCEPTED', 'puback': code, 'delivered': delivered, 'closed': closed}
-
-
-def witness_filter_for_self(topic):
-    return topic.rsplit('/', 3)[0] + '/#'
 
 
 def _publish_denied(obs):
@@ -379,14 +426,14 @@ def _subscribe_denied(obs):
 
 # --------------------------------------------------------------------------- cases: mTLS
 
-@case('MTLS-01', 'R01', 'Each simulated gateway connects with its own certificate (Client ID = CN)', 'ACCEPT')
+@case('MTLS-01', 'R01', 'Each simulated gateway connects with its own certificate and authorized Client ID', 'ACCEPT')
 def mtls_valid(h):
     notes, fingerprints = [], set()
     for key in 'ABC':
         gid = h.id(key)
         crt, _ = h.files(gid)
         fingerprints.add(hashlib.sha256(crt.read_bytes()).hexdigest())
-        probe = h.client(f'MTLS-01:{gid}', gid, h.files(gid))
+        probe = h.client(f'MTLS-01:{gid}', h.cid(key), h.files(gid))
         outcome, detail = probe.open()
         if outcome in ('UNREACHABLE', 'NO_RESPONSE'):
             raise Inconclusive(f'broker not reachable: {detail}')
@@ -398,7 +445,7 @@ def mtls_valid(h):
 
 def _reject_case(files_fn):
     def run(h):
-        probe = h.client(run.case_id, h.id('A'), files_fn(h))
+        probe = h.client(run.case_id, h.cid('A'), files_fn(h))
         outcome, detail = probe.open()
         return _verdict_reject(outcome), f'{outcome} ({detail})'
     return run
@@ -426,7 +473,7 @@ for _id, _req, _title, _files, _mandatory in [
 @case('ID-01', 'R06', 'Certificate of gateway A with Client ID of gateway B', 'REJECT')
 def id_mismatch(h):
     legit = h.connect('ID-01:legit', h.id('B'))
-    probe = h.client('ID-01', h.id('B'), h.files(h.id('A')))
+    probe = h.client('ID-01', h.cid('B'), h.files(h.id('A')))
     outcome, detail = probe.open()
     text = f'{outcome} ({detail})'
     if outcome == 'ACCEPTED':
@@ -438,17 +485,29 @@ def id_mismatch(h):
 @case('ID-02', 'R05', 'With A\'s certificate but B\'s Client ID, B\'s namespace stays closed', 'DENY')
 def id_binding(h):
     obs = _probe_publish(h, 'ID-02', h.id('A'), h.topic('B', 'd2c', 'ID-02'), witness=(h.ingest, h.d2c_all),
-                         client_id=h.id('B'), files=h.files(h.id('A')))
+                         client_id=h.cid('B'), files=h.files(h.id('A')))
     if obs['connect'] != 'ACCEPTED':
         return 'PASS', f"connection rejected ({obs['connect']}): identity bound at CONNECT"
     verdict, text = _publish_denied(obs)
-    return verdict, 'connection accepted; publish to B d2c: ' + text
+    return verdict, f'connection accepted; publish to B {wire.names(h.cfg)[0]}: ' + text
+
+
+def _derived_only(h):
+    return None if h.cfg['wire']['client_id'] == 'derived' else 'Client ID mode "certificate": CN is the Client ID'
+
+
+@case('ID-03', 'R06', 'Certificate of gateway A with its plain CN as Client ID instead of the derived one', 'REJECT',
+      applies=_derived_only)
+def id_not_derived(h):
+    probe = h.client('ID-03', h.id('A'), h.files(h.id('A')))
+    outcome, detail = probe.open()
+    return _verdict_reject(outcome), f"Client ID {h.id('A')} (authorized: {h.cid('A')}): {outcome} ({detail})"
 
 
 @case('DUP-01', 'R11', 'Second connection with the Client ID of an active gateway', 'REJECT_NEW_KEEP_EXISTING')
 def duplicate_client_id(h):
     first = h.connect('DUP-01:existing', h.id('A'))
-    second = h.client('DUP-01:new', h.id('A'), h.files(h.id('A')))
+    second = h.client('DUP-01:new', h.cid('A'), h.files(h.id('A')))
     outcome, detail = second.open()
     time.sleep(1)
     existing_ok = first.alive() and first.publish(h.topic('A', 'd2c', 'DUP-01'), h.payload('DUP-01')) in ACCEPTED_CODES
@@ -462,7 +521,7 @@ def duplicate_client_id(h):
 
 # --------------------------------------------------------------------------- cases: ACL publish
 
-@case('ACL-01', 'R08', 'Gateway A publishes to its own d2c namespace (positive control)', 'ALLOW')
+@case('ACL-01', 'R08', 'Gateway A publishes to its own Device->Cloud topic (positive control)', 'ALLOW')
 def acl_own_d2c(h):
     obs = _probe_publish(h, 'ACL-01', h.id('A'), h.topic('A', 'd2c', 'ACL-01'), witness=(h.ingest, h.d2c_all))
     ok = obs['puback'] in ACCEPTED_CODES and obs['delivered']
@@ -475,26 +534,34 @@ def _deny_publish_case(case_id, actor_key, topic_fn, witness_fn):
     return run
 
 
+def _acl04_topic(h):
+    if wire.v13(h.cfg):
+        # v1.3 has no plant level: a topic next to the granted one in A's own namespace.
+        return f"{wire.root(h.cfg)}/{h.cid('A')}/x-lab-unassigned"
+    return h.topic('A', 'd2c', 'ACL-04', plant_of='B')
+
+
 for _id, _req, _title, _actor, _topic, _witness in [
-    ('ACL-02', 'R10', 'A publishes into B\'s d2c namespace (other plant)', 'A',
+    ('ACL-02', 'R10', 'A publishes into B\'s Device->Cloud topic (other installation)', 'A',
      lambda h: h.topic('B', 'd2c', 'ACL-02'), lambda h: (h.ingest, h.d2c_all)),
-    ('ACL-03', 'R10', 'C publishes into B\'s d2c namespace (same plant, other gateway)', 'C',
+    ('ACL-03', 'R10', 'C publishes into B\'s Device->Cloud topic (same installation, other gateway)', 'C',
      lambda h: h.topic('B', 'd2c', 'ACL-03'), lambda h: (h.ingest, h.d2c_all)),
-    ('ACL-04', 'R10', 'A publishes under its own Gateway ID but in B\'s plant (plant spoofing)', 'A',
-     lambda h: h.topic('A', 'd2c', 'ACL-04', plant_of='B'), lambda h: (h.ingest, h.d2c_all)),
-    ('ACL-05', 'R08', 'A publishes into its own c2d namespace (wrong direction)', 'A',
+    ('ACL-04', 'R10', {'v13': 'A publishes to a non-core topic in its own Client ID namespace',
+                       'lab-eicp': 'A publishes under its own Gateway ID but in B\'s plant (plant spoofing)'}, 'A',
+     _acl04_topic, lambda h: None if wire.v13(h.cfg) else (h.ingest, h.d2c_all)),   # v13: no authorized reader
+    ('ACL-05', 'R08', 'A publishes into its own Cloud->Device topic (wrong direction)', 'A',
      lambda h: h.topic('A', 'c2d', 'ACL-05'), lambda h: 'self'),
     ('ACL-06', 'R07', 'A publishes outside every granted namespace', 'A',
-     lambda h: f"{h.cfg['topics']['base']}/unassigned/{h.run_id}/ACL-06", lambda h: None),
+     lambda h: f'{wire.root(h.cfg)}/unassigned/{h.run_id}/ACL-06', lambda h: None),
 ]:
     case(_id, _req, _title, 'DENY')(_deny_publish_case(_id, _actor, _topic, _witness))
 
 
 # --------------------------------------------------------------------------- cases: ACL subscribe
 
-@case('ACL-07', 'R09', 'Gateway A subscribes to its own c2d namespace (positive control)', 'ALLOW')
+@case('ACL-07', 'R09', 'Gateway A subscribes to its own Cloud->Device topic (positive control)', 'ALLOW')
 def acl_own_c2d(h):
-    obs = _probe_subscribe(h, 'ACL-07', h.id('A'), f"{h.base('A')}/c2d/#",
+    obs = _probe_subscribe(h, 'ACL-07', h.id('A'), h.filter('A', 'c2d'),
                            [(h.command, h.topic('A', 'c2d', 'ACL-07'))])
     ok = granted(obs['suback']) and obs['delivered'] == obs['triggers']
     return ('PASS' if ok else 'FAIL'), f"SUBACK {obs['suback']}; delivered {obs['delivered']}/{obs['triggers']}"
@@ -507,16 +574,16 @@ def _deny_subscribe_case(case_id, actor_key, filter_fn, triggers_fn):
 
 
 for _id, _req, _title, _actor, _filter, _triggers in [
-    ('ACL-08', 'R10', 'A subscribes to B\'s c2d namespace (other plant)', 'A',
-     lambda h: f"{h.base('B')}/c2d/#", lambda h: [(h.command, h.topic('B', 'c2d', 'ACL-08'))]),
-    ('ACL-09', 'R10', 'C subscribes to B\'s c2d namespace (same plant, other gateway)', 'C',
-     lambda h: f"{h.base('B')}/c2d/#", lambda h: [(h.command, h.topic('B', 'c2d', 'ACL-09'))]),
-    ('ACL-10', 'R09', 'A subscribes to its own d2c namespace (wrong direction)', 'A',
-     lambda h: f"{h.base('A')}/d2c/#", lambda h: [('self', h.topic('A', 'd2c', 'ACL-10'))]),
-    ('ACL-11', 'R10', 'A subscribes to B\'s d2c telemetry (other plant)', 'A',
-     lambda h: f"{h.base('B')}/d2c/#", lambda h: [(h.id('B'), h.topic('B', 'd2c', 'ACL-11'))]),
+    ('ACL-08', 'R10', 'A subscribes to B\'s Cloud->Device topic (other installation)', 'A',
+     lambda h: h.filter('B', 'c2d'), lambda h: [(h.command, h.topic('B', 'c2d', 'ACL-08'))]),
+    ('ACL-09', 'R10', 'C subscribes to B\'s Cloud->Device topic (same installation, other gateway)', 'C',
+     lambda h: h.filter('B', 'c2d'), lambda h: [(h.command, h.topic('B', 'c2d', 'ACL-09'))]),
+    ('ACL-10', 'R09', 'A subscribes to its own Device->Cloud topic (wrong direction)', 'A',
+     lambda h: h.filter('A', 'd2c'), lambda h: [('self', h.topic('A', 'd2c', 'ACL-10'))]),
+    ('ACL-11', 'R10', 'A subscribes to B\'s Device->Cloud traffic (other installation)', 'A',
+     lambda h: h.filter('B', 'd2c'), lambda h: [(h.id('B'), h.topic('B', 'd2c', 'ACL-11'))]),
     ('ACL-12', 'R10', 'A subscribes to the whole tree with a wildcard', 'A',
-     lambda h: f"{h.cfg['topics']['base']}/#",
+     lambda h: f'{wire.root(h.cfg)}/#',
      lambda h: [(h.id('B'), h.topic('B', 'd2c', 'ACL-12')), (h.command, h.topic('C', 'c2d', 'ACL-12'))]),
 ]:
     case(_id, _req, _title, 'DENY')(_deny_subscribe_case(_id, _actor, _filter, _triggers))
@@ -525,18 +592,20 @@ for _id, _req, _title, _actor, _filter, _triggers in [
 @case('ACL-13', 'R07', 'Valid certificate, Gateway ID unknown to the fleet: publish and subscribe', 'DENY')
 def acl_unknown_gateway(h):
     files = h.negative('unknown-gateway')
-    base = gateway_base(h.cfg, h.gw['A']['plant_id'], UNKNOWN_GATEWAY)
-    pub = _probe_publish(h, 'ACL-13', UNKNOWN_GATEWAY, f'{base}/d2c/simulation/{h.run_id}/ACL-13',
-                         witness=(h.ingest, h.d2c_all), files=files)
+    # Not in the fleet: the Client ID it would have (derived from its name, it has no registered serial).
+    unknown = {'gateway_id': UNKNOWN_GATEWAY, 'plant_id': h.gw['A']['plant_id'],
+               'client_id': wire.client_id_for(h.cfg, UNKNOWN_GATEWAY, UNKNOWN_GATEWAY)}
+    pub = _probe_publish(h, 'ACL-13', UNKNOWN_GATEWAY, h.topic_of(unknown, 'd2c', 'ACL-13'),
+                         witness=(h.ingest, h.d2c_all), client_id=unknown['client_id'], files=files)
     if pub['connect'] != 'ACCEPTED':
         return 'PASS', f"connection rejected ({pub['connect']})"
     pub_verdict, pub_text = _publish_denied(pub)
-    probe = h.client('ACL-13:subscribe', UNKNOWN_GATEWAY, files)
+    probe = h.client('ACL-13:subscribe', unknown['client_id'], files)
     if probe.open()[0] != 'ACCEPTED':
         raise Inconclusive('unknown gateway accepted for publish but not for subscribe')
-    codes = probe.subscribe(f'{base}/c2d/#')
+    codes = probe.subscribe(wire.down_filter(h.cfg, unknown))
     payload = h.payload('ACL-13')
-    trigger = h.connect('ACL-13:trigger', h.command).publish(f'{base}/c2d/simulation/{h.run_id}/ACL-13', payload)
+    trigger = h.connect('ACL-13:trigger', h.command).publish(h.topic_of(unknown, 'c2d', 'ACL-13'), payload)
     if trigger not in ACCEPTED_CODES:
         raise Inconclusive(f'authorized trigger publish not accepted (PUBACK {trigger})')
     sub_verdict, sub_text = _subscribe_denied({'suback': codes, 'triggers': 1, 'closed': bool(probe.closed_by_peer()),
@@ -568,7 +637,7 @@ def qos_redelivery(h):
     if not granted(witness.subscribe(h.d2c_all)):
         raise Inconclusive('witness could not subscribe')
     gid, state = h.id('A'), {}
-    client = new_client(gid, h.broker, *h.files(gid))
+    client = new_client(h.cid('A'), h.broker, *h.files(gid))
     client.on_connect = lambda c, u, f, r, p: state.update(connack=r.value, session_present=bool(f.session_present))
     client.on_publish = lambda c, u, mid, r, p: state.update(puback=r.value)
 
@@ -612,7 +681,7 @@ def qos_redelivery(h):
 @case('SES-01', 'R13', 'Command sent while the gateway is offline arrives after reconnect with Clean Start = false',
       'SESSION_RESUMED')
 def session_resume(h):
-    gid, c2d = h.id('A'), f"{h.base('A')}/c2d/#"
+    gid, c2d = h.id('A'), h.filter('A', 'c2d')
     first = h.connect('SES-01:first', gid, clean_start=True, session_expiry=h.session_expiry)
     if not granted(first.subscribe(c2d)):
         raise Inconclusive('subscription to own c2d failed')
@@ -634,7 +703,7 @@ def session_resume(h):
 @case('SES-02', 'R13', 'Clean Start = true discards the session and its queued messages', 'SESSION_DISCARDED',
       mandatory=False)
 def session_discard(h):
-    gid, c2d = h.id('A'), f"{h.base('A')}/c2d/#"
+    gid, c2d = h.id('A'), h.filter('A', 'c2d')
     first = h.connect('SES-02:first', gid, clean_start=True, session_expiry=h.session_expiry)
     if not granted(first.subscribe(c2d)):
         raise Inconclusive('subscription to own c2d failed')
@@ -656,7 +725,7 @@ def reconnect_spread(h):
     gateways = [g['gateway_id'] for g in h.fleet['gateways'][:count]]
     for gid in gateways:
         probe = h.connect(f'REC-01:{gid}', gid, clean_start=True, session_expiry=h.session_expiry)
-        if not granted(probe.subscribe(f"{gateway_base(h.cfg, _plant(h, gid), gid)}/c2d/#")):
+        if not granted(probe.subscribe(wire.down_filter(h.cfg, h.by_id[gid]))):
             raise Inconclusive(f'{gid}: subscription failed')
     for probe in list(h.clients):
         probe.abort()
@@ -671,7 +740,7 @@ def reconnect_spread(h):
         backoff = 0.5
         for attempt in range(5):
             attempts.append(time.monotonic() - start)
-            probe = h.client(f'REC-01:{gid}:attempt{attempt + 1}', gid, h.files(gid))
+            probe = h.client(f'REC-01:{gid}:attempt{attempt + 1}', h.cid_of(gid), h.files(gid))
             if probe.open(clean_start=False, session_expiry=h.session_expiry)[0] == 'ACCEPTED':
                 resumed[gid] = probe.session_present
                 break
@@ -686,10 +755,6 @@ def reconnect_spread(h):
     return ('PASS' if ok else 'FAIL'), (f'{count} gateways dropped at once; {len(attempts)} reconnect attempts over '
                                         f'{span:.1f} s (peak {peak}/s, window {window} s); '
                                         f'session resumed {sum(resumed.values())}/{count}')
-
-
-def _plant(h, gid):
-    return next(g['plant_id'] for g in h.fleet['gateways'] if g['gateway_id'] == gid)
 
 
 # --------------------------------------------------------------------------- cases: legacy / rotation
@@ -719,9 +784,7 @@ def _rotation(h):
 
 
 def _own_d2c(h, gid, case_id):
-    plant = next(g['plant_id'] for g in h.fleet['gateways'] + h.fleet.get('legacy_gateways', [])
-                 if g['gateway_id'] == gid)
-    return f'{gateway_base(h.cfg, plant, gid)}/d2c/simulation/{h.run_id}/{case_id}'
+    return h.topic_of(h.by_id[gid], 'd2c', case_id)
 
 
 @case('LEG-01', 'R16', 'Legacy certificate (RSA 2048, no CN/SAN) connects as its gateway and publishes', 'ACCEPT',
@@ -741,7 +804,7 @@ def legacy_connect(h):
 def legacy_isolation(h):
     first, second = _legacy_ids(h)[:2]
     obs = _probe_publish(h, 'LEG-02', second, _own_d2c(h, first, 'LEG-02'), witness=(h.ingest, h.d2c_all),
-                         client_id=first, files=_legacy_files(h, second))
+                         client_id=h.cid_of(first), files=_legacy_files(h, second))
     if obs['connect'] != 'ACCEPTED':
         return 'PASS', f"certificate of {second} with Client ID {first}: {obs['connect']}"
     verdict, text = _publish_denied(obs)
@@ -754,7 +817,7 @@ def rotation_overlap(h):
     gid, new_files = _rotation(h)
     notes = []
     for label, files in (('old', h.files(gid)), ('new', new_files)):
-        probe = h.client(f'ROT-01:{label}', gid, files)
+        probe = h.client(f'ROT-01:{label}', h.cid_of(gid), files)
         outcome, detail = probe.open()
         if outcome in ('UNREACHABLE', 'NO_RESPONSE'):
             raise Inconclusive(f'ROT-01:{label}: {outcome} ({detail})')
@@ -771,23 +834,24 @@ def rotation_switch(h):
     gid, new_files = _rotation(h)
     topic = _own_d2c(h, gid, 'ROT-02')
     steps = []
-    old = h.client('ROT-02:old', gid, h.files(gid))
+    cid = h.cid_of(gid)
+    old = h.client('ROT-02:old', cid, h.files(gid))
     if old.open()[0] != 'ACCEPTED':
         raise Inconclusive('old certificate not accepted')
     # One connection per Client ID: disconnect the old identity before trying the new one.
     old.close()
-    new = h.client('ROT-02:new', gid, new_files)
+    new = h.client('ROT-02:new', cid, new_files)
     outcome, _ = new.open()
     code = new.publish(topic, h.payload('ROT-02')) if outcome == 'ACCEPTED' else None
     new.close()
     steps.append(f'switch to new: {outcome}, PUBACK {code}')
     switched = outcome == 'ACCEPTED' and code in ACCEPTED_CODES
     # A broken "new" identity (untrusted issuer, same CN) must fail; the old one must still work.
-    broken = h.client('ROT-02:broken-new', gid, h.negative('untrusted-ca'))
+    broken = h.client('ROT-02:broken-new', cid, h.negative('untrusted-ca'))
     broken_outcome, _ = broken.open()
     if broken_outcome in ('UNREACHABLE', 'NO_RESPONSE'):
         raise Inconclusive('broker unreachable during rollback step')
-    back = h.client('ROT-02:rollback', gid, h.files(gid))
+    back = h.client('ROT-02:rollback', cid, h.files(gid))
     back_outcome, _ = back.open()
     back_code = back.publish(topic, h.payload('ROT-02')) if back_outcome == 'ACCEPTED' else None
     steps.append(f'broken new: {broken_outcome}; rollback to old: {back_outcome}, PUBACK {back_code}')
@@ -795,14 +859,263 @@ def rotation_switch(h):
     return ('PASS' if ok else 'FAIL'), '; '.join(steps)
 
 
+# --------------------------------------------------------------------------- cases: payload
+
+def _binary(size):
+    """Opaque bytes in the v1.3 frame shape [1 byte][4 bytes big-endian, nonzero][body]. The values are
+    arbitrary test bytes (every byte value occurs), not message codes; nothing is decoded."""
+    head = bytes([0x00]) + (int.from_bytes(os.urandom(4), 'big') | 1).to_bytes(4, 'big')
+    body = head + bytes(range(256))
+    unique = os.urandom(16)
+    if size is None:
+        return body + unique
+    return (body * (size // len(body) + 1))[:max(size - len(unique), 0)] + unique
+
+
+@case('PAY-01', 'R18', 'Binary payload (all byte values, uint32 big-endian header shape) both directions', 'BYTE_EXACT')
+def payload_binary(h):
+    witness = h.connect('PAY-01:witness', h.ingest)
+    if not granted(witness.subscribe(h.d2c_all)):
+        raise Inconclusive('witness could not subscribe')
+    gateway = h.connect('PAY-01:gateway', h.id('A'))
+    if not granted(gateway.subscribe(h.filter('A', 'c2d'))):
+        raise Inconclusive('gateway A could not subscribe to its own Cloud->Device topic')
+    up, down = _binary(None), _binary(None)
+    up_ack = gateway.publish(h.topic('A', 'd2c', 'PAY-01'), up)
+    down_ack = h.connect('PAY-01:command', h.command).publish(h.topic('A', 'c2d', 'PAY-01'), down)
+    up_ok, down_ok = witness.received(up, h.observe_s) >= 1, gateway.received(down, h.observe_s) >= 1
+    ok = up_ack in ACCEPTED_CODES and down_ack in ACCEPTED_CODES and up_ok and down_ok
+    return ('PASS' if ok else 'FAIL'), (f'{len(up)} B up: PUBACK {up_ack}, byte-exact {up_ok}; '
+                                        f'{len(down)} B down: PUBACK {down_ack}, byte-exact {down_ok}')
+
+
+@case('PAY-02', 'R21', 'Payload probe sizes (128 B v1.3 reference, 12 KB historical sizing) are delivered',
+      'DELIVERED', mandatory=False)
+def payload_sizes(h):
+    witness = h.connect('PAY-02:witness', h.ingest)
+    if not granted(witness.subscribe(h.d2c_all)):
+        raise Inconclusive('witness could not subscribe')
+    gateway = h.connect('PAY-02:gateway', h.id('A'))
+    notes, ok = [], True
+    for size in h.target.get('payload_probe_bytes', PROBE_SIZES):
+        payload = _binary(size)
+        code = gateway.publish(h.topic('A', 'd2c', 'PAY-02'), payload)
+        delivered = witness.received(payload, h.observe_s) >= 1
+        ok = ok and code in ACCEPTED_CODES and delivered
+        notes.append(f'{size} B: PUBACK {code}, delivered {delivered}')
+    return ('PASS' if ok else 'FAIL'), '; '.join(notes)
+
+
+def _has_packet_limit(h):
+    return None if h.target.get('max_packet_bytes') else 'profile sets no max_packet_bytes (packet limit OPEN, ENTC-61)'
+
+
+@case('PAY-03', 'R21', 'Payload above the broker packet limit of the profile is rejected', 'REJECT',
+      mandatory=False, applies=_has_packet_limit)
+def payload_oversize(h):
+    limit = int(h.target['max_packet_bytes'])
+    witness = h.connect('PAY-03:witness', h.ingest)
+    if not granted(witness.subscribe(h.d2c_all)):
+        raise Inconclusive('witness could not subscribe')
+    gateway = h.connect('PAY-03:gateway', h.id('A'))
+    payload = _binary(limit + 1)
+    code = gateway.publish(h.topic('A', 'd2c', 'PAY-03'), payload, timeout=10)
+    obs = {'puback': code, 'delivered': witness.received(payload, h.observe_s), 'closed': bool(gateway.closed_by_peer())}
+    verdict, text = _publish_denied(obs)
+    return verdict, f'{limit + 1} B (limit {limit}): ' + text
+
+
+# --------------------------------------------------------------------------- cases: Last Will / expiry
+
+@case('LWT-01', 'R19', 'Last Will on the own Device->Cloud topic is published when the link is lost', 'DELIVERED',
+      mandatory=False)
+def will_delivered(h):
+    witness = h.connect('LWT-01:witness', h.ingest)
+    if not granted(witness.subscribe(h.d2c_all)):
+        raise Inconclusive('witness could not subscribe')
+    payload = h.payload('LWT-01')
+    probe = h.client('LWT-01', h.cid('A'), h.files(h.id('A')))
+    probe.will(h.topic('A', 'd2c', 'LWT-01'), payload)
+    outcome, detail = probe.open(clean_start=True, session_expiry=0)
+    if outcome in ('UNREACHABLE', 'NO_RESPONSE'):
+        raise Inconclusive(f'{outcome} ({detail})')
+    if outcome != 'ACCEPTED':
+        return 'FAIL', f'connection with a Last Will on the own topic rejected: {detail}'
+    probe.abort()
+    copies = witness.received(payload, h.observe_s + 2)
+    return ('PASS' if copies else 'FAIL'), f'link cut without DISCONNECT; Last Will delivered {copies}x'
+
+
+@case('LWT-02', 'R10', 'Last Will aimed at B\'s Device->Cloud topic is not published', 'DENY')
+def will_foreign(h):
+    witness = h.connect('LWT-02:witness', h.ingest)
+    if not granted(witness.subscribe(h.d2c_all)):
+        raise Inconclusive('witness could not subscribe')
+    payload = h.payload('LWT-02')
+    probe = h.client('LWT-02', h.cid('A'), h.files(h.id('A')))
+    probe.will(h.topic('B', 'd2c', 'LWT-02'), payload)
+    outcome, detail = probe.open(clean_start=True, session_expiry=0)
+    if outcome in ('UNREACHABLE', 'NO_RESPONSE'):
+        raise Inconclusive(f'{outcome} ({detail})')
+    if outcome != 'ACCEPTED':
+        return 'PASS', f'rejected at CONNECT ({detail})'
+    probe.abort()
+    copies = witness.received(payload, h.observe_s + 2)
+    return ('FAIL' if copies else 'PASS'), f'connection accepted; foreign Last Will delivered {copies}x'
+
+
+@case('EXP-01', 'R20', 'Command with Message Expiry 2 s, queued while A is offline, is not delivered after 4 s',
+      'EXPIRED', mandatory=False)
+def message_expiry(h):
+    gid = h.id('A')
+    first = h.connect('EXP-01:first', gid, clean_start=True, session_expiry=h.session_expiry)
+    if not granted(first.subscribe(h.filter('A', 'c2d'))):
+        raise Inconclusive('subscription to own Cloud->Device topic failed')
+    first.abort()
+    time.sleep(0.5)
+    command = h.connect('EXP-01:command', h.command)
+    expiring, control = h.payload('EXP-01'), h.payload('EXP-01')
+    topic = h.topic('A', 'c2d', 'EXP-01')
+    codes = (command.publish(topic, expiring, properties=expiry_properties(2)), command.publish(topic, control))
+    if any(code not in ACCEPTED_CODES for code in codes):
+        raise Inconclusive(f'commands not accepted (PUBACK {codes})')
+    time.sleep(4)
+    resumed = h.connect('EXP-01:resume', gid, clean_start=False, session_expiry=h.session_expiry)
+    got_control = resumed.received(control, h.observe_s)
+    got_expired = resumed.messages.count(expiring)
+    resumed.close()
+    h.purge_session(gid)
+    if not got_control:
+        raise Inconclusive('control command without expiry not delivered: session not resumed')
+    return ('PASS' if not got_expired else 'FAIL'), (f'control delivered {got_control}x; expired command delivered '
+                                                      f'{got_expired}x')
+
+
+# --------------------------------------------------------------------------- cases: changes at run time (hooks)
+
+def hook(h, action, **params):
+    """Ask the host side (scripts/13_acceptance.sh) to act on the broker: restart, revoke,
+    acl-withdraw, acl-restore. Handshake via files in <run>/hooks/; never guessed."""
+    if os.environ.get('SIM_HOOKS') != '1':
+        raise Inconclusive(f'hook "{action}" not available: run via make acceptance (lab-managed broker; for '
+                           'other brokers SIM_HOOK_RESTART / SIM_HOOK_CRL_RELOAD / SIM_HOOK_ACL_RELOAD)')
+    folder = h.run_dir / 'hooks'
+    folder.mkdir(exist_ok=True)
+    done = folder / f'{action}.done'
+    done.unlink(missing_ok=True)
+    (folder / f'{action}.request').write_text(json.dumps(params) + '\n')
+    h.rec('hook', 'requested', action=action, **params)
+    if not wait_until(done.exists, HOOK_TIMEOUT_S):
+        raise Inconclusive(f'hook "{action}": no answer within {HOOK_TIMEOUT_S} s')
+    time.sleep(0.2)
+    result = done.read_text().strip()
+    h.rec('hook', 'done', action=action, result=result)
+    if result != 'ok':
+        raise Inconclusive(f'hook "{action}": {result}')
+
+
+@case('ACL-14', 'R24', 'Permissions of C withdrawn while C is connected: publish and existing subscription',
+      'DENY_ON_ACTIVE_SESSION', mandatory=False)
+def acl_withdraw_active(h):
+    witness = h.connect('ACL-14:witness', h.ingest)
+    if not granted(witness.subscribe(h.d2c_all)):
+        raise Inconclusive('witness could not subscribe')
+    active = h.connect('ACL-14:active', h.id('C'))
+    if not granted(active.subscribe(h.filter('C', 'c2d'))):
+        raise Inconclusive('C could not subscribe to its own Cloud->Device topic')
+    before = h.payload('ACL-14')
+    if (active.publish(h.topic('C', 'd2c', 'ACL-14'), before) not in ACCEPTED_CODES
+            or not witness.received(before, h.observe_s)):
+        raise Inconclusive('positive control before the withdrawal failed')
+    command = h.connect('ACL-14:command', h.command)
+    try:
+        hook(h, 'acl-withdraw', identity=h.id('C'))
+        time.sleep(h.observe_s)   # the change must take effect within the observation time
+        up, down = h.payload('ACL-14'), h.payload('ACL-14')
+        code = active.publish(h.topic('C', 'd2c', 'ACL-14'), up) if active.alive() else None
+        up_copies = witness.received(up, h.observe_s)
+        if command.publish(h.topic('C', 'c2d', 'ACL-14'), down) not in ACCEPTED_CODES:
+            raise Inconclusive('command to C not accepted after the withdrawal')
+        down_copies = active.received(down, h.observe_s)
+        closed = bool(active.closed_by_peer())
+    finally:
+        if os.environ.get('SIM_HOOKS') == '1':
+            hook(h, 'acl-restore')
+    text = (f'after withdrawal: publish PUBACK {code}, delivered {up_copies}; existing subscription delivered '
+            f'{down_copies}' + ('; connection closed by broker' if closed else ''))
+    if up_copies:
+        return 'FAIL', text
+    return ('PARTIAL' if down_copies else 'PASS'), text
+
+
+@case('RST-01', 'R22', 'Broker restart: A\'s persistent session and a queued QoS 1 command survive', 'SESSION_KEPT',
+      mandatory=False)
+def broker_restart(h):
+    gid = h.id('A')
+    first = h.connect('RST-01:first', gid, clean_start=True, session_expiry=h.session_expiry)
+    if not granted(first.subscribe(h.filter('A', 'c2d'))):
+        raise Inconclusive('subscription to own Cloud->Device topic failed')
+    first.close()   # DISCONNECT with Session Expiry > 0: the session stays on the broker
+    payload = h.payload('RST-01')
+    code = h.connect('RST-01:command', h.command).publish(h.topic('A', 'c2d', 'RST-01'), payload)
+    if code not in ACCEPTED_CODES:
+        raise Inconclusive(f'command not accepted (PUBACK {code})')
+    h.close_all()
+    hook(h, 'restart')
+    started, resumed = time.monotonic(), None
+    while resumed is None and time.monotonic() - started < 60:
+        probe = h.client('RST-01:resume', h.cid('A'), h.files(gid))
+        if probe.open(clean_start=False, session_expiry=h.session_expiry)[0] == 'ACCEPTED':
+            resumed = probe
+        else:
+            time.sleep(1)
+    if resumed is None:
+        return 'FAIL', 'no reconnect within 60 s after the restart'
+    copies = resumed.received(payload, h.observe_s)
+    resumed.close()
+    h.purge_session(gid)
+    ok = resumed.session_present and copies >= 1
+    return ('PASS' if ok else 'FAIL'), (f'reconnected after {time.monotonic() - started:.1f} s; session_present '
+                                        f'{resumed.session_present}; queued command delivered {copies}x')
+
+
+@case('REV-01', 'R23', 'Certificate revoked while connected: open session ends, new connections rejected',
+      'TERMINATE_AND_REJECT', mandatory=False)
+def revoke_active(h):
+    files = h.negative('revoke-live')
+    active = h.client('REV-01:active', h.cid('A'), files)
+    outcome, detail = active.open()
+    if outcome != 'ACCEPTED':
+        raise Inconclusive(f'valid certificate revoke-live not accepted before the revocation ({detail})')
+    hook(h, 'revoke')
+    wait_until(lambda: bool(active.closed_by_peer()), h.observe_s + 3)
+    still_open = active.alive()
+    active.close()
+    time.sleep(0.5)
+    new = h.client('REV-01:new', h.cid('A'), files)
+    new_outcome, new_detail = new.open()
+    if new_outcome in ('UNREACHABLE', 'NO_RESPONSE'):
+        raise Inconclusive(f'broker not reachable after the revocation ({new_detail})')
+    text = (f"open session {'still open' if still_open else 'terminated'}; new connection: {new_outcome} "
+            f'({new_detail})')
+    if new_outcome == 'ACCEPTED':
+        return 'FAIL', text
+    return ('PARTIAL' if still_open else 'PASS'), text
+
+
 # --------------------------------------------------------------------------- phases
 
 def run_cases(cfg, fleet, broker, target, run_dir, gateway_a='gw-sim-000001', only=None, profile=None):
     h = Harness(cfg, fleet, broker, target, run_dir, gateway_a)
     started = time.time()
-    results = []
+    results, not_applicable = [], {}
     for c in CASES:
         if only and c.id != 'MTLS-01' and not any(c.id.startswith(prefix) for prefix in only):
+            continue
+        reason = c.applies(h) if c.applies else None
+        if reason:
+            not_applicable[c.id] = reason
+            print(f'  {c.id:8} {"N/A":12} {reason}', flush=True)
             continue
         h.rec(c.id, 'case_start', expected=c.expected)
         try:
@@ -814,7 +1127,7 @@ def run_cases(cfg, fleet, broker, target, run_dir, gateway_a='gw-sim-000001', on
         finally:
             h.close_all()
         h.rec(c.id, 'case_result', verdict=verdict, observed=observed)
-        results.append({'id': c.id, 'requirement': c.requirement, 'title': c.title, 'expected': c.expected,
+        results.append({'id': c.id, 'requirement': c.requirement, 'title': c.title_for(cfg), 'expected': c.expected,
                         'mandatory': c.mandatory, 'verdict': verdict, 'observed': observed})
         print(f'  {c.id:8} {verdict:12} {observed[:110]}', flush=True)
         time.sleep(0.2)
@@ -826,9 +1139,10 @@ def run_cases(cfg, fleet, broker, target, run_dir, gateway_a='gw-sim-000001', on
                 r['verdict'] = 'INCONCLUSIVE'
                 r['observed'] += ' [positive control MTLS-01 did not pass]'
     run = {'run_id': run_dir.name, 'target': target.get('name'), 'profile': profile, 'broker': f'{broker.host}:{broker.port}',
-           'gateways': {k: v['gateway_id'] for k, v in h.gw.items()}, 'observe_s': h.observe_s,
-           'started_epoch': int(started), 'finished_epoch': int(time.time()) + 1, 'only': only,
-           'results': results}
+           'wire': cfg['wire']['label'], 'wire_profile': {k: cfg['wire'][k] for k in ('topics', 'client_id')},
+           'gateways': {k: f"{v['gateway_id']} (client id {v['client_id']})" for k, v in h.gw.items()},
+           'observe_s': h.observe_s, 'started_epoch': int(started), 'finished_epoch': int(time.time()) + 1,
+           'only': only, 'not_applicable': not_applicable, 'results': results}
     write_json(run_dir / 'results.json', run)
     write_jsonl(run_dir / 'events.jsonl', h.rec.events)
     return run
@@ -903,7 +1217,8 @@ def report(target, run_dir, broker_log=None, label=None):
             if key:
                 r['finding'] = FINDINGS[key]
     mandatory = [r for r in results if r['mandatory']]
-    missing = [c.id for c in CASES if c.mandatory and c.id not in {r['id'] for r in results}]
+    skipped = run.get('not_applicable', {})
+    missing = [c.id for c in CASES if c.mandatory and c.id not in {r['id'] for r in results} and c.id not in skipped]
     # A filtered or aborted run never counts as acceptance.
     accepted = not missing and all(r['verdict'] == 'PASS' for r in mandatory)
     requirements = []
@@ -922,6 +1237,9 @@ def report(target, run_dir, broker_log=None, label=None):
                              'cases': [r['id'] for r in results if r['requirement'] == req_id]})
     counts = {v: sum(r['verdict'] == v for r in mandatory) for v in VERDICTS}
     summary = {'run_id': run['run_id'], 'target': run['target'], 'profile': run.get('profile'),
+               'wire': run.get('wire', 'topics lab-eicp, client id certificate CN'),
+               'wire_profile': run.get('wire_profile', {'topics': 'lab-eicp', 'client_id': 'certificate'}),
+               'not_applicable': skipped,
                'effort': target.get('effort', {}), 'broker_label': label or run['target'],
                'broker': run['broker'], 'gateways': run['gateways'],
                'generated_utc': datetime.now(timezone.utc).isoformat(timespec='seconds'),
@@ -943,7 +1261,8 @@ def summary_text(s, evidence=None):
              f"Result: {verdict}  (exit {s['exit']})",
              f"Mandatory cases: {counts['PASS']}/{total} PASS"
              + ''.join(f", {counts[v]} {v}" for v in ('FAIL', 'PARTIAL', 'INCONCLUSIVE') if counts[v]),
-             f"Broker: {s['broker']}   Run: {s['run_id']}", '', 'Requirements:']
+             f"Broker: {s['broker']}   Run: {s['run_id']}",
+             f"Wire: {s.get('wire', 'topics lab-eicp, client id certificate CN')}", '', 'Requirements:']
     for r in s['requirements']:
         mark = {'INCONCLUSIVE': 'INCONCL'}.get(r['verdict'], r['verdict'].replace('advisory ', 'adv '))
         mark = mark.ljust(8)
@@ -960,6 +1279,8 @@ def summary_text(s, evidence=None):
         lines += [f"  {r['id']:8} {r['verdict']:12} {r['title'][:60]}" for r in advisory]
     if s['mandatory_not_run']:
         lines += ['', 'Not run: ' + ', '.join(s['mandatory_not_run']) + '  (incomplete run, never accepted)']
+    if s.get('not_applicable'):
+        lines += ['', 'Not applicable to this wire profile: ' + ', '.join(s['not_applicable'])]
     findings = {}
     for r in s['results']:
         if 'finding' in r:
@@ -979,6 +1300,9 @@ def _markdown(s):
     lines = [f"# ENTC-63 acceptance — {s['broker_label']}", '',
              f"Run `{s['run_id']}` against `{s['broker']}` ({s['generated_utc']}). Gateways: "
              + ', '.join(f'{k} = `{v}`' for k, v in s['gateways'].items()) + '.', '',
+             f"Wire profile: {s.get('wire', 'topics lab-eicp, client id certificate CN')}."
+             + (' Not applicable: ' + ', '.join(f'{k} ({v})' for k, v in s['not_applicable'].items()) + '.'
+                if s.get('not_applicable') else ''), '',
              f"**Result: {'ACCEPTED' if s['accepted'] else 'NOT ACCEPTED'}** — mandatory cases: "
              + ', '.join(f'{n} {v}' for v, n in s['mandatory_counts'].items()) + '.'
              + (f" Not run: {', '.join(s['mandatory_not_run'])} (incomplete run, never accepted)."

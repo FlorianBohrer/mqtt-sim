@@ -19,6 +19,12 @@ session_expiry_s = 300        # Session Expiry Interval used by the session test
 reconnect_gateways = 10       # gateways dropped at once in REC-01
 reconnect_window_s = 5.0      # full-jitter window for their first reconnect attempt
 
+[hooks]
+# How the broker picks up a CRL / ACL changed during the run (REV-01, ACL-14):
+# "hup" = SIGHUP to the container, "none" = the broker watches the file itself, missing = not supported.
+crl_reload = "hup"   # no crlfile in the lab config: the reload works, revocation is still not enforced
+acl_reload = "hup"
+
 [log]
 # Regular expressions applied to the broker log captured for the run window.
 # `timestamp` must capture Unix seconds; lines outside the run window are ignored.
@@ -36,7 +42,7 @@ R02 = "CONFIGURATION | require_certificate"
 R03 = "CONFIGURATION | cafile"
 R04 = "CONFIGURATION | validity checked; revocation needs crlfile (not set in lab config)"
 R05 = "CONFIGURATION | use_identity_as_username + acl_file"
-R06 = "UNSUPPORTED | CN == Client ID not enforced (ID-01 FAIL); custom plugin untested"
+R06 = "UNSUPPORTED | Client ID not bound to the certificate (ID-01, ID-03 FAIL); custom plugin untested"
 R07 = "CONFIGURATION | acl_file; denied SUBSCRIBE is not signalled (PARTIAL)"
 R08 = "CONFIGURATION | acl_file"
 R09 = "CONFIGURATION | acl_file; denied SUBSCRIBE is not signalled (PARTIAL)"
@@ -48,3 +54,10 @@ R14 = "NATIVE | sessions survive; backoff is a client matter"
 R15 = "CONFIGURATION | log_type, connection_messages"
 R16 = "UNSUPPORTED | certificate without CN has no identity (LEG-01 FAIL)"
 R17 = "CONFIGURATION | two certificates for one CN work"
+R18 = "NATIVE | binary payloads byte-exact (PAY-01)"
+R19 = "NATIVE | Last Will on link loss (LWT-01); foreign Will not delivered (LWT-02)"
+R20 = "NATIVE | Message Expiry honoured (EXP-01)"
+R21 = "NATIVE | 128 B and 12 KB delivered; no message_size_limit set in the lab"
+R22 = "TBD | Mosquitto 2.0.18 (local test): persistence file written, session lost after restart (RST-01 FAIL); repeat with the Docker image"
+R23 = "UNSUPPORTED | lab config: revocation reaches neither open nor new connections (REV-01 FAIL); crlfile would cover new connections only (untested)"
+R24 = "NATIVE | ACL reload via SIGHUP applies to open connections (ACL-14 PASS)"

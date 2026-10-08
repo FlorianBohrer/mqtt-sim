@@ -64,9 +64,8 @@ def verify(dataset_dir, run_dir):
     mismatch = []
     for e in receipts:
         row = expected.get(e['messageId'])
-        parts = e['topic'].split('/')
-        if row is None or e['topic'] != row['topic'] or parts[3] != row['plant_id'] \
-                or not parts[5] == e['gatewayId'] == row['gateway_id']:
+        # The planned topic is the sender's own namespace (wire profile); the fixture names its gateway.
+        if row is None or e['topic'] != row['topic'] or not e['gatewayId'] == row['gateway_id']:
             mismatch.append(e['messageId'])
 
     publish_at = {}

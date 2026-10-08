@@ -48,6 +48,7 @@ else
   ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 fi
 cd "$ROOT"
+. "$ROOT/scripts/poc_wire_check.sh"
 ACL="$ROOT/mosquitto/config/acl"
 # Gemeinsame Sperre mit Test 09: Zwei Tests duerfen nicht gleichzeitig die
 # gesamte ACL ersetzen, sonst koennte einer das Backup des anderen ueberschreiben.

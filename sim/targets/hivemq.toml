@@ -21,6 +21,11 @@ session_expiry_s = 300
 reconnect_gateways = 10
 reconnect_window_s = 5.0
 
+[hooks]
+# The enetec-identity extension re-reads CRL, permissions and client ids every 2 s by itself.
+crl_reload = "none"
+acl_reload = "none"
+
 [log]
 # Lines like "2026-10-01 08:34:00,834 INFO  - ENETEC-AUDIT connect-accepted ..." (container UTC)
 timestamp = '(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3})'
@@ -36,7 +41,7 @@ R02 = "CONFIGURATION | client-authentication-mode REQUIRED"
 R03 = "CONFIGURATION | truststore"
 R04 = "CUSTOM DEVELOPMENT | CRL check in the extension; validity is native"
 R05 = "CUSTOM DEVELOPMENT | CE has no ACL; extension maps CN to permissions"
-R06 = "CUSTOM DEVELOPMENT | enforced in the extension (Enterprise Security Extension: unverified)"
+R06 = "CUSTOM DEVELOPMENT | extension: client_ids.tsv maps identity -> authorized Client ID (Enterprise Security Extension: unverified)"
 R07 = "CUSTOM DEVELOPMENT | permissions.tsv in the extension"
 R08 = "CUSTOM DEVELOPMENT | extension"
 R09 = "CUSTOM DEVELOPMENT | extension"
@@ -48,3 +53,10 @@ R14 = "NATIVE | sessions survive; backoff is a client matter"
 R15 = "CUSTOM DEVELOPMENT | ENETEC-AUDIT lines from the extension; TLS rejections not logged by default"
 R16 = "CUSTOM DEVELOPMENT | fingerprint registry in the extension"
 R17 = "CONFIGURATION | two certificates for one CN work"
+R18 = "NATIVE | binary payloads byte-exact (PAY-01)"
+R19 = "NATIVE | Last Will (LWT-01); foreign Will rejected at CONNECT by the extension (LWT-02)"
+R20 = "NATIVE | Message Expiry honoured (EXP-01)"
+R21 = "NATIVE | 128 B and 12 KB delivered"
+R22 = "NATIVE | CE file persistence: session and queued command survive a restart (RST-01, local run)"
+R23 = "CUSTOM DEVELOPMENT | extension watches the CRL and disconnects revoked open sessions (REV-01)"
+R24 = "CUSTOM DEVELOPMENT | extension reloads permissions and removes withdrawn subscriptions (ACL-14)"

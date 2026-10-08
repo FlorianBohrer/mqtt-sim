@@ -25,8 +25,12 @@ def _complete(report):
     return not report.get('mandatory_not_run') and evidence > 0
 
 
-def latest_run(profile, results_dir):
-    """Newest complete acceptance report of a broker profile (by profile stem, else by name)."""
+LEGACY_WIRE = 'topics lab-eicp, client id certificate CN'   # runs before 2026-10-08 have no "wire"
+
+
+def latest_run(profile, results_dir, wire=None):
+    """Newest complete acceptance report of a broker profile (by profile stem, else by name).
+    With `wire`, runs of that wire profile are preferred; others are used only if none exists."""
     name = None
     path = TARGETS_DIR / f'{profile}.toml'
     if path.exists():
@@ -49,6 +53,8 @@ def latest_run(profile, results_dir):
                 f'sim/targets/{profile}.toml and that the broker is running).' if unusable else '')
         raise SystemExit(f'No usable acceptance run found for broker "{profile}" in {results_dir}.{hint} '
                          f'Run: make acceptance BROKER={profile}   (or make compare ... FRESH=1)')
+    if wire and any(rep.get('wire', LEGACY_WIRE) == wire for _, _, rep in found):
+        found = [item for item in found if item[2].get('wire', LEGACY_WIRE) == wire]
     found.sort(key=lambda item: item[0])
     return found[-1][1], found[-1][2]
 
@@ -61,12 +67,12 @@ def _parse_effort(report):
     return out
 
 
-def compare(profile_a, profile_b, results_dir, run_a=None, run_b=None):
+def compare(profile_a, profile_b, results_dir, run_a=None, run_b=None, wire=None):
     def load(profile, run_dir):
         if run_dir:
             path = Path(run_dir)
             return path, json.loads((path / 'report.json').read_text())
-        return latest_run(profile, results_dir)
+        return latest_run(profile, results_dir, wire)
     dir_a, rep_a = load(profile_a, run_a)
     dir_b, rep_b = load(profile_b, run_b)
     reqs_a = {r['id']: r for r in rep_a['requirements']}
@@ -101,11 +107,15 @@ def compare(profile_a, profile_b, results_dir, run_a=None, run_b=None):
     def side(profile, run_dir, rep):
         counts = rep['mandatory_counts']
         return {'profile': profile, 'label': rep['broker_label'], 'run': run_dir.name, 'broker': rep['broker'],
+                'wire': rep.get('wire', LEGACY_WIRE),
                 'generated_utc': rep.get('generated_utc'), 'accepted': rep['accepted'], 'counts': counts,
                 'mandatory_total': sum(counts.values()),
                 'not_passed': counts['FAIL'] + counts['PARTIAL'] + counts['INCONCLUSIVE']}
     a, b = side(profile_a, dir_a, rep_a), side(profile_b, dir_b, rep_b)
     caveats = []
+    if a['wire'] != b['wire']:
+        caveats.append(f"Different wire profiles: A {a['wire']}; B {b['wire']}. Case results are not directly "
+                       'comparable; rerun both with the same WIRE (make compare ... FRESH=1).')
     for s in (a, b):
         target = TARGETS_DIR / f"{s['profile']}.toml"
         if target.exists() and load_target(target).get('status') == 'template':
@@ -200,9 +210,9 @@ def markdown(c):
     return '\n'.join(lines) + '\n'
 
 
-def run(profile_a, profile_b, out_dir=None, run_a=None, run_b=None, results_dir=None):
+def run(profile_a, profile_b, out_dir=None, run_a=None, run_b=None, results_dir=None, wire=None):
     results_dir = Path(results_dir or LAB_ROOT / 'results')
-    c = compare(profile_a, profile_b, results_dir, run_a, run_b)
+    c = compare(profile_a, profile_b, results_dir, run_a, run_b, wire)
     stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
     out = Path(out_dir or results_dir / f'compare-{profile_a}-vs-{profile_b}-{stamp}')
     out.mkdir(parents=True, exist_ok=True)

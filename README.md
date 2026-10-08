@@ -36,6 +36,11 @@ The CA private key is used only for signing. It is never installed in a Gateway 
 
 > **Guide:** development history, setup and usage of the whole simulation environment: [docs/MQTT-SIM-ENV.en.md](docs/MQTT-SIM-ENV.en.md) (English), [docs/MQTT-SIM-ENV.md](docs/MQTT-SIM-ENV.md) (Deutsch)
 
+> **Topic layout (since 2026-10-08):** the acceptance harness and the simulation default to MQTT wire
+> contract v1.3 (`enetec/v1/{clientId}/state|cmd`, derived Client ID). The original tests 04–10 in this
+> README use the earlier layout `eicp/v1/sim/...` with Client ID = CN. Switch the lab broker to it first
+> with `make fleet WIRE=lab-eicp`, and back with `make fleet`; otherwise the tests stop with a hint.
+
 ## 1. Prerequisites
 
 On macOS you need:

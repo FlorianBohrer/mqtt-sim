@@ -21,6 +21,8 @@ def load_config(path=DEFAULT_CONFIG):
     raw = Path(path).read_bytes()
     cfg = tomllib.loads(raw.decode('utf-8'))
     cfg['_sha256'] = hashlib.sha256(raw).hexdigest()
+    from .wire import resolve
+    cfg['wire'] = resolve(cfg)   # [wire] of the file, SIM_WIRE overrides
     return cfg
 
 
@@ -30,10 +32,6 @@ def load_target(path):
     if not path.exists() and (TARGETS_DIR / f'{path}.toml').exists():
         path = TARGETS_DIR / f'{path}.toml'  # allow plain profile names, e.g. "emqx"
     return tomllib.loads(path.read_text())
-
-
-def gateway_base(cfg, plant_id, gateway_id):
-    return f"{cfg['topics']['base']}/{plant_id}/gateways/{gateway_id}"
 
 
 def parse_utc(text):

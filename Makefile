@@ -1,11 +1,19 @@
 .PHONY: check init up down logs valid-publish cross-gateway wrong-clientid inspect verify clean \
-	fleet negative-certs legacy-certs acceptance simulate sim-test brokers bevywise-config bevywise-bundle compare version
+	fleet negative-certs legacy-certs acceptance simulate sim-test brokers bevywise-config bevywise-bundle compare \
+	decide version
 
 # Broker under test for acceptance/simulate: profile sim/targets/$(BROKER).toml
 # e.g. make acceptance BROKER=emqx   (list: make brokers)
 BROKER ?= mosquitto-lab
 SIM_TARGET ?= sim/targets/$(BROKER).toml
 export SIM_TARGET
+
+# Wire profile: empty = sim/config.toml [wire] (v13: enetec/v1/{clientId}/state|cmd, derived Client ID);
+# WIRE=lab-eicp = earlier layout eicp/v1/sim/.../d2c|c2d with Client ID = CN (also needed by tests 04-10)
+WIRE ?=
+ifneq ($(WIRE),)
+export SIM_WIRE := $(WIRE)
+endif
 
 check:
 	./scripts/00_check_prerequisites.sh
@@ -76,6 +84,10 @@ compare:
 
 brokers:
 	@ls sim/targets/*.toml | sed 's#sim/targets/##; s#\.toml##'
+
+# Weighted decision matrix over the latest acceptance runs (sim/decision.toml): make decide
+decide:
+	@./scripts/18_decide.sh
 
 sim-test:
 	docker build -q -t enetec-sim:local sim >/dev/null

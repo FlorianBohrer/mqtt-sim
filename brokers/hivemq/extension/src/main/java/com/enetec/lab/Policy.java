@@ -23,7 +23,7 @@ import java.util.Set;
 import javax.naming.ldap.LdapName;
 import javax.naming.ldap.Rdn;
 
-/** Immutable policy loaded at start: permissions, fingerprint registry, revoked serials. */
+/** Immutable policy: permissions, authorized Client IDs, fingerprint registry, revoked serials. */
 final class Policy {
 
     enum Action { PUBLISH, SUBSCRIBE }
@@ -31,6 +31,7 @@ final class Policy {
     private final Map<String, List<String>> publish = new HashMap<>();
     private final Map<String, List<String>> subscribe = new HashMap<>();
     private final Map<String, String> registry = new HashMap<>();
+    private final Map<String, String> clientIds = new HashMap<>();
     private final Set<BigInteger> revoked = new HashSet<>();
     private final boolean enforceClientId;
     private final boolean rejectDuplicateClientId;
@@ -42,17 +43,39 @@ final class Policy {
 
     /**
      * ENETEC_PERMISSIONS  identity TAB publish|subscribe TAB topic-filter (required)
+     * ENETEC_CLIENT_IDS   identity TAB authorized client id (optional; missing identity: client id = identity)
      * ENETEC_REGISTRY     SHA-256 fingerprint TAB gateway-id (optional, legacy certificates)
      * ENETEC_CRL          PEM CRL of the issuing CA (optional)
      * ENETEC_ENFORCE_CLIENT_ID / ENETEC_REJECT_DUPLICATE_CLIENT_ID  true|false (default true)
      */
     static Policy fromEnvironment() throws Exception {
         final Policy policy = new Policy(flag("ENETEC_ENFORCE_CLIENT_ID"), flag("ENETEC_REJECT_DUPLICATE_CLIENT_ID"));
-        policy.loadPermissions(EnetecIdentityMain.path("ENETEC_PERMISSIONS",
-                "/opt/hivemq/extensions/enetec-identity/conf/permissions.tsv"));
-        policy.loadRegistry(EnetecIdentityMain.path("ENETEC_REGISTRY", "/opt/hivemq/lab-certs/legacy/registry.tsv"));
-        policy.loadCrl(EnetecIdentityMain.path("ENETEC_CRL", "/opt/hivemq/lab-certs/negative/crl.pem"));
+        policy.loadPermissions(permissionsFile());
+        policy.loadClientIds(clientIdsFile());
+        policy.loadRegistry(registryFile());
+        policy.loadCrl(crlFile());
         return policy;
+    }
+
+    /** The files the policy is built from (watched for changes by {@link PolicyHolder}). */
+    static List<Path> files() {
+        return List.of(permissionsFile(), clientIdsFile(), registryFile(), crlFile());
+    }
+
+    private static Path permissionsFile() {
+        return EnetecIdentityMain.path("ENETEC_PERMISSIONS", "/opt/hivemq/extensions/enetec-identity/conf/permissions.tsv");
+    }
+
+    private static Path clientIdsFile() {
+        return EnetecIdentityMain.path("ENETEC_CLIENT_IDS", "/opt/hivemq/extensions/enetec-identity/conf/client_ids.tsv");
+    }
+
+    private static Path registryFile() {
+        return EnetecIdentityMain.path("ENETEC_REGISTRY", "/opt/hivemq/lab-certs/legacy/registry.tsv");
+    }
+
+    private static Path crlFile() {
+        return EnetecIdentityMain.path("ENETEC_CRL", "/opt/hivemq/lab-certs/negative/crl.pem");
     }
 
     private static boolean flag(final String env) {
@@ -75,6 +98,18 @@ final class Policy {
                 throw new IllegalArgumentException("unknown action in: " + line);
             }
             target.computeIfAbsent(parts[0], k -> new ArrayList<>()).add(parts[2]);
+        }
+    }
+
+    private void loadClientIds(final Path file) throws Exception {
+        if (!Files.isReadable(file)) {
+            return;
+        }
+        for (final String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
+            final String[] parts = line.split("\t");
+            if (!line.startsWith("#") && parts.length == 2) {
+                clientIds.put(parts[0].trim(), parts[1].trim());
+            }
         }
     }
 
@@ -128,7 +163,16 @@ final class Policy {
     }
 
     boolean isRevoked(final X509Certificate certificate) {
-        return revoked.contains(certificate.getSerialNumber());
+        return isRevoked(certificate.getSerialNumber());
+    }
+
+    boolean isRevoked(final BigInteger certificateSerial) {
+        return revoked.contains(certificateSerial);
+    }
+
+    /** Client ID the identity may use (registry), else the identity itself (legacy lab assumption). */
+    String authorizedClientId(final String identity) {
+        return clientIds.getOrDefault(identity, identity);
     }
 
     boolean allowed(final String identity, final Action action, final String topicOrFilter) {
@@ -178,6 +222,10 @@ final class Policy {
     int permissionCount() {
         return publish.values().stream().mapToInt(List::size).sum()
                 + subscribe.values().stream().mapToInt(List::size).sum();
+    }
+
+    int clientIdCount() {
+        return clientIds.size();
     }
 
     int registrySize() {

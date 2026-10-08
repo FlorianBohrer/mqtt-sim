@@ -21,15 +21,17 @@ import java.util.Optional;
 final class CertificateAuthenticator implements SimpleAuthenticator {
 
     static final String IDENTITY_ATTRIBUTE = "enetec.identity";
+    static final String SERIAL_ATTRIBUTE = "enetec.certificate-serial";
 
-    private final Policy policy;
+    private final PolicyHolder holder;
 
-    CertificateAuthenticator(final Policy policy) {
-        this.policy = policy;
+    CertificateAuthenticator(final PolicyHolder holder) {
+        this.holder = holder;
     }
 
     @Override
     public void onConnect(final SimpleAuthInput input, final SimpleAuthOutput output) {
+        final Policy policy = holder.get();
         final String clientId = input.getClientInformation().getClientId();
         final Optional<X509Certificate> certificate = input.getConnectionInformation()
                 .getClientTlsInformation().flatMap(ClientTlsInformation::getClientCertificate);
@@ -54,15 +56,20 @@ final class CertificateAuthenticator implements SimpleAuthenticator {
             reject(output, clientId, serial, ConnackReasonCode.NOT_AUTHORIZED, "certificate revoked");
             return;
         }
-        if (policy.enforceClientId() && !identity.get().equals(clientId)) {
+        final String authorized = policy.authorizedClientId(identity.get());
+        if (policy.enforceClientId() && !authorized.equals(clientId)) {
             reject(output, clientId, serial, ConnackReasonCode.CLIENT_IDENTIFIER_NOT_VALID,
-                    "client id does not match certificate identity " + identity.get());
+                    "client id is not the one authorized for certificate identity " + identity.get());
             return;
         }
         input.getConnectionInformation().getConnectionAttributeStore()
                 .put(IDENTITY_ATTRIBUTE, ByteBuffer.wrap(identity.get().getBytes(StandardCharsets.UTF_8)));
+        input.getConnectionInformation().getConnectionAttributeStore()
+                .put(SERIAL_ATTRIBUTE, ByteBuffer.wrap(serial.getBytes(StandardCharsets.UTF_8)));
+        final PolicyHolder.Session session =
+                new PolicyHolder.Session(identity.get(), certificate.get().getSerialNumber());
         if (!policy.rejectDuplicateClientId()) {
-            accept(output, clientId, identity.get(), serial);
+            accept(output, clientId, identity.get(), serial, session);
             return;
         }
         // ENETEC: a second connection must not take over an active session.
@@ -74,15 +81,16 @@ final class CertificateAuthenticator implements SimpleAuthenticator {
                 reject(output, clientId, serial, ConnackReasonCode.CLIENT_IDENTIFIER_NOT_VALID,
                         "client id already connected, existing session kept");
             } else {
-                accept(output, clientId, identity.get(), serial);
+                accept(output, clientId, identity.get(), serial, session);
             }
             async.resume();
         });
     }
 
-    private static void accept(final SimpleAuthOutput output, final String clientId, final String identity,
-                               final String serial) {
+    private void accept(final SimpleAuthOutput output, final String clientId, final String identity,
+                        final String serial, final PolicyHolder.Session session) {
         AUDIT.info("ENETEC-AUDIT connect-accepted clientId={} identity={} certSerial={}", clientId, identity, serial);
+        holder.track(clientId, session);
         output.authenticateSuccessfully();
     }
 

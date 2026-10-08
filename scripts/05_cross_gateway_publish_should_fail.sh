@@ -3,6 +3,7 @@ set -eu
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "$ROOT"
+. "$ROOT/scripts/poc_wire_check.sh"
 
 AUTH_GW="gw-sim-000001"
 TOPIC="eicp/v1/sim/plt_sim_002/gateways/gw-sim-000002/d2c/telemetry/report"

@@ -1,6 +1,6 @@
 # EMQX 5.8 für den ENTC-63-Harness
 
-**Stand:** 2026-10-01 · **Bezug:** ENTC-59 (Broker-Vergleich), ENTC-63 (Abnahme)
+**Stand:** 2026-10-08 · **Bezug:** ENTC-59 (Broker-Vergleich), ENTC-63 (Abnahme)
 
 EMQX läuft als zusätzlicher Compose-Service im Lab, mit derselben Lab-CA, denselben Zertifikaten
 und derselben Flotte wie der Lab-Mosquitto. Ein Befehl startet ihn, konfiguriert ihn und testet ihn:
@@ -9,8 +9,23 @@ und derselben Flotte wie der Lab-Mosquitto. Ein Befehl startet ihn, konfiguriert
 make clean && make acceptance BROKER=emqx
 ```
 
-Gegen EMQX ist der Harness **noch nicht gelaufen**. Hier fehlt Docker, das Profil hat deshalb den
-Status `template`. Die Konfigurationsschlüssel entsprechen EMQX 5.8 (HOCON).
+Am 2026-10-01 lief der Harness im Docker-Lab gegen EMQX 5.8.6 (Profil `lab-eicp`, 29/31 Pflichtfälle).
+Im Wire-Profil v13 und mit den Fällen vom 2026-10-08 ist EMQX **noch nicht gelaufen**; das Profil hat
+weiter den Status `template`, bis die Log-Muster bestätigt sind. Die Konfigurationsschlüssel
+entsprechen EMQX 5.8 (HOCON).
+
+## Wire-Profil v1.3 und neue Fälle (2026-10-08)
+
+`make acceptance BROKER=emqx` nutzt jetzt `enetec/v1/{clientId}/state|cmd` und abgeleitete Client-IDs.
+Die generierte `acl.conf` enthält bereits diese Topics, weiter am Username = CN.
+
+| Fall | Erwartung (der Lauf liefert die Belege) |
+|---|---|
+| ID-01, ID-03 | FAIL wie ID-01 am 01.10.: EMQX prüft nicht, ob die Client-ID zur Zertifikatsidentität gehört. Dafür braucht es eine Authentifizierung gegen die Registry (HTTP-Auth/Hook) |
+| PAY-03 | aktiv, weil das Profil `max_packet_bytes = 1048576` setzt (`mqtt.max_packet_size = 1MB`) |
+| RST-01 | Neustart über `docker compose restart emqx`. Eine Session-Persistenz über Neustarts ist in `emqx.conf` nicht eingeschaltet; der Lauf zeigt, ob die Session trotzdem erhalten bleibt |
+| REV-01 | `crl_reload = "none"`: EMQX prüft CRLs nur über den CRL-Verteilpunkt im Zertifikat, den die Lab-Zertifikate nicht haben → FAIL erwartet |
+| ACL-14 | INCONCLUSIVE, bis ein Reload der Datei-ACL hinterlegt ist: `acl_reload` im Profil oder `SIM_HOOK_ACL_RELOAD` mit einem Aufruf der EMQX-REST-API bzw. CLI (noch nicht ausgearbeitet) |
 
 ## Dateien
 

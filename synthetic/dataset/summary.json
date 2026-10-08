@@ -2,8 +2,10 @@
   "generator": {
     "name": "enetec_sim",
     "seed": 20260930,
-    "config_sha256": "b29ca6100bd6848d24724c822b5756566246d719afb51894ef0b90c451def9fd"
+    "config_sha256": "aa9f4ceb2d48cfddaee91dce3d040c07209c63e73f6e4449eb892cee15bc64d0"
   },
+  "wire": "topics v13, client id derived (lab-sha256-v0)",
+  "payload_format": "synthetic JSON fixture (not the v1.3 binary wire format)",
   "window": {
     "start": "2026-10-01T00:00:00Z",
     "duration_s": 86400

@@ -17,17 +17,17 @@ import java.nio.charset.StandardCharsets;
 /** Default-deny topic permissions keyed on the certificate identity (not the Client ID). */
 final class TopicAuthorizer implements PublishAuthorizer, SubscriptionAuthorizer {
 
-    private final Policy policy;
+    private final PolicyHolder holder;
 
-    TopicAuthorizer(final Policy policy) {
-        this.policy = policy;
+    TopicAuthorizer(final PolicyHolder holder) {
+        this.holder = holder;
     }
 
     @Override
     public void authorizePublish(final PublishAuthorizerInput input, final PublishAuthorizerOutput output) {
         final String identity = identity(input.getConnectionInformation());
         final String topic = input.getPublishPacket().getTopic();
-        if (identity != null && policy.allowed(identity, Policy.Action.PUBLISH, topic)) {
+        if (identity != null && holder.get().allowed(identity, Policy.Action.PUBLISH, topic)) {
             output.authorizeSuccessfully();
             return;
         }
@@ -41,7 +41,7 @@ final class TopicAuthorizer implements PublishAuthorizer, SubscriptionAuthorizer
                                    final SubscriptionAuthorizerOutput output) {
         final String identity = identity(input.getConnectionInformation());
         final String filter = input.getSubscription().getTopicFilter();
-        if (identity != null && policy.allowed(identity, Policy.Action.SUBSCRIBE, filter)) {
+        if (identity != null && holder.get().allowed(identity, Policy.Action.SUBSCRIBE, filter)) {
             output.authorizeSuccessfully();
             return;
         }

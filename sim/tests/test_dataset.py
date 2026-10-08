@@ -1,13 +1,16 @@
 import json
+import os
 import re
 import tempfile
 import unittest
 from collections import defaultdict
 from pathlib import Path
+from unittest import mock
 
+from enetec_sim import wire
 from enetec_sim.config import LAB_ROOT, encode, load_config, parse_utc, read_jsonl
 from enetec_sim.dataset import build_dataset, offline_at
-from enetec_sim.fleet import build_fleet, render_acl
+from enetec_sim.fleet import build_fleet, render_acl, render_client_identities
 from enetec_sim.generate import generate
 
 PLANT_UUID7 = re.compile(r'^plt_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
@@ -21,7 +24,8 @@ class CommittedDataTest(unittest.TestCase):
             out, acl, emqx = Path(tmp) / 'synthetic', Path(tmp) / 'acl', Path(tmp) / 'emqx-acl.conf'
             hivemq = Path(tmp) / 'permissions.tsv'
             generate(load_config(), out, acl, emqx, hivemq)
-            for rel in ('fleet.json', 'gateways.txt', 'services.txt', 'legacy_gateways.txt', 'dataset/telemetry.jsonl',
+            for rel in ('fleet.json', 'gateways.txt', 'services.txt', 'legacy_gateways.txt', 'client_identities.tsv',
+                        'dataset/telemetry.jsonl',
                         'dataset/commands.jsonl', 'dataset/connectivity.json', 'dataset/summary.json'):
                 with self.subTest(rel):
                     self.assertEqual((out / rel).read_bytes(), (LAB_ROOT / 'synthetic' / rel).read_bytes(),
@@ -29,6 +33,8 @@ class CommittedDataTest(unittest.TestCase):
             self.assertEqual(acl.read_bytes(), (LAB_ROOT / 'mosquitto/config/acl').read_bytes())
             self.assertEqual(emqx.read_bytes(), (LAB_ROOT / 'brokers/emqx/acl.conf').read_bytes())
             self.assertEqual(hivemq.read_bytes(), (LAB_ROOT / 'brokers/hivemq/permissions.tsv').read_bytes())
+            self.assertEqual((Path(tmp) / 'client_ids.tsv').read_bytes(),
+                             (LAB_ROOT / 'brokers/hivemq/client_ids.tsv').read_bytes())
 
 
 class FleetTest(unittest.TestCase):
@@ -40,9 +46,16 @@ class FleetTest(unittest.TestCase):
     def test_identity_rule_and_uniqueness(self):
         ids = [g['gateway_id'] for g in self.fleet['gateways']]
         self.assertEqual(len(ids), len(set(ids)))
+        self.assertEqual(self.cfg['wire']['client_id'], 'derived')
+        client_ids = set()
         for gw in self.fleet['gateways']:
             self.assertEqual(gw['certificate_cn'], gw['gateway_id'])
-            self.assertEqual(gw['client_id'], gw['gateway_id'])
+            # ENTC-47: Client ID = pseudonym of the gateway serial, not the serial, not the credential name.
+            self.assertEqual(gw['client_id'], wire.derive_client_id(gw['serial_number']))
+            self.assertRegex(gw['client_id'], r'^c[0-9a-f]{20}$')
+            self.assertNotIn(gw['serial_number'], gw['client_id'])
+            client_ids.add(gw['client_id'])
+        self.assertEqual(len(client_ids), len(ids))
         serials = [d['serial_number'] for g in self.fleet['gateways'] for d in g['devices']]
         serials += [g['serial_number'] for g in self.fleet['gateways']]
         self.assertEqual(len(serials), len(set(serials)))
@@ -63,18 +76,47 @@ class FleetTest(unittest.TestCase):
         for gw in legacy:
             self.assertRegex(gw['gateway_id'], r'^\d{16}$')
             self.assertIsNone(gw['certificate_cn'])
-            self.assertEqual(gw['client_id'], gw['gateway_id'])
+            self.assertEqual(gw['client_id'], wire.derive_client_id(gw['gateway_id']))
         # Legacy gateways are not part of the simulated traffic.
         self.assertFalse({g['gateway_id'] for g in legacy} & {g['gateway_id'] for g in self.fleet['gateways']})
 
     def test_acl_is_gateway_scoped(self):
+        # v1.3: exactly the own state (write) and cmd (read) topic, keyed on the certificate identity.
         acl = render_acl(self.fleet)
         for gw in self.fleet['gateways']:
-            base = f"{self.cfg['topics']['base']}/{gw['plant_id']}/gateways/{gw['gateway_id']}"
             block = acl.split(f"user {gw['gateway_id']}\n", 1)[1].split('\n\n', 1)[0].splitlines()
-            self.assertEqual(block, [f'topic write {base}/d2c/#', f'topic read  {base}/c2d/#'])
+            self.assertEqual(block, [f"topic write enetec/v1/{gw['client_id']}/state",
+                                     f"topic read  enetec/v1/{gw['client_id']}/cmd"])
         for svc in self.fleet['services']:
             self.assertEqual(bool(svc['read']) + bool(svc['write']), 1, 'service must be one-directional')
+        self.assertEqual([s['read'] + s['write'] for s in self.fleet['services']],
+                         [['enetec/v1/+/state'], ['enetec/v1/+/cmd']])
+
+    def test_client_identity_registry(self):
+        rows = [line.split('\t') for line in render_client_identities(self.fleet).splitlines()
+                if not line.startswith('#')]
+        expected = [[g['gateway_id'], g['serial_number'], g['client_id'], 'lab-sha256-v0']
+                    for g in self.fleet['gateways'] + self.fleet['legacy_gateways']]
+        self.assertEqual(rows, expected)
+
+    def test_lab_eicp_profile_keeps_the_previous_layout(self):
+        with mock.patch.dict(os.environ, {'SIM_WIRE': 'lab-eicp'}):
+            cfg = load_config()
+        fleet = build_fleet(cfg)
+        acl = render_acl(fleet)
+        for gw in fleet['gateways']:
+            self.assertEqual(gw['client_id'], gw['gateway_id'])
+            base = f"{cfg['topics']['base']}/{gw['plant_id']}/gateways/{gw['gateway_id']}"
+            block = acl.split(f"user {gw['gateway_id']}\n", 1)[1].split('\n\n', 1)[0].splitlines()
+            self.assertEqual(block, [f'topic write {base}/d2c/#', f'topic read  {base}/c2d/#'])
+        row = build_dataset(cfg, fleet)['telemetry'][0]
+        gw = next(g for g in fleet['gateways'] if g['gateway_id'] == row['gateway_id'])
+        self.assertEqual(row['topic'], f"{cfg['topics']['base']}/{gw['plant_id']}/gateways/{gw['gateway_id']}"
+                                       '/d2c/telemetry/report')
+
+    def test_unknown_wire_profile_is_refused(self):
+        with mock.patch.dict(os.environ, {'SIM_WIRE': 'v99'}), self.assertRaises(SystemExit):
+            load_config()
 
     def test_envelope_matches_lab_sample(self):
         sample = json.loads((LAB_ROOT / 'samples' / 'telemetry.json').read_text())

@@ -73,6 +73,12 @@ def publish_properties(run_id):
     return props
 
 
+def expiry_properties(seconds):
+    props = Properties(PacketTypes.PUBLISH)
+    props.MessageExpiryInterval = seconds
+    return props
+
+
 def run_of(message):
     props = getattr(message, 'properties', None)
     for key, value in getattr(props, 'UserProperty', None) or []:

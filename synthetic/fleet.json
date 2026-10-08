@@ -1,14 +1,20 @@
 {
-  "note": "SYNTHETIC lab fleet generated from sim/config.toml. Not ENETEC data; message semantics are defined by ENTC-61 / EICP v1.4.",
+  "note": "SYNTHETIC lab fleet generated from sim/config.toml. Not ENETEC data; message semantics are defined by ENTC-61 (MQTT wire contract v1.3).",
   "generator": {
     "name": "enetec_sim",
     "seed": 20260930,
-    "config_sha256": "b29ca6100bd6848d24724c822b5756566246d719afb51894ef0b90c451def9fd"
+    "config_sha256": "aa9f4ceb2d48cfddaee91dce3d040c07209c63e73f6e4449eb892cee15bc64d0"
+  },
+  "wire": {
+    "topics": "v13",
+    "client_id": "derived",
+    "client_id_algorithm": "lab-sha256-v0",
+    "label": "topics v13, client id derived (lab-sha256-v0)"
   },
   "topics": {
-    "base": "eicp/v1/sim",
-    "telemetry": "d2c/telemetry/report",
-    "command": "c2d/simulation/command"
+    "up": "enetec/v1/+/state",
+    "down": "enetec/v1/+/cmd",
+    "root": "enetec/v1"
   },
   "plants": [
     {
@@ -67,10 +73,10 @@
       "serial_number": "2150551891",
       "lifecycle": "operational",
       "certificate_cn": "gw-sim-000001",
-      "client_id": "gw-sim-000001",
+      "client_id": "c4b06565c3cea7d66c4a6",
       "topics": {
-        "d2c": "eicp/v1/sim/plt_sim_001/gateways/gw-sim-000001/d2c/#",
-        "c2d": "eicp/v1/sim/plt_sim_001/gateways/gw-sim-000001/c2d/#"
+        "d2c": "enetec/v1/c4b06565c3cea7d66c4a6/state",
+        "c2d": "enetec/v1/c4b06565c3cea7d66c4a6/cmd"
       },
       "link": "stable",
       "clock_skew_s": 0.762,
@@ -163,10 +169,10 @@
       "serial_number": "280218189",
       "lifecycle": "operational",
       "certificate_cn": "gw-sim-000002",
-      "client_id": "gw-sim-000002",
+      "client_id": "c446bfb561d0c4245c0e7",
       "topics": {
-        "d2c": "eicp/v1/sim/plt_sim_002/gateways/gw-sim-000002/d2c/#",
-        "c2d": "eicp/v1/sim/plt_sim_002/gateways/gw-sim-000002/c2d/#"
+        "d2c": "enetec/v1/c446bfb561d0c4245c0e7/state",
+        "c2d": "enetec/v1/c446bfb561d0c4245c0e7/cmd"
       },
       "link": "stable",
       "clock_skew_s": -2.112,
@@ -269,10 +275,10 @@
       "serial_number": "1016347864",
       "lifecycle": "operational",
       "certificate_cn": "gw-sim-000003",
-      "client_id": "gw-sim-000003",
+      "client_id": "cdc2eebb4ca559e046615",
       "topics": {
-        "d2c": "eicp/v1/sim/plt_sim_002/gateways/gw-sim-000003/d2c/#",
-        "c2d": "eicp/v1/sim/plt_sim_002/gateways/gw-sim-000003/c2d/#"
+        "d2c": "enetec/v1/cdc2eebb4ca559e046615/state",
+        "c2d": "enetec/v1/cdc2eebb4ca559e046615/cmd"
       },
       "link": "stable",
       "clock_skew_s": 2.997,
@@ -421,10 +427,10 @@
       "serial_number": "1512627509",
       "lifecycle": "operational",
       "certificate_cn": "gw-sim-000004",
-      "client_id": "gw-sim-000004",
+      "client_id": "cb5ad3663f018bc3e3bf7",
       "topics": {
-        "d2c": "eicp/v1/sim/plt_01a06776-fb70-786e-881e-2f72a8183b0a/gateways/gw-sim-000004/d2c/#",
-        "c2d": "eicp/v1/sim/plt_01a06776-fb70-786e-881e-2f72a8183b0a/gateways/gw-sim-000004/c2d/#"
+        "d2c": "enetec/v1/cb5ad3663f018bc3e3bf7/state",
+        "c2d": "enetec/v1/cb5ad3663f018bc3e3bf7/cmd"
       },
       "link": "stable",
       "clock_skew_s": 1.724,
@@ -483,10 +489,10 @@
       "serial_number": "3856938623",
       "lifecycle": "operational",
       "certificate_cn": "gw-sim-000005",
-      "client_id": "gw-sim-000005",
+      "client_id": "cf17f8bfc348c2f74cff3",
       "topics": {
-        "d2c": "eicp/v1/sim/plt_01a041c3-f360-7d3b-9f36-2b573fec3127/gateways/gw-sim-000005/d2c/#",
-        "c2d": "eicp/v1/sim/plt_01a041c3-f360-7d3b-9f36-2b573fec3127/gateways/gw-sim-000005/c2d/#"
+        "d2c": "enetec/v1/cf17f8bfc348c2f74cff3/state",
+        "c2d": "enetec/v1/cf17f8bfc348c2f74cff3/cmd"
       },
       "link": "stable",
       "clock_skew_s": 2.777,
@@ -639,10 +645,10 @@
       "serial_number": "1904302963",
       "lifecycle": "operational",
       "certificate_cn": "gw-sim-000006",
-      "client_id": "gw-sim-000006",
+      "client_id": "c0ba4025b1c0fd2b284b5",
       "topics": {
-        "d2c": "eicp/v1/sim/plt_01a041c3-f360-7d3b-9f36-2b573fec3127/gateways/gw-sim-000006/d2c/#",
-        "c2d": "eicp/v1/sim/plt_01a041c3-f360-7d3b-9f36-2b573fec3127/gateways/gw-sim-000006/c2d/#"
+        "d2c": "enetec/v1/c0ba4025b1c0fd2b284b5/state",
+        "c2d": "enetec/v1/c0ba4025b1c0fd2b284b5/cmd"
       },
       "link": "flaky",
       "clock_skew_s": 0.918,
@@ -801,10 +807,10 @@
       "serial_number": "1281114590",
       "lifecycle": "operational",
       "certificate_cn": "gw-sim-000007",
-      "client_id": "gw-sim-000007",
+      "client_id": "c5d739bc3b32c09a11177",
       "topics": {
-        "d2c": "eicp/v1/sim/plt_019fbd62-7088-79ee-b127-b5ac5d7e490d/gateways/gw-sim-000007/d2c/#",
-        "c2d": "eicp/v1/sim/plt_019fbd62-7088-79ee-b127-b5ac5d7e490d/gateways/gw-sim-000007/c2d/#"
+        "d2c": "enetec/v1/c5d739bc3b32c09a11177/state",
+        "c2d": "enetec/v1/c5d739bc3b32c09a11177/cmd"
       },
       "link": "flaky",
       "clock_skew_s": 0.337,
@@ -911,10 +917,10 @@
       "serial_number": "3338420306",
       "lifecycle": "operational",
       "certificate_cn": "gw-sim-000008",
-      "client_id": "gw-sim-000008",
+      "client_id": "cf8456ca9c6b15aa5d58d",
       "topics": {
-        "d2c": "eicp/v1/sim/plt_019fbd62-7088-79ee-b127-b5ac5d7e490d/gateways/gw-sim-000008/d2c/#",
-        "c2d": "eicp/v1/sim/plt_019fbd62-7088-79ee-b127-b5ac5d7e490d/gateways/gw-sim-000008/c2d/#"
+        "d2c": "enetec/v1/cf8456ca9c6b15aa5d58d/state",
+        "c2d": "enetec/v1/cf8456ca9c6b15aa5d58d/cmd"
       },
       "link": "flaky",
       "clock_skew_s": 1.306,
@@ -1023,10 +1029,10 @@
       "serial_number": "4183771909",
       "lifecycle": "operational",
       "certificate_cn": "gw-sim-000009",
-      "client_id": "gw-sim-000009",
+      "client_id": "c78ec7e20363d84d6c25a",
       "topics": {
-        "d2c": "eicp/v1/sim/plt_019fbd62-7088-79ee-b127-b5ac5d7e490d/gateways/gw-sim-000009/d2c/#",
-        "c2d": "eicp/v1/sim/plt_019fbd62-7088-79ee-b127-b5ac5d7e490d/gateways/gw-sim-000009/c2d/#"
+        "d2c": "enetec/v1/c78ec7e20363d84d6c25a/state",
+        "c2d": "enetec/v1/c78ec7e20363d84d6c25a/cmd"
       },
       "link": "flaky",
       "clock_skew_s": -2.774,
@@ -1115,10 +1121,10 @@
       "serial_number": "1802953146",
       "lifecycle": "operational",
       "certificate_cn": "gw-sim-000010",
-      "client_id": "gw-sim-000010",
+      "client_id": "ce4fd71de55c5219cff01",
       "topics": {
-        "d2c": "eicp/v1/sim/plt_019f67ee-7a70-7ac4-af69-93722be61f89/gateways/gw-sim-000010/d2c/#",
-        "c2d": "eicp/v1/sim/plt_019f67ee-7a70-7ac4-af69-93722be61f89/gateways/gw-sim-000010/c2d/#"
+        "d2c": "enetec/v1/ce4fd71de55c5219cff01/state",
+        "c2d": "enetec/v1/ce4fd71de55c5219cff01/cmd"
       },
       "link": "stable",
       "clock_skew_s": 2.557,
@@ -1221,18 +1227,20 @@
   "services": [
     {
       "identity": "svc-sim-cloud-ingest",
+      "client_id": "svc-sim-cloud-ingest",
       "role": "cloud-ingest (placeholder for the MQTT->Pub/Sub bridge)",
       "read": [
-        "eicp/v1/sim/+/gateways/+/d2c/#"
+        "enetec/v1/+/state"
       ],
       "write": []
     },
     {
       "identity": "svc-sim-cloud-command",
+      "client_id": "svc-sim-cloud-command",
       "role": "cloud-command (placeholder for the backend command path)",
       "read": [],
       "write": [
-        "eicp/v1/sim/+/gateways/+/c2d/#"
+        "enetec/v1/+/cmd"
       ]
     }
   ],
@@ -1242,13 +1250,14 @@
       "plant_id": "plt_sim_legacy",
       "profile": "legacy-aws-iot",
       "lifecycle": "operational",
+      "serial_number": "0000000000000005",
       "certificate_subject": "/C=UK/ST=United",
       "certificate_cn": null,
       "identity_source": "registry: certificate SHA-256 fingerprint -> Gateway ID",
-      "client_id": "0000000000000005",
+      "client_id": "cf847e6a1689fd7bc4b03",
       "topics": {
-        "d2c": "eicp/v1/sim/plt_sim_legacy/gateways/0000000000000005/d2c/#",
-        "c2d": "eicp/v1/sim/plt_sim_legacy/gateways/0000000000000005/c2d/#"
+        "d2c": "enetec/v1/cf847e6a1689fd7bc4b03/state",
+        "c2d": "enetec/v1/cf847e6a1689fd7bc4b03/cmd"
       }
     },
     {
@@ -1256,13 +1265,14 @@
       "plant_id": "plt_sim_legacy",
       "profile": "legacy-aws-iot",
       "lifecycle": "operational",
+      "serial_number": "0000000000000006",
       "certificate_subject": "/C=UK/ST=United",
       "certificate_cn": null,
       "identity_source": "registry: certificate SHA-256 fingerprint -> Gateway ID",
-      "client_id": "0000000000000006",
+      "client_id": "c524cda6aece4b48315d9",
       "topics": {
-        "d2c": "eicp/v1/sim/plt_sim_legacy/gateways/0000000000000006/d2c/#",
-        "c2d": "eicp/v1/sim/plt_sim_legacy/gateways/0000000000000006/c2d/#"
+        "d2c": "enetec/v1/c524cda6aece4b48315d9/state",
+        "c2d": "enetec/v1/c524cda6aece4b48315d9/cmd"
       }
     }
   ]

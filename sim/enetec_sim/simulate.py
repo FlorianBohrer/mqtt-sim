@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 import paho.mqtt
 import paho.mqtt.client as mqtt
 
+from . import wire
 from .config import encode, read_jsonl, write_json, write_jsonl
 from .mqttclient import (Broker, Recorder, connect_properties, identity_files, new_client,
                          publish_properties, run_of, wait_until)
@@ -65,7 +66,8 @@ class GatewaySim(threading.Thread):
     def __init__(self, gw, rows, windows, ctx):
         super().__init__(name=gw['gateway_id'], daemon=True)
         self.gw, self.id, self.rows, self.windows, self.ctx = gw, gw['gateway_id'], rows, windows, ctx
-        self.client = new_client(self.id, ctx.broker, *identity_files(ctx.broker.certs, self.id))
+        # Credential = certificate of the Gateway ID; MQTT Client ID per wire profile.
+        self.client = new_client(gw['client_id'], ctx.broker, *identity_files(ctx.broker.certs, self.id))
         self.client.on_connect = self._on_connect
         self.client.on_disconnect = self._on_disconnect
         self.client.on_publish = self._on_publish
@@ -336,7 +338,7 @@ def simulate(cfg, fleet, dataset_dir, broker, run_dir, speed, gateway_ids=None, 
     run = {'run_id': run_id, 'status': 'setup_failed',
            'started_utc': datetime.now(timezone.utc).isoformat(timespec='seconds'),
            'speed': speed, 'broker': {'host': broker.host, 'port': broker.port},
-           'gateways': sorted(wanted), 'dataset_window_s': last_t,
+           'gateways': sorted(wanted), 'dataset_window_s': last_t, 'wire': cfg['wire']['label'],
            'mqtt': dict(cfg['mqtt'], protocol='5', qos=1),
            'software': {'python': platform.python_version(), 'paho_mqtt': paho.mqtt.__version__}}
     print(f'Run {run_id}: {len(gateways)} gateways, {sum(map(len, telemetry.values()))} telemetry, '
@@ -347,7 +349,7 @@ def simulate(cfg, fleet, dataset_dir, broker, run_dir, speed, gateway_ids=None, 
     sims = [GatewaySim(gw, telemetry[gw['gateway_id']], connectivity[gw['gateway_id']], ctx)
             for gw in gateways]
     try:
-        if not ingest.open(subscribe=f"{cfg['topics']['base']}/+/gateways/+/d2c/#"):
+        if not ingest.open(subscribe=wire.all_up(cfg)):
             raise RuntimeError('cloud ingest could not connect/subscribe')
         if not commander.open():
             raise RuntimeError('cloud commander could not connect')

@@ -27,13 +27,14 @@ class ReportTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def _results(self, verdicts=None, skip=()):
-        verdicts = verdicts or {}
-        results = [{'id': c.id, 'requirement': c.requirement, 'title': c.title, 'expected': c.expected,
+    def _results(self, verdicts=None, skip=(), not_applicable=None):
+        verdicts, not_applicable = verdicts or {}, not_applicable or {}
+        results = [{'id': c.id, 'requirement': c.requirement, 'title': 'x', 'expected': c.expected,
                     'mandatory': c.mandatory, 'verdict': verdicts.get(c.id, 'PASS'), 'observed': 'x'}
-                   for c in CASES if c.id not in skip]
+                   for c in CASES if c.id not in skip and c.id not in not_applicable]
         write_json(self.run_dir / 'results.json', {
             'run_id': 'run', 'target': 't', 'broker': 'b', 'gateways': {}, 'only': None,
+            'wire': 'topics v13, client id derived (lab-sha256-v0)', 'not_applicable': not_applicable,
             'started_epoch': self.now - 1, 'finished_epoch': self.now + 1, 'results': results})
 
     def test_all_mandatory_pass_exits_zero(self):
@@ -56,6 +57,28 @@ class ReportTest(unittest.TestCase):
         summary = report(self.target, self.run_dir, self.log)
         self.assertEqual(summary['mandatory_not_run'], ['REC-01'])
         self.assertEqual(summary['exit'], 1)
+
+    def test_not_applicable_case_does_not_make_the_run_incomplete(self):
+        # ID-03 only exists with derived Client IDs; under WIRE=lab-eicp it is N/A, not missing.
+        self._results(not_applicable={'ID-03': 'Client ID mode "certificate"'})
+        summary = report(self.target, self.run_dir, self.log)
+        self.assertEqual(summary['mandatory_not_run'], [])
+        self.assertTrue(summary['accepted'])
+        self.assertIn('ID-03', summary['not_applicable'])
+        self.assertIn('Not applicable', (self.run_dir / 'report.md').read_text())
+
+    def test_new_advisory_cases_do_not_block_acceptance(self):
+        self._results({'RST-01': 'FAIL', 'REV-01': 'PARTIAL', 'ACL-14': 'INCONCLUSIVE', 'EXP-01': 'FAIL'})
+        summary = report(self.target, self.run_dir, self.log)
+        self.assertTrue(summary['accepted'])
+        r22 = next(r for r in summary['requirements'] if r['id'] == 'R22')
+        self.assertEqual(r22['verdict'], 'advisory FAIL')
+
+    def test_foreign_last_will_blocks_acceptance(self):
+        self._results({'LWT-02': 'FAIL'})
+        summary = report(self.target, self.run_dir, self.log)
+        self.assertFalse(summary['accepted'])
+        self.assertEqual(next(r for r in summary['requirements'] if r['id'] == 'R10')['verdict'], 'FAIL')
 
     def test_missing_broker_log_is_inconclusive(self):
         self._results()

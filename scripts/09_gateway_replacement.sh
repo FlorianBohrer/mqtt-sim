@@ -34,6 +34,7 @@ else
   ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 fi
 cd "$ROOT"
+. "$ROOT/scripts/poc_wire_check.sh"
 ACL="$ROOT/mosquitto/config/acl"
 LOCK="$ROOT/mosquitto/config/.replacement-test-lock"
 BACKUP="$LOCK/original-acl"

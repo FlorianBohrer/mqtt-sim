@@ -10,12 +10,31 @@
 
 seed = 20260930
 
+[wire]
+# Welches Draht-Profil das Lab spricht (Erklaerung: sim/enetec_sim/wire.py).
+# Umschalten ohne Dateiaenderung: make acceptance WIRE=lab-eicp  (SIM_WIRE)
+#   v13      SOURCE (MQTT wire contract v1.3, 06.10.2026): enetec/v1/{clientId}/state|cmd, QoS 1, kein Retain
+#   lab-eicp frueheres Lab-Fixture eicp/v1/sim/{plantId}/gateways/{gatewayId}/d2c|c2d/... (Kompatibilitaet)
+topics = "v13"
+# derived     SOURCE (ENTC-47): Client ID = deterministisches Pseudonym der Gateway-Seriennummer
+# certificate LEGACY LAB ASSUMPTION: Client ID = Zertifikats-CN = Gateway-ID
+client_id = "derived"
+# ASSUMPTION / Platzhalter: der echte Ableitungs-Algorithmus ist OFFEN (ENTC-47).
+client_id_algorithm = "lab-sha256-v0"
+
+[topics_v13]
+# SOURCE: MQTT wire contract v1.3 (Kern). telemetry ist optional/zukuenftig und nicht freigegeben.
+base = "enetec/v1"
+state = "state"
+cmd = "cmd"
+
 [topics]
-# SOURCE: eicp/v1/{environment}/{plantId}/gateways/{gatewayId}/{direction}/{domain}/{operation}
+# Profil lab-eicp. SOURCE (EICP v1.4, Stand 30.09.):
+# eicp/v1/{environment}/{plantId}/gateways/{gatewayId}/{direction}/{domain}/{operation}
 base = "eicp/v1/sim"
-telemetry = "d2c/telemetry/report"
-# ASSUMPTION: neutraler Lab-Namespace wie in Test 10; bewusst keine EICP-Command-Semantik.
-command = "c2d/simulation/command"
+# Blatt-Topics unter d2c/ bzw. c2d/. ASSUMPTION: neutraler Lab-Namespace, keine EICP-Command-Semantik.
+telemetry = "telemetry/report"
+command = "simulation/command"
 
 [fleet]
 plants = 6

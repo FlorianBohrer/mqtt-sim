@@ -1,6 +1,6 @@
 # Bevywise MQTTRoute / CrystalMQ für den ENTC-63-Harness
 
-**Stand:** 2026-10-01 · **Bezug:** ENTC-59 (Broker-Vergleich), ENTC-63 (Abnahme)
+**Stand:** 2026-10-08 · **Bezug:** ENTC-59 (Broker-Vergleich), ENTC-63 (Abnahme)
 
 Diese Konfiguration bindet einen Bevywise-Broker so an, dass `make acceptance BROKER=bevywise`
 dieselben Fälle wie beim Lab-Mosquitto prüft. Grundlage ist die öffentliche Bevywise-Dokumentation
@@ -19,7 +19,7 @@ Gegen einen echten Bevywise-Broker ist die Konfiguration **noch nicht gelaufen**
 |---|---|
 | `conf/broker.conf.example` | TLS/mTLS-Schlüssel und Zertifikatsablage |
 | `conf/mqtt.conf.example` | Topic-ACL, Hinweise zu Auth-Hook, Sessions, doppelter Client-ID |
-| `generated/acl-requests.json` | aus `synthetic/fleet.json` erzeugt: eine ACL-Regel je Client-ID (`make bevywise-config`) |
+| `generated/acl-requests.json` | aus `synthetic/fleet.json` erzeugt: eine ACL-Regel je Client-ID (`make bevywise-config`); seit 2026-10-08 mit v1.3-Topics `enetec/v1/{clientId}/state\|cmd` und abgeleiteten Client-IDs |
 | `apply-acl.sh` | spielt die Regeln über `POST /crystalmq/api/v1/acl` ein (`DRY_RUN=1` zeigt sie nur an) |
 | `../../sim/targets/bevywise.toml` | Harness-Profil (Host, Port, Server-CA, Log-Muster) |
 
@@ -73,6 +73,7 @@ Aus der Doku abgeleitet; der Harness liefert dazu Belege.
 |---|---|---|---|
 | Deny-by-default | ACL-06, ACL-13 | `TOPIC_ACL = TRUE` erlaubt alle Topics, für die keine Regel existiert | **FAIL**, solange kein globaler Deny-Default existiert |
 | Identität = Zertifikat | ID-01, ID-02 | ACL ist an **Client-ID oder Username** gebunden. Im Zertifikatsmodus prüft der Broker laut Doku „CN und Client-IP“ | Wenn CN ≠ Client-ID nicht abgelehnt wird, erbt ein beliebiges gültiges Zertifikat die Rechte einer fremden Client-ID → **kritisch** |
+| Abgeleitete Client-ID (v13) | ID-03 | Client-ID ist ein Pseudonym der Seriennummer, nicht der CN; die Zuordnung steht in `synthetic/client_identities.tsv` | braucht den Custom-Auth-Hook mit Registry-Abfrage; Bevywise schätzt für Zertifikatszuordnung/Widerruf 4–6 Wochen Zusatzentwicklung (Current State 08.10) |
 | Legacy ohne CN | LEG-01 | Custom-Auth-Hook (`AUTHENTICATION = CUSTOM`, `custom_authenticate()`) | ob der Hook das Zertifikat sieht: OFFEN |
 | Doppelte Client-ID | DUP-01 | nicht dokumentiert gefunden | wird gemessen |
 | Persistente Session / QoS 1 | SES-01, QOS-01/02 | MQTT 5 laut Produktbeschreibung | wird gemessen |

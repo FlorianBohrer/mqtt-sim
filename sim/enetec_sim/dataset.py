@@ -10,7 +10,8 @@ import random
 from collections import Counter, defaultdict
 
 from .climate import RoomClimate
-from .config import encode, gateway_base, iso_utc, parse_utc
+from . import wire
+from .config import encode, iso_utc, parse_utc
 
 
 def room_devices(gw):
@@ -142,7 +143,7 @@ def _telemetry(cfg, gw, windows, interval, start):
             row['dropped'] = True
 
     gap, last = 1.0 / cc['backlog_flush_per_s'], float('-inf')
-    topic = f"{gateway_base(cfg, gw['plant_id'], gid)}/{cfg['topics']['telemetry']}"
+    topic = wire.up_topic(cfg, gw, cfg['topics']['telemetry'])
     suffix = gid.rsplit('-', 1)[1]
     out = []
     for row in rows:
@@ -195,7 +196,7 @@ def _commands(cfg, gw, windows, start):
         times.append(t)
     if cc.get('during_outage'):
         times += [(w['start'] + w['reconnect']) / 2 for w in windows]
-    topic = f"{gateway_base(cfg, gw['plant_id'], gid)}/{cfg['topics']['command']}"
+    topic = wire.down_topic(cfg, gw, cfg['topics']['command'])
     suffix = gid.rsplit('-', 1)[1]
     rows = []
     for seq, t in enumerate(sorted(times), 1):
@@ -242,6 +243,9 @@ def _summary(cfg, fleet, telemetry, commands, connectivity, interval):
         })
     return {
         'generator': fleet['generator'],
+        'wire': fleet['wire']['label'],
+        # ENTC-61 v1.3: payloads are binary; JSON here is a synthetic transport fixture only.
+        'payload_format': 'synthetic JSON fixture (not the v1.3 binary wire format)',
         'window': {'start': cfg['dataset']['start'], 'duration_s': duration},
         'fleet': {
             'plants': len(fleet['plants']),

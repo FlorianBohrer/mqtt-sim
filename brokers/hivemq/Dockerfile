@@ -11,6 +11,7 @@ ENV HIVEMQ_ALLOW_ALL_CLIENTS=false \
     ENETEC_KEYSTORE=/opt/hivemq/lab-certs/hivemq/broker.p12 \
     ENETEC_TRUSTSTORE=/opt/hivemq/data/enetec-truststore.p12 \
     ENETEC_PERMISSIONS=/opt/hivemq/extensions/enetec-identity/conf/permissions.tsv \
+    ENETEC_CLIENT_IDS=/opt/hivemq/extensions/enetec-identity/conf/client_ids.tsv \
     ENETEC_REGISTRY=/opt/hivemq/lab-certs/legacy/registry.tsv \
     ENETEC_CRL=/opt/hivemq/lab-certs/negative/crl.pem
 COPY --chown=10000:0 extension/src/main/resources/hivemq-extension.xml /opt/hivemq/extensions/enetec-identity/

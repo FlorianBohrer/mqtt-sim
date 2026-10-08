@@ -37,6 +37,7 @@ def cmd_generate(args, cfg):
           f"(baseline {t['baseline_per_gateway_per_day']})")
     print(f"commands: {summary['commands']['total']} ({summary['commands']['during_outage']} during outages); "
           f"offline windows: {summary['connectivity']['offline_windows']}")
+    print(f"wire: {cfg['wire']['label']}  (client identities: {args.out}/client_identities.tsv)")
     if not args.no_acl:
         print(f'ACL written: {args.acl}')
     return 0
@@ -70,11 +71,35 @@ def cmd_bevywise(args, cfg):
     return 0
 
 
+def cmd_acl(args, cfg):
+    """Re-render the broker ACL files from synthetic/fleet.json (no new dataset). --withdraw ID
+    drops every grant of that identity: hook acl-withdraw of the acceptance case ACL-14."""
+    from .generate import write_acls
+    fleet = json.loads((Path(args.out) / 'fleet.json').read_text())
+    if args.withdraw:
+        known = {g['gateway_id'] for g in fleet['gateways'] + fleet.get('legacy_gateways', [])}
+        if args.withdraw not in known:
+            raise SystemExit(f'{args.withdraw} is not a gateway of the fleet')
+    write_acls(fleet, Path(args.acl), EMQX_ACL, HIVEMQ_PERMISSIONS, withdraw=args.withdraw)
+    print(f"ACLs written{' without ' + args.withdraw if args.withdraw else ''}: {args.acl}, {EMQX_ACL.name}, "
+          f'{HIVEMQ_PERMISSIONS.name}')
+    return 0
+
+
 def cmd_compare(args, cfg):
     from .compare import run as run_compare
-    comparison, text, out = run_compare(args.broker_a, args.broker_b, args.out_dir, args.run_a, args.run_b)
+    comparison, text, out = run_compare(args.broker_a, args.broker_b, args.out_dir, args.run_a, args.run_b,
+                                        wire=cfg['wire']['label'])   # prefer runs of the current wire profile
     print((out / 'comparison.md').read_text())
     print(text)  # last output: compact comparison summary
+    return 0
+
+
+def cmd_decide(args, cfg):
+    from .decide import run as run_decide
+    decision, text, out = run_decide(args.decision, out_dir=args.out_dir, wire=cfg['wire']['label'])
+    print((out / 'decision.md').read_text())
+    print(text)  # last output: compact decision summary
     return 0
 
 
@@ -138,6 +163,11 @@ def main(argv=None):
     p.add_argument('--gateways', help='comma-separated subset of gateway IDs')
     p.set_defaults(func=cmd_simulate)
 
+    p = sub.add_parser('acl', help='re-render the broker ACL files from the fleet (hooks of ACL-14)')
+    p.add_argument('--acl', default=str(DEFAULT_ACL))
+    p.add_argument('--withdraw', help='leave out every permission of this Gateway ID')
+    p.set_defaults(func=cmd_acl)
+
     p = sub.add_parser('bevywise-acl', help='ACL request bodies for the Bevywise REST API')
     p.add_argument('--dest', default=str(LAB_ROOT / 'brokers' / 'bevywise' / 'generated' / 'acl-requests.json'))
     p.set_defaults(func=cmd_bevywise)
@@ -149,6 +179,11 @@ def main(argv=None):
     p.add_argument('--run-b')
     p.add_argument('--out-dir')
     p.set_defaults(func=cmd_compare)
+
+    p = sub.add_parser('decide', help='weighted decision matrix over the latest acceptance runs (sim/decision.toml)')
+    p.add_argument('--decision', default=str(LAB_ROOT / 'sim' / 'decision.toml'))
+    p.add_argument('--out-dir')
+    p.set_defaults(func=cmd_decide)
 
     p = sub.add_parser('brokers', help='list the broker profiles in sim/targets/')
     p.set_defaults(func=cmd_brokers)

@@ -45,6 +45,7 @@ services:
     volumes:
       - ./certs:/opt/hivemq/lab-certs:ro
       - ./brokers/hivemq/permissions.tsv:/opt/hivemq/extensions/enetec-identity/conf/permissions.tsv:ro
+      - ./brokers/hivemq/client_ids.tsv:/opt/hivemq/extensions/enetec-identity/conf/client_ids.tsv:ro
 
   # Synthetic fleet / simulation runtime (python -m enetec_sim), see docs/mqtt-tests/.
   sim:
@@ -58,6 +59,8 @@ services:
       SIM_BROKER_HOST: ${SIM_BROKER_HOST:-}
       SIM_BROKER_PORT: ${SIM_BROKER_PORT:-}
       SIM_IN_CONTAINER: "1"
+      SIM_WIRE: ${SIM_WIRE:-}     # v13 | lab-eicp (make ... WIRE=...); empty: sim/config.toml [wire]
+      SIM_HOOKS: ${SIM_HOOKS:-}   # 1 while scripts/13_acceptance.sh answers hook requests
     extra_hosts:
       - "host.docker.internal:host-gateway"   # brokers running on the Mac itself
     volumes:

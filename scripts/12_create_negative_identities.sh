@@ -10,6 +10,7 @@
 #   not-yet-valid   Lab-CA, gueltig ab 2035
 #   wrong-eku       Lab-CA, EKU nur serverAuth
 #   revoked         Lab-CA, gueltig, in crl.pem widerrufen (keyCompromise)
+#   revoke-live     Lab-CA, gueltig, wird erst waehrend REV-01 widerrufen (scripts/17_revoke_live.sh)
 #   unknown-gateway Lab-CA, gueltig, CN gw-sim-900001 (nicht in Flotte/ACL)
 # Seriennummern ab 0xA000, getrennt von 01/02 (ca.srl ab 0x1000).
 # Usage: sh scripts/12_create_negative_identities.sh [gateway-id]   (Standard gw-sim-000001)
@@ -99,6 +100,7 @@ issue expired "$TARGET" clientAuth -startdate 200101000000Z -enddate 21010100000
 issue not-yet-valid "$TARGET" clientAuth -startdate 350101000000Z -enddate 360101000000Z
 issue wrong-eku "$TARGET" serverAuth -days 365
 issue revoked "$TARGET" clientAuth -days 365
+issue revoke-live "$TARGET" clientAuth -days 365
 issue unknown-gateway "$UNKNOWN" clientAuth -days 365
 
 openssl ca -config "$NEG/.ca/ca.cnf" -revoke "$NEG/revoked/client.crt" -crl_reason keyCompromise \
@@ -128,7 +130,7 @@ openssl req -x509 -new -sha256 -days 365 -key "$SELF/client.key" -out "$SELF/cli
   -config "$SELF/profile.cnf" -extensions v3
 
 printf '\n%-16s %-26s %s\n' CASE NOT_AFTER 'SUBJECT / ISSUER'
-for CASE in untrusted-ca self-signed expired not-yet-valid wrong-eku revoked unknown-gateway; do
+for CASE in untrusted-ca self-signed expired not-yet-valid wrong-eku revoked revoke-live unknown-gateway; do
   CRT="$NEG/$CASE/client.crt"
   printf '%-16s %-26s %s\n' "$CASE" "$(openssl x509 -in "$CRT" -noout -enddate | cut -d= -f2)" \
     "$(openssl x509 -in "$CRT" -noout -subject | sed 's/^subject=//') / $(openssl x509 -in "$CRT" -noout -issuer | sed 's/^issuer=//')"
