@@ -294,6 +294,7 @@ Berichte: `docs/mqtt-tests/reference/`. Legacy-Analyse: [`mqtt-tests/legacy-cert
 
 | Dokument | Inhalt |
 |---|---|
+| [`STAND-2026-10-08.md`](STAND-2026-10-08.md) | Zusammenfassung des aktuellen Stands (Ergebnisse, Befunde, offene Punkte) |
 | [`mqtt-tests/acceptance-harness.md`](mqtt-tests/acceptance-harness.md) | Wire-Profil, Anforderungen R01–R24, PASS-Regeln, Hooks, Vergleich, Entscheidungsmatrix |
 | [`mqtt-tests/synthetic-simulation.md`](mqtt-tests/synthetic-simulation.md) | Datenmodell, Annahmen, Simulation, Referenzlauf |
 | [`mqtt-tests/legacy-certificates.md`](mqtt-tests/legacy-certificates.md) | Analyse des AWS-Zertifikats, Rotation, Fragen an ENETEC |

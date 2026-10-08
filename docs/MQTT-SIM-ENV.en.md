@@ -292,6 +292,7 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 
 | Document | Contents |
 |---|---|
+| [`STAND-2026-10-08.md`](STAND-2026-10-08.md) | Status summary as of 2026-10-08 (German) |
 | [`mqtt-tests/acceptance-harness.md`](mqtt-tests/acceptance-harness.md) | Wire profile, requirements R01–R24, PASS rules, hooks, comparison, decision matrix (German) |
 | [`mqtt-tests/synthetic-simulation.md`](mqtt-tests/synthetic-simulation.md) | Data model, assumptions, simulation, reference run (German) |
 | [`mqtt-tests/legacy-certificates.md`](mqtt-tests/legacy-certificates.md) | Analysis of the AWS certificate, rotation, questions for ENETEC (German) |
