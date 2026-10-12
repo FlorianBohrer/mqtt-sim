@@ -1,6 +1,6 @@
 # ENETEC MQTT-Simulationsumgebung: Entwicklung, Aufbau, Benutzung
 
-**Stand:** 2026-10-08 · **Bezug:** ENTC-63 (Testrahmen), ENTC-58 (Architektur), ENTC-59 (Broker-Auswahl), ENTC-31 (Zertifikate), ENTC-61 (Nachrichtenspezifikation)
+**Stand:** 2026-10-12 · **Bezug:** ENTC-63 (Testrahmen), ENTC-58 (Architektur), ENTC-59 (Broker-Auswahl), ENTC-31 (Zertifikate), ENTC-61 (Nachrichtenspezifikation)
 
 *English version: [MQTT-SIM-ENV.en.md](MQTT-SIM-ENV.en.md)*
 
@@ -25,6 +25,7 @@ Die Umgebung beantwortet vier Fragen:
    Reconnect-Sturm, Commands an offline Gateways) → die Simulation (`make simulate`).
 3. **Wie schneiden zwei Broker im direkten Vergleich ab?** → der Vergleich (`make compare`).
 4. **Wie sieht die Entscheidungsgrundlage gewichtet aus?** → die Entscheidungsmatrix (`make decide`).
+5. **Wie hängt das alles zusammen?** → der Baukasten im Browser (`web/baukasten/index.html`).
 
 Sie ersetzt keine Entscheidung. Kosten, Betrieb, Support und Skalierung gehen nur als belegte
 Handbewertung in die Matrix ein; offene Punkte bleiben offen (siehe Abschnitt 9).
@@ -163,6 +164,7 @@ automatisch neu ausgestellt.
 | `make compare A=hivemq B=mosquitto-lab` | zwei Broker vergleichen (letzter vollständiger Lauf je Broker) |
 | `make compare A=hivemq B=emqx FRESH=1` | Abnahme für beide neu ausführen, dann vergleichen |
 | `make decide` | gewichtete Entscheidungsmatrix aus `sim/decision.toml` und den letzten Läufen |
+| `make web` | Daten der Baukasten-Webseite aus dem Repo neu erzeugen (Flotte, Referenzläufe) |
 | `make fleet` | Flotte, Datensatz, ACLs und Zertifikate neu erzeugen (nach Änderung von `sim/config.toml`); `make fleet WIRE=lab-eicp` für die Einzeltests 04–10 |
 | `make sim-test` | Unit-Tests im Container |
 | `make brokers` | verfügbare Profile |
@@ -202,6 +204,27 @@ Ergebnisordner `results/acceptance-<zeit>/`: `report.md` (Tabelle), `report.json
 | LEG / ROT | 01–02 / 01–02 | Legacy-Zertifikat ohne CN; Rotation mit Überlappung und Rückfall |
 
 Vollständige Regeln: [`mqtt-tests/acceptance-harness.md`](mqtt-tests/acceptance-harness.md).
+
+### Der Baukasten
+
+`web/baukasten/index.html` direkt im Browser öffnen (kein Server, kein Docker nötig):
+
+- **Aufbauen:** Installationen, Gateways, Broker und Cloud aus der Bausteinleiste auf die Montageplatte ziehen
+  oder antippen.
+- **Gateway einstellen:** Zertifikat (gültig, abgelaufen, fremde CA, widerrufen …), Client-ID (erlaubt,
+  fremd, CN statt abgeleitet), Anbindung, Seriennummer.
+- **Aktionen auslösen:** state senden, fremde Topics, Abos, Offline-Command, Last Will, Widerruf,
+  Rechte entziehen, Broker-Neustart, Reconnect-Sturm. Jede Aktion zeigt den Ablauf und das Ergebnis,
+  das der gewählte Broker **im Lab tatsächlich** hatte, mit Testfall, Anforderung und Beobachtung aus dem
+  Referenzbericht. Ohne Lauf steht dort „nicht gemessen“.
+- **Lernpfad:** sieben geführte Schritte.
+- **Pult:** Brokervergleich je Anforderung, generierte ACLs, Glossar.
+- **Export:** Der Aufbau wird zu `sim/config.local.toml`. Damit erzeugt `make fleet` genau diese Gateways,
+  mit Seriennummern, Client-IDs und Anbindungen wie im Baukasten. `sim/config.local.toml` ergänzt
+  `sim/config.toml` und wird nicht eingecheckt; zurück zur Lab-Flotte mit
+  `rm sim/config.local.toml && make fleet`.
+
+Neue Referenzläufe kommen über `web/baukasten/sources.toml` und `make web` auf die Seite.
 
 ## 6. Einen eigenen Broker anbinden
 
@@ -255,7 +278,9 @@ Berichte: `docs/mqtt-tests/reference/`. Legacy-Analyse: [`mqtt-tests/legacy-cert
 
 | Meldung | Ursache und Lösung |
 |---|---|
-| `No rule to make target 'acceptance'` | alter Ordner oder alte ZIP. Version prüfen (`cat VERSION`, aktuell `2026-10-08-r1` oder neuer), neue ZIP über den Ordner entpacken (`unzip -o`) |
+| `No rule to make target 'acceptance'` | alter Ordner oder alte ZIP. Version prüfen (`cat VERSION`, aktuell `2026-10-12-r1` oder neuer), neue ZIP über den Ordner entpacken (`unzip -o`) |
+| Baukasten zeigt „Keine Lab-Daten eingebaut“ | `make web` im Lab-Ordner ausführen und die Seite neu laden |
+| `make fleet` erzeugt eine andere Flotte als erwartet | `sim/config.local.toml` aus dem Baukasten liegt noch im Ordner; zurück mit `rm sim/config.local.toml && make fleet` |
 | `This original PoC test uses the earlier topic layout` | Einzeltests 04–10 brauchen das alte Schema: `make fleet WIRE=lab-eicp`, danach zurück mit `make fleet` |
 | RST-01 / REV-01 / ACL-14 INCONCLUSIVE mit `hook … not available` oder `unsupported` | Broker nicht vom Lab gestartet oder Profil ohne `[hooks]`: `SIM_HOOK_RESTART` / `SIM_HOOK_CRL_RELOAD` / `SIM_HOOK_ACL_RELOAD` setzen. Ändert das Abnahmeergebnis nicht |
 | `Different wire profiles` in `make compare` | die beiden Läufe nutzen unterschiedliche Topic-Schemata; beide mit demselben `WIRE` neu laufen lassen (`FRESH=1`) |
@@ -296,6 +321,8 @@ Berichte: `docs/mqtt-tests/reference/`. Legacy-Analyse: [`mqtt-tests/legacy-cert
 |---|---|
 | [`STAND-2026-10-08.md`](STAND-2026-10-08.md) | Zusammenfassung des aktuellen Stands (Ergebnisse, Befunde, offene Punkte) |
 | [`mqtt-tests/acceptance-harness.md`](mqtt-tests/acceptance-harness.md) | Wire-Profil, Anforderungen R01–R24, PASS-Regeln, Hooks, Vergleich, Entscheidungsmatrix |
+| [`../web/baukasten/index.html`](../web/baukasten/index.html) | Baukasten-Webseite |
+| [`AI-PLAYBOOK.md`](AI-PLAYBOOK.md) | Regeln und Rezepte für KI-Assistenten in diesem Repo |
 | [`mqtt-tests/synthetic-simulation.md`](mqtt-tests/synthetic-simulation.md) | Datenmodell, Annahmen, Simulation, Referenzlauf |
 | [`mqtt-tests/legacy-certificates.md`](mqtt-tests/legacy-certificates.md) | Analyse des AWS-Zertifikats, Rotation, Fragen an ENETEC |
 | [`mqtt-tests/reference/`](mqtt-tests/reference/) | Berichte der Referenzläufe und der Vergleich |

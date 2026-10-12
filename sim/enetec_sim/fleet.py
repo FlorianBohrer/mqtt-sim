@@ -34,9 +34,17 @@ def build_fleet(cfg):
     fc = cfg['fleet']
     rng = random.Random(f"{cfg['seed']}:fleet")
     serials = _Serials(rng)
-    pinned = {}
+    pinned, fixed, plant_types = {}, {}, {}
     for entry in fc.get('pinned', []):
         pinned.setdefault(entry['plant_id'], []).append(entry['gateway_id'])
+        # Optional (e.g. exported from the Baukasten web page): fixed serial, link, plant type.
+        fixed[entry['gateway_id']] = {k: entry[k] for k in ('serial_number', 'link') if k in entry}
+        if 'plant_type' in entry:
+            plant_types[entry['plant_id']] = entry['plant_type']
+    fixed_serials = [str(f['serial_number']) for f in fixed.values() if 'serial_number' in f]
+    if len(fixed_serials) != len(set(fixed_serials)):
+        raise ValueError('fleet.pinned: serial_number values must be unique')
+    serials.used.update(fixed_serials)   # random serials never collide with fixed ones
     numbers = [int(g.rsplit('-', 1)[1]) for ids in pinned.values() for g in ids]
     next_no = max(numbers, default=0) + 1
     created_ms = int(parse_utc(cfg['dataset']['start']) * 1000)
@@ -50,12 +58,13 @@ def build_fleet(cfg):
             created_ms -= rng.randint(1, 30 * 86400) * 1000
             plant_id = f'plt_{uuid7(created_ms, rng)}'
         plant_type = weighted_choice(rng, fc['plant_types'])
+        plant_type = plant_types.get(plant_id, plant_type)   # drawn anyway: same RNG sequence
         ids = pinned.pop(plant_id, [])
         target = max(rng.randint(*fc['gateways_per_plant'][plant_type]), len(ids))
         while len(ids) < target:
             ids.append(f'gw-sim-{next_no:06d}')
             next_no += 1
-        gateways += [_gateway(cfg, rng, serials, plant_id, plant_type, gw_id) for gw_id in ids]
+        gateways += [_gateway(cfg, rng, serials, plant_id, plant_type, gw_id, fixed.get(gw_id, {})) for gw_id in ids]
         plants.append({'plant_id': plant_id, 'type': plant_type, 'gateways': ids})
     if pinned:
         raise ValueError(f'more pinned plants than fleet.plants: {sorted(pinned)}')
@@ -82,7 +91,7 @@ def build_fleet(cfg):
     }
 
 
-def _gateway(cfg, rng, serials, plant_id, plant_type, gateway_id):
+def _gateway(cfg, rng, serials, plant_id, plant_type, gateway_id, fixed=None):
     fc, cl = cfg['fleet'], cfg['climate']
     devices = [{'serial_number': serials.next(), 'device_class': 'system_controller'}]
     for _ in range(rng.randint(*fc['room_devices_per_gateway'][plant_type])):
@@ -99,8 +108,10 @@ def _gateway(cfg, rng, serials, plant_id, plant_type, gateway_id):
         })
     devices += [{'serial_number': serials.next(), 'device_class': 'io_module'}
                 for _ in range(rng.randint(*fc['io_modules_per_gateway']))]
+    fixed = fixed or {}
     family = weighted_choice(rng, fc['gateway_families'])  # RNG order fixed: reproducible fleets
     serial = serials.next()
+    serial = str(fixed.get('serial_number', serial))
     gw = {
         'gateway_id': gateway_id,
         'plant_id': plant_id,
@@ -113,9 +124,12 @@ def _gateway(cfg, rng, serials, plant_id, plant_type, gateway_id):
         'certificate_cn': gateway_id,
         'client_id': wire.client_id_for(cfg, gateway_id, serial),
     }
+    link = 'flaky' if rng.random() < fc['flaky_link_share'] else 'stable'   # drawn anyway: same RNG sequence
+    if fixed.get('link', link) not in ('stable', 'flaky'):
+        raise ValueError(f"fleet.pinned: link of {gateway_id} must be stable or flaky")
     gw.update({
         'topics': {'d2c': wire.up_filter(cfg, gw), 'c2d': wire.down_filter(cfg, gw)},
-        'link': 'flaky' if rng.random() < fc['flaky_link_share'] else 'stable',
+        'link': fixed.get('link', link),
         'clock_skew_s': round(rng.uniform(*fc['clock_skew_s']), 3),
         'devices': devices,
     })

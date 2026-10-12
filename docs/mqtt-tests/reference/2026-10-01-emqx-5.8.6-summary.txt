@@ -1,0 +1,49 @@
+# EMQX 5.8.6 (lab container) - acceptance summary, profile lab-eicp, 2026-10-01
+# Source: terminal output of `make acceptance BROKER=emqx` in the Docker lab on macOS (run
+# acceptance-20261001T150942Z-12896), copied verbatim. The full report.md/report.json of this
+# run is not in the repository. A first run the same day (acceptance-20261001T142932Z-9357)
+# gave the same result. The EMQX log patterns were tightened afterwards (LOG-01 may differ now).
+
+==========================================================================
+SUMMARY  ENTC-63 acceptance  |  EMQX 5.8 (lab container)
+==========================================================================
+Result: NOT ACCEPTED  (exit 1)
+Mandatory cases: 29/31 PASS, 2 FAIL
+Broker: emqx:8883   Run: acceptance-20261001T150942Z-12896
+
+Requirements:
+  R01  PASS      mTLS with an individual X.509 certificate per simulated...
+  R02  PASS      Connection without client certificate is rejected
+  R03  PASS      Certificate signed by an untrusted CA is rejected
+  R04  PASS      Invalid certificates (validity, key usage, revocation) ...
+  R05  PASS      Certificate identity is bound to the Gateway ID (author...
+  R06  FAIL      MQTT Client ID = Gateway ID is enforced (otherwise the ...
+  R07  PASS      ACLs deny by default
+  R08  PASS      A gateway publishes only to its own d2c namespace
+  R09  PASS      A gateway subscribes only to its own c2d namespace
+  R10  PASS      Cross-plant and cross-gateway topic access is denied
+  R11  FAIL      A duplicate Client ID does not silently take over the a...
+  R12  PASS      QoS 1: acknowledged, at-least-once delivery incl. redel...
+  R13  PASS      Clean Start = false resumes the persistent session acro...
+  R14  PASS      Reconnect can be exercised without a reconnect storm
+  R15  PASS      Security-relevant broker logs are available and contain...
+  R16  adv FAIL  Legacy certificates without Gateway ID (AWS IoT profile...  [LEG-01 FAIL, LEG-02 PASS]
+  R17  adv PASS  Certificate rotation: old and new certificate overlap, ...  [ROT-01 PASS, ROT-02 PASS]
+
+Not passed (mandatory):
+  ID-01    FAIL         Certificate of gateway A with Client ID of gateway B
+  DUP-01   FAIL         Second connection with the Client ID of an active gateway
+
+Advisory, not counted:
+  MTLS-07  FAIL         Certificate without clientAuth EKU (profile OPEN, ENTC-31)
+  MTLS-08  FAIL         Revoked certificate (CRL; revocation strategy OPEN, ENTC-58/
+  LEG-01   FAIL         Legacy certificate (RSA 2048, no CN/SAN) connects as its gat
+
+Broker limitations:
+  MTLS-08: No revocation check is active (CRL, OCSP or registry lookup). Revocation strategy is OPEN (ENTC-58/ENTC-31); for Mosquitto `crlfile certs/negative/crl...
+  ID-01: The broker accepts a Client ID that differs from the certificate identity and lets it displace the legitimate session. EICP v1.4 requires Client ID ==...
+  DUP-01: The broker applies the MQTT session takeover. ENETEC requires rejecting the second connection and keeping the active session (ENETEC.md §6.3); needs b...
+  LEG-01: The broker cannot derive the Gateway ID from a certificate without CN/SAN (Mosquitto with use_identity_as_username: CONNACK 134). Legacy AWS IoT certi...
+
+Evidence: results/acceptance-20261001T150942Z-12896  (report.md, report.json, events.jsonl, broker.log)
+==========================================================================

@@ -1,6 +1,6 @@
 # ENETEC MQTT Simulation Environment: Development, Structure, Usage
 
-**Date:** 2026-10-08 · **Related:** ENTC-63 (test harness), ENTC-58 (architecture), ENTC-59 (broker selection), ENTC-31 (certificates), ENTC-61 (message specification)
+**Date:** 2026-10-12 · **Related:** ENTC-63 (test harness), ENTC-58 (architecture), ENTC-59 (broker selection), ENTC-31 (certificates), ENTC-61 (message specification)
 
 *Deutsche Fassung: [MQTT-SIM-ENV.md](MQTT-SIM-ENV.md)*
 
@@ -24,6 +24,7 @@ The environment answers four questions:
    storm, commands to offline gateways) → the simulation (`make simulate`).
 3. **How do two brokers compare directly?** → the comparison (`make compare`).
 4. **What does the weighted decision basis look like?** → the decision matrix (`make decide`).
+5. **How does it all fit together?** → the Baukasten (building kit) in the browser (`web/baukasten/index.html`).
 
 It does not replace a decision. Cost, operations, support and scalability only enter the matrix as
 sourced hand scores; open points stay open (see section 9).
@@ -161,6 +162,7 @@ when needed.
 | `make compare A=hivemq B=mosquitto-lab` | compare two brokers (latest complete run per broker) |
 | `make compare A=hivemq B=emqx FRESH=1` | run acceptance for both again, then compare |
 | `make decide` | weighted decision matrix from `sim/decision.toml` and the latest runs |
+| `make web` | refresh the data of the Baukasten web page from the repo (fleet, reference runs) |
 | `make fleet` | Regenerate fleet, dataset, ACLs and certificates (after changing `sim/config.toml`); `make fleet WIRE=lab-eicp` for the individual tests 04–10 |
 | `make sim-test` | Unit tests in the container |
 | `make brokers` | Available profiles |
@@ -200,6 +202,27 @@ Result folder `results/acceptance-<time>/`: `report.md` (table), `report.json`, 
 | LEG / ROT | 01–02 / 01–02 | legacy certificate without CN; rotation with overlap and rollback |
 
 Full rules: [`mqtt-tests/acceptance-harness.md`](mqtt-tests/acceptance-harness.md) (German).
+
+### The Baukasten (building kit)
+
+Open `web/baukasten/index.html` directly in a browser (no server, no Docker). The page is in German.
+
+- **Build:** drag installations, gateways, a broker and the cloud services from the block bar onto the
+  mounting plate, or tap them.
+- **Set up a gateway:** certificate (valid, expired, foreign CA, revoked …), Client ID (authorized,
+  foreign, CN instead of derived), link, serial number.
+- **Trigger actions:** send state, foreign topics, subscriptions, offline command, Last Will,
+  revocation, permission withdrawal, broker restart, reconnect storm. Each action shows the flow and the
+  result the selected broker **actually had in the lab**, with test case, requirement and observation
+  from the reference report. Without a run it says "not measured".
+- **Learning path:** seven guided steps.
+- **Desk:** broker comparison per requirement, generated ACLs, glossary.
+- **Export:** the layout becomes `sim/config.local.toml`. `make fleet` then creates exactly these
+  gateways, with serial numbers, Client IDs and links as in the Baukasten. The file supplements
+  `sim/config.toml` and is not checked in; back to the lab fleet with
+  `rm sim/config.local.toml && make fleet`.
+
+New reference runs reach the page through `web/baukasten/sources.toml` and `make web`.
 
 ## 6. Connecting your own broker
 
@@ -253,7 +276,9 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 
 | Message | Cause and solution |
 |---|---|
-| `No rule to make target 'acceptance'` | old folder or old ZIP. Check the version (`cat VERSION`, currently `2026-10-08-r1` or newer), unzip the new ZIP over the folder (`unzip -o`) |
+| `No rule to make target 'acceptance'` | old folder or old ZIP. Check the version (`cat VERSION`, currently `2026-10-12-r1` or newer), unzip the new ZIP over the folder (`unzip -o`) |
+| Baukasten says "Keine Lab-Daten eingebaut" | run `make web` in the lab folder and reload the page |
+| `make fleet` creates a different fleet than expected | a `sim/config.local.toml` from the Baukasten is still there; back with `rm sim/config.local.toml && make fleet` |
 | `This original PoC test uses the earlier topic layout` | the individual tests 04–10 need the earlier layout: `make fleet WIRE=lab-eicp`, back with `make fleet` |
 | RST-01 / REV-01 / ACL-14 INCONCLUSIVE with `hook … not available` or `unsupported` | broker not started by the lab, or profile without `[hooks]`: set `SIM_HOOK_RESTART` / `SIM_HOOK_CRL_RELOAD` / `SIM_HOOK_ACL_RELOAD`. Does not change the acceptance result |
 | `Different wire profiles` in `make compare` | the two runs use different topic layouts; rerun both with the same `WIRE` (`FRESH=1`) |
@@ -294,6 +319,8 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 |---|---|
 | [`STAND-2026-10-08.md`](STAND-2026-10-08.md) | Status summary as of 2026-10-08 (German) |
 | [`mqtt-tests/acceptance-harness.md`](mqtt-tests/acceptance-harness.md) | Wire profile, requirements R01–R24, PASS rules, hooks, comparison, decision matrix (German) |
+| [`../web/baukasten/index.html`](../web/baukasten/index.html) | Baukasten web page (German) |
+| [`AI-PLAYBOOK.md`](AI-PLAYBOOK.md) | Rules and recipes for AI assistants in this repo (German) |
 | [`mqtt-tests/synthetic-simulation.md`](mqtt-tests/synthetic-simulation.md) | Data model, assumptions, simulation, reference run (German) |
 | [`mqtt-tests/legacy-certificates.md`](mqtt-tests/legacy-certificates.md) | Analysis of the AWS certificate, rotation, questions for ENETEC (German) |
 | [`mqtt-tests/reference/`](mqtt-tests/reference/) | Reports of the reference runs and the comparison |

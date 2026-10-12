@@ -1,6 +1,6 @@
 .PHONY: check init up down logs valid-publish cross-gateway wrong-clientid inspect verify clean \
 	fleet negative-certs legacy-certs acceptance simulate sim-test brokers bevywise-config bevywise-bundle compare \
-	decide version
+	decide web version
 
 # Broker under test for acceptance/simulate: profile sim/targets/$(BROKER).toml
 # e.g. make acceptance BROKER=emqx   (list: make brokers)
@@ -84,6 +84,12 @@ compare:
 
 brokers:
 	@ls sim/targets/*.toml | sed 's#sim/targets/##; s#\.toml##'
+
+# Baukasten web page: refresh its data from the repo (fleet, reference runs), then open
+# web/baukasten/index.html in a browser
+web:
+	@if [ "$${SIM_LOCAL:-0}" = 1 ]; then PYTHONPATH=sim python3 -m enetec_sim web-data; \
+	else docker build -q -t enetec-sim:local sim >/dev/null && docker compose run --rm -T sim web-data; fi
 
 # Weighted decision matrix over the latest acceptance runs (sim/decision.toml): make decide
 decide:

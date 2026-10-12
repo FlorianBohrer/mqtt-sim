@@ -1,0 +1,1411 @@
+<title>ENETEC MQTT-Baukasten</title>
+<meta name="description" content="Interaktiver Baukasten für die ENETEC MQTT-Simulation: Gateways, Broker und Cloud zusammenstecken, Szenarien auslösen und sehen, wie sich die Broker im Lab verhalten haben.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: Schaltschrank. Links die Bausteinleiste, in der Mitte die Montageplatte
+   (Feld → Broker → Cloud, verdrahtet), rechts Inspektor und Prüfprotokoll, darunter das Pult mit Reitern. */
+:root {
+  --bg: #e4e7e3;            /* RAL 7035 Lichtgrau, leicht grünstichig */
+  --plate: #eef0ec;         /* Montageplatte */
+  --panel: #f7f8f5;
+  --module: #ffffff;
+  --ink: #1b2226;
+  --muted: #586368;
+  --line: #c3c9c4;
+  --rail: #a3aba7;
+  --accent: #1f5ba6;        /* Signalblau */
+  --accent-ink: #ffffff;
+  --accent-soft: #dde7f4;
+  --wire-state: #1f5ba6;    /* Gerät → Cloud: blau */
+  --wire-cmd: #8a5a2e;      /* Cloud → Gerät: braun */
+  --pass: #2c7a4b;
+  --pass-soft: #dcefe3;
+  --fail: #b1261c;
+  --fail-soft: #f8dedb;
+  --warn: #9a5c00;
+  --warn-soft: #f6e8cf;
+  --na: #66727a;
+  --na-soft: #e6e9e7;
+  --shadow: rgba(27, 34, 38, 0.08);
+  --font-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14191b; --plate: #1a2023; --panel: #1d2427; --module: #242c30; --ink: #e5ebe8; --muted: #9aa6a9;
+    --line: #353f44; --rail: #4c575c; --accent: #79a7e6; --accent-ink: #0f1a26; --accent-soft: #233548;
+    --wire-state: #79a7e6; --wire-cmd: #cf9a66; --pass: #63c48d; --pass-soft: #1f3a2b; --fail: #ff8577;
+    --fail-soft: #43221f; --warn: #eeaa4a; --warn-soft: #3e301a; --na: #9aa6a9; --na-soft: #2a3236;
+    --shadow: rgba(0, 0, 0, 0.35); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14191b; --plate: #1a2023; --panel: #1d2427; --module: #242c30; --ink: #e5ebe8; --muted: #9aa6a9;
+  --line: #353f44; --rail: #4c575c; --accent: #79a7e6; --accent-ink: #0f1a26; --accent-soft: #233548;
+  --wire-state: #79a7e6; --wire-cmd: #cf9a66; --pass: #63c48d; --pass-soft: #1f3a2b; --fail: #ff8577;
+  --fail-soft: #43221f; --warn: #eeaa4a; --warn-soft: #3e301a; --na: #9aa6a9; --na-soft: #2a3236;
+  --shadow: rgba(0, 0, 0, 0.35); color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--font-body); }
+button, input, select { font: inherit; color: inherit; }
+code, .mono { font-family: var(--font-mono); font-size: 0.86em; }
+h1, h2, h3, h4 { margin: 0; text-wrap: balance; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.page { max-width: 1680px; margin: 0 auto; padding-inline: clamp(16px, 2.4vw, 32px); padding-block: 18px 48px; display: grid; gap: 16px; }
+
+/* ---------- Kopf */
+.topbar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 28px; }
+.brand { display: grid; gap: 2px; min-width: 0; }
+.eyebrow { font-family: var(--font-display); font-weight: 600; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(30px, 4vw, 44px); line-height: 1; letter-spacing: 0.01em; }
+.datasource { color: var(--muted); font-size: 13px; margin: 2px 0 0; max-width: 70ch; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: var(--panel); }
+.seg button { border: 0; background: transparent; padding: 7px 12px; cursor: pointer; font-size: 14px; }
+.seg button[aria-checked="true"] { background: var(--accent); color: var(--accent-ink); }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 4px; padding: 7px 12px; cursor: pointer; font-size: 14px; line-height: 1.3; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.small { padding: 4px 9px; font-size: 13px; }
+.label-sm { font-family: var(--font-display); font-weight: 600; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+
+/* ---------- Werkbank */
+.workbench { display: grid; grid-template-columns: 220px minmax(0, 1fr) 390px; gap: 16px; align-items: start; }
+@media (max-width: 1240px) { .workbench { grid-template-columns: 210px minmax(0, 1fr); } .inspector { grid-column: 1 / -1; } }
+@media (max-width: 780px) { .workbench { grid-template-columns: minmax(0, 1fr); } }
+
+.palette { display: grid; gap: 14px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
+@media (max-width: 780px) { .palette { position: static; } }
+.palette h2 { font-family: var(--font-display); font-size: 17px; font-weight: 600; letter-spacing: 0.04em; }
+.blocks { display: grid; gap: 6px; }
+@media (max-width: 780px) { .blocks { display: flex; overflow-x: auto; padding-bottom: 4px; } .blocks .pblock { flex: 0 0 auto; } }
+.pblock { display: grid; grid-template-columns: 26px minmax(0, 1fr); align-items: center; gap: 8px; text-align: left; padding: 7px 9px; border: 1px solid var(--line); border-radius: 4px; background: var(--module); cursor: grab; user-select: none; box-shadow: 0 1px 0 var(--shadow); }
+.pblock:hover { border-color: var(--accent); }
+.pblock .glyph { width: 26px; height: 26px; border-radius: 3px; display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; font-size: 12px; background: var(--accent-soft); color: var(--accent); }
+.pblock .ptxt { display: grid; line-height: 1.2; min-width: 0; }
+.pblock .ptxt small { color: var(--muted); font-size: 12px; }
+.pgroup { font-family: var(--font-display); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+@media (max-width: 780px) { .pgroup { display: none; } }
+.lessons { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; counter-reset: lesson; }
+.lessons li { counter-increment: lesson; }
+.lessons button { width: 100%; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; text-align: left; border: 0; background: transparent; padding: 5px 4px; border-radius: 4px; cursor: pointer; font-size: 14px; line-height: 1.3; }
+.lessons button::before { content: counter(lesson); font-family: var(--font-display); font-weight: 700; color: var(--accent); font-size: 16px; text-align: center; }
+.lessons button:hover { background: var(--panel); }
+.ghost { position: fixed; z-index: 50; pointer-events: none; padding: 6px 10px; background: var(--accent); color: var(--accent-ink); border-radius: 4px; font-size: 13px; box-shadow: 0 6px 18px var(--shadow); }
+
+/* ---------- Montageplatte */
+.cabinet { position: relative; min-width: 0; border: 1px solid var(--line); border-radius: 6px; background-color: var(--plate);
+  background-image: radial-gradient(var(--line) 1px, transparent 1.2px); background-size: 18px 18px; padding: 16px; }
+.cabinet-cols { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.9fr) minmax(0, 0.85fr); gap: clamp(28px, 4vw, 64px); align-items: start; }
+@media (max-width: 980px) { .cabinet-cols { grid-template-columns: minmax(0, 1fr); gap: 34px; } }
+#wires { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; overflow: visible; }
+.col { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start; min-width: 0; }
+.col-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; border-bottom: 3px solid var(--rail); padding-bottom: 4px; }
+.col-head h3 { font-family: var(--font-display); font-size: 18px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.col-head span { color: var(--muted); font-size: 12px; }
+.drop-hot { outline: 2px dashed var(--accent); outline-offset: 4px; border-radius: 4px; }
+
+.plant { min-width: 0; grid-template-columns: minmax(0, 1fr); border: 1px dashed var(--rail); border-radius: 5px; padding: 8px; display: grid; gap: 6px; background: color-mix(in srgb, var(--plate) 70%, transparent); }
+.plant-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; cursor: pointer; }
+.plant-head .pname { font-family: var(--font-mono); font-size: 12.5px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plant-head .ptype { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.plant.selected { border-color: var(--accent); border-style: solid; }
+.gws { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+
+.module { position: relative; background: var(--module); border: 1px solid var(--line); border-radius: 4px; padding: 6px 9px 7px; display: grid; gap: 1px; cursor: pointer; box-shadow: 0 1px 0 var(--shadow); min-width: 0; text-align: left; }
+.module::before { content: ""; position: absolute; left: 8px; right: 8px; top: 0; height: 3px; background: repeating-linear-gradient(90deg, var(--rail) 0 6px, transparent 6px 11px); opacity: 0.7; }
+.module:hover { border-color: var(--accent); }
+.module.selected { outline: 2px solid var(--accent); outline-offset: 1px; }
+.module .mtop { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 3px; }
+.module .mkind { font-family: var(--font-display); font-weight: 600; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.module .mname { font-family: var(--font-mono); font-size: 12.5px; overflow-wrap: anywhere; }
+.module .msub { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.module .flags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.flag { font-size: 11px; line-height: 1.4; padding: 0 5px; border-radius: 3px; background: var(--na-soft); color: var(--muted); white-space: nowrap; }
+.flag.bad { background: var(--fail-soft); color: var(--fail); }
+.flag.warn { background: var(--warn-soft); color: var(--warn); }
+.led { width: 9px; height: 9px; border-radius: 50%; background: var(--na-soft); border: 1px solid var(--line); flex: none; }
+.led.online { background: var(--pass); border-color: var(--pass); }
+.led.rejected { background: var(--fail); border-color: var(--fail); }
+.led.warn { background: var(--warn); border-color: var(--warn); }
+.module.broker { padding: 12px 14px; gap: 4px; }
+.module.broker .mname { font-family: var(--font-display); font-weight: 600; font-size: 22px; letter-spacing: 0.02em; }
+.slot-empty { border: 1px dashed var(--rail); border-radius: 4px; padding: 16px 12px; color: var(--muted); font-size: 13px; text-align: center; }
+.add-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Nachrichten-Token */
+.token circle { stroke: var(--module); stroke-width: 2; }
+.token text { font: 600 11px var(--font-mono); paint-order: stroke; stroke: var(--plate); stroke-width: 3px; }
+
+/* ---------- Inspektor */
+.inspector { display: grid; gap: 14px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.card h2 { font-family: var(--font-display); font-weight: 600; font-size: 21px; letter-spacing: 0.02em; }
+.card p { margin: 0; }
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; font-size: 13.5px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.field { display: grid; gap: 3px; }
+.field label { font-size: 12.5px; color: var(--muted); }
+.field select, .field input { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--module); }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 460px) { .fields { grid-template-columns: minmax(0, 1fr); } }
+.actions { display: grid; gap: 10px; }
+.agroup { display: grid; gap: 5px; }
+.agroup .btns { display: flex; flex-wrap: wrap; gap: 5px; }
+.note { font-size: 13px; color: var(--muted); }
+.callout { border-left: 3px solid var(--warn); background: var(--warn-soft); padding: 7px 10px; border-radius: 0 4px 4px 0; font-size: 13.5px; }
+.callout.info { border-color: var(--accent); background: var(--accent-soft); }
+
+.chip { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-display); font-weight: 600; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
+.chip.PASS { background: var(--pass-soft); color: var(--pass); }
+.chip.FAIL { background: var(--fail-soft); color: var(--fail); }
+.chip.PARTIAL { background: var(--warn-soft); color: var(--warn); }
+.chip.INCONCLUSIVE, .chip.NA, .chip.none { background: var(--na-soft); color: var(--na); }
+
+.protocol .verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.protocol .verdict strong { font-size: 16px; }
+.steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; counter-reset: st; }
+.steps li { counter-increment: st; display: grid; grid-template-columns: 22px 18px minmax(0, 1fr); gap: 6px; font-size: 13.5px; align-items: baseline; }
+.steps li::before { content: counter(st); font-family: var(--font-display); font-weight: 700; color: var(--muted); text-align: right; }
+.steps .ic { font-weight: 700; text-align: center; }
+.steps .good .ic { color: var(--pass); } .steps .bad .ic { color: var(--fail); } .steps .warn .ic { color: var(--warn); } .steps .neutral .ic { color: var(--muted); }
+.steps .pending { opacity: 0.45; }
+.obs { font-family: var(--font-mono); font-size: 12.5px; background: var(--module); border: 1px solid var(--line); border-radius: 4px; padding: 7px 9px; overflow-wrap: anywhere; }
+.caserow { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 10px; font-size: 13.5px; align-items: baseline; }
+
+/* ---------- Pult */
+.desk { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px 16px; display: grid; gap: 12px; min-width: 0; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); }
+.tabs button { border: 0; background: transparent; padding: 8px 12px; cursor: pointer; font-family: var(--font-display); font-size: 17px; font-weight: 600; letter-spacing: 0.04em; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.tabpanel { display: grid; gap: 12px; min-width: 0; }
+.scroll-x { overflow-x: auto; }
+table.cmp { border-collapse: collapse; width: 100%; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+table.cmp th, table.cmp td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+table.cmp th { font-family: var(--font-display); font-weight: 600; font-size: 14px; letter-spacing: 0.03em; }
+table.cmp td.req { min-width: 220px; }
+table.cmp button.cell { border: 0; background: transparent; padding: 0; cursor: pointer; }
+table.cmp tr.sel td { background: var(--accent-soft); }
+pre.code { margin: 0; background: var(--module); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; font: 12.5px/1.5 var(--font-mono); overflow: auto; max-height: 420px; white-space: pre; }
+.subtabs { display: flex; flex-wrap: wrap; gap: 5px; }
+.subtabs button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 900px) { .two { grid-template-columns: minmax(0, 1fr); } }
+.checklist { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 14px; }
+.checklist li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 6px; }
+.checklist .ok { color: var(--pass); font-weight: 700; } .checklist .no { color: var(--fail); font-weight: 700; } .checklist .hint { color: var(--warn); font-weight: 700; }
+.gloss { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px 20px; margin: 0; }
+.gloss div { display: grid; gap: 2px; }
+.gloss dt { font-family: var(--font-display); font-weight: 600; font-size: 17px; }
+.gloss dd { margin: 0; font-size: 14px; color: var(--ink); max-width: 60ch; }
+.inline-fields { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: end; }
+.inline-fields .field { min-width: 160px; }
+.check { display: flex; gap: 6px; align-items: center; font-size: 14px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; width: 22px; height: 3px; border-radius: 2px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="page">
+  <header class="topbar">
+    <div class="brand">
+      <span class="eyebrow">ENETEC · ENTC-63 Lab</span>
+      <h1>MQTT-Baukasten</h1>
+      <p class="datasource" id="datasource"></p>
+    </div>
+    <div class="controls">
+      <span class="label-sm" id="wire-label">Topic-Schema</span>
+      <div class="seg" role="radiogroup" aria-labelledby="wire-label" id="wire-seg">
+        <button type="button" role="radio" data-wire="v13">v1.3 · state/cmd</button>
+        <button type="button" role="radio" data-wire="lab-eicp">lab-eicp (alt)</button>
+      </div>
+      <button type="button" class="btn" id="btn-lab">Lab-Flotte laden</button>
+      <button type="button" class="btn" id="btn-empty">Leer beginnen</button>
+    </div>
+  </header>
+
+  <main class="workbench">
+    <aside class="palette" aria-label="Bausteine">
+      <div>
+        <h2>Bausteine</h2>
+        <p class="note">Ziehen oder antippen.</p>
+      </div>
+      <div class="blocks" id="palette"></div>
+      <div>
+        <h2>Lernpfad</h2>
+        <p class="note">Jeder Schritt baut auf und löst ein Szenario aus.</p>
+      </div>
+      <ol class="lessons" id="lessons"></ol>
+    </aside>
+
+    <section class="cabinet" id="cabinet" aria-label="Aufbau">
+      <svg id="wires" aria-hidden="true"></svg>
+      <div class="cabinet-cols">
+        <div class="col" id="col-field" data-drop="field">
+          <div class="col-head"><h3>Feld</h3><span>Installationen · Gateways</span></div>
+          <div id="plants" class="col"></div>
+          <div class="add-row"><button type="button" class="btn small" id="add-plant">+ Installation</button></div>
+        </div>
+        <div class="col" id="col-broker" data-drop="broker">
+          <div class="col-head"><h3>Broker</h3><span>MQTT 5 · mTLS</span></div>
+          <div id="broker-slot"></div>
+        </div>
+        <div class="col" id="col-cloud" data-drop="cloud">
+          <div class="col-head"><h3>Cloud</h3><span>Platzhalter für GCP</span></div>
+          <div id="cloud-slot" class="col"></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="inspector" aria-label="Inspektor">
+      <div class="card" id="inspect"></div>
+      <div class="card protocol" id="protocol" aria-live="polite"></div>
+    </aside>
+  </main>
+
+  <section class="desk" aria-label="Pult">
+    <div class="tabs" role="tablist" id="tabs">
+      <button type="button" role="tab" data-tab="vergleich">Broker vergleichen</button>
+      <button type="button" role="tab" data-tab="konfiguration">Konfiguration</button>
+      <button type="button" role="tab" data-tab="export">Export in die Simulation</button>
+      <button type="button" role="tab" data-tab="glossar">Glossar</button>
+    </div>
+    <div class="tabpanel" id="tabpanel" role="tabpanel"></div>
+  </section>
+</div>
+
+<script id="lab-data" type="application/json">{"generated_utc":"2026-10-12T14:17:55+00:00","lab_version":"2026-10-12-r1","wire":{"default":"v13","client_id":"derived","algorithm":"lab-sha256-v0","v13":{"base":"enetec/v1","state":"state","cmd":"cmd"},"lab_eicp":{"base":"eicp/v1/sim","telemetry":"telemetry/report","command":"simulation/command"}},"fleet":{"plants":[{"plant_id":"plt_sim_001","type":"residential"},{"plant_id":"plt_sim_002","type":"commercial"},{"plant_id":"plt_01a06776-fb70-786e-881e-2f72a8183b0a","type":"residential"},{"plant_id":"plt_01a041c3-f360-7d3b-9f36-2b573fec3127","type":"commercial"},{"plant_id":"plt_019fbd62-7088-79ee-b127-b5ac5d7e490d","type":"commercial"},{"plant_id":"plt_019f67ee-7a70-7ac4-af69-93722be61f89","type":"residential"}],"gateways":[{"gateway_id":"gw-sim-000001","plant_id":"plt_sim_001","plant_type":"residential","family":"Pure365 Bridge","serial":"2150551891","client_id":"c4b06565c3cea7d66c4a6","link":"stable","devices":9},{"gateway_id":"gw-sim-000002","plant_id":"plt_sim_002","plant_type":"commercial","family":"SmartComfort365","serial":"280218189","client_id":"c446bfb561d0c4245c0e7","link":"stable","devices":10},{"gateway_id":"gw-sim-000003","plant_id":"plt_sim_002","plant_type":"commercial","family":"SmartComfort365","serial":"1016347864","client_id":"cdc2eebb4ca559e046615","link":"stable","devices":14},{"gateway_id":"gw-sim-000004","plant_id":"plt_01a06776-fb70-786e-881e-2f72a8183b0a","plant_type":"residential","family":"Pure365 Bridge","serial":"1512627509","client_id":"cb5ad3663f018bc3e3bf7","link":"stable","devices":5},{"gateway_id":"gw-sim-000005","plant_id":"plt_01a041c3-f360-7d3b-9f36-2b573fec3127","plant_type":"commercial","family":"Pure365 Bridge","serial":"3856938623","client_id":"cf17f8bfc348c2f74cff3","link":"stable","devices":15},{"gateway_id":"gw-sim-000006","plant_id":"plt_01a041c3-f360-7d3b-9f36-2b573fec3127","plant_type":"commercial","family":"Pure365 Bridge","serial":"1904302963","client_id":"c0ba4025b1c0fd2b284b5","link":"flaky","devices":15},{"gateway_id":"gw-sim-000007","plant_id":"plt_019fbd62-7088-79ee-b127-b5ac5d7e490d","plant_type":"commercial","family":"SmartComfort365","serial":"1281114590","client_id":"c5d739bc3b32c09a11177","link":"flaky","devices":11},{"gateway_id":"gw-sim-000008","plant_id":"plt_019fbd62-7088-79ee-b127-b5ac5d7e490d","plant_type":"commercial","family":"SmartComfort365","serial":"3338420306","client_id":"cf8456ca9c6b15aa5d58d","link":"flaky","devices":10},{"gateway_id":"gw-sim-000009","plant_id":"plt_019fbd62-7088-79ee-b127-b5ac5d7e490d","plant_type":"commercial","family":"Pure365 Bridge","serial":"4183771909","client_id":"c78ec7e20363d84d6c25a","link":"flaky","devices":8},{"gateway_id":"gw-sim-000010","plant_id":"plt_019f67ee-7a70-7ac4-af69-93722be61f89","plant_type":"residential","family":"SmartComfort365","serial":"1802953146","client_id":"ce4fd71de55c5219cff01","link":"stable","devices":11}],"legacy":[{"gateway_id":"0000000000000005","plant_id":"plt_sim_legacy","serial":"0000000000000005","client_id":"cf847e6a1689fd7bc4b03"},{"gateway_id":"0000000000000006","plant_id":"plt_sim_legacy","serial":"0000000000000006","client_id":"c524cda6aece4b48315d9"}],"legacy_plant":"plt_sim_legacy","services":{"ingest":"svc-sim-cloud-ingest","command":"svc-sim-cloud-command"}},"traffic":{"d2c_per_gateway_per_day":251,"duration_s":86400,"flaky_link_share":0.25,"commands_per_gateway_per_h":0.25,"buffer_max_messages":50,"keepalive_s":120,"session_expiry_s":3600,"incidents":[{"name":"regional-isp-outage","start_s":45000,"duration_s":900,"share":0.5},{"name":"overnight-outage","start_s":72000,"duration_s":14400,"select":"largest","count":1}]},"requirements":[{"id":"R01","text":"mTLS with an individual X.509 certificate per simulated gateway"},{"id":"R02","text":"Connection without client certificate is rejected"},{"id":"R03","text":"Certificate signed by an untrusted CA is rejected"},{"id":"R04","text":"Invalid certificates (validity, key usage, revocation) are rejected"},{"id":"R05","text":"Certificate identity is bound to the Gateway ID (authorization follows the certificate)"},{"id":"R06","text":"Only the Client ID authorized for the certificate identity is accepted"},{"id":"R07","text":"ACLs deny by default"},{"id":"R08","text":"A gateway publishes only to its own Device->Cloud topic (v1.3: state)"},{"id":"R09","text":"A gateway subscribes only to its own Cloud->Device topic (v1.3: cmd)"},{"id":"R10","text":"Topics of other gateways and installations are not accessible (incl. Last Will)"},{"id":"R11","text":"A duplicate Client ID does not silently take over the active session"},{"id":"R12","text":"QoS 1: acknowledged, at-least-once delivery incl. redelivery after connection loss"},{"id":"R13","text":"Clean Start = false resumes the persistent session across disconnect/reconnect"},{"id":"R14","text":"Reconnect can be exercised without a reconnect storm"},{"id":"R15","text":"Security-relevant broker logs are available and contain no keys or credentials"},{"id":"R16","text":"Legacy certificates without Gateway ID (AWS IoT profile) are mapped to the right gateway"},{"id":"R17","text":"Certificate rotation: old and new certificate overlap, switch with rollback"},{"id":"R18","text":"Binary payloads are delivered byte-exact in both directions (opaque, not decoded)"},{"id":"R19","text":"Last Will is published on link loss"},{"id":"R20","text":"An expired queued command (Message Expiry) is not delivered after reconnect"},{"id":"R21","text":"Payload sizes: probe sizes pass, payloads above the broker limit are rejected"},{"id":"R22","text":"Broker restart: persistent session and queued QoS 1 command survive"},{"id":"R23","text":"Revocation reaches an active session: new connections rejected, session terminated"},{"id":"R24","text":"ACL withdrawal applies to an active session (publish and existing subscription)"}],"cases":[{"id":"MTLS-01","req":"R01","mandatory":true,"title":"Each simulated gateway connects with its own certificate and authorized Client ID"},{"id":"MTLS-02","req":"R02","mandatory":true,"title":"No client certificate"},{"id":"MTLS-03","req":"R03","mandatory":true,"title":"Certificate from a rogue CA with the identical CA name, CN = real Gateway ID"},{"id":"MTLS-04","req":"R03","mandatory":true,"title":"Self-signed certificate, CN = real Gateway ID"},{"id":"MTLS-05","req":"R04","mandatory":true,"title":"Expired certificate (lab CA)"},{"id":"MTLS-06","req":"R04","mandatory":true,"title":"Certificate before notBefore (lab CA)"},{"id":"MTLS-07","req":"R04","mandatory":false,"title":"Certificate without clientAuth EKU (profile OPEN, ENTC-31)"},{"id":"MTLS-08","req":"R04","mandatory":false,"title":"Revoked certificate (CRL; revocation strategy OPEN, ENTC-58/31)"},{"id":"ID-01","req":"R06","mandatory":true,"title":"Certificate of gateway A with Client ID of gateway B"},{"id":"ID-02","req":"R05","mandatory":true,"title":"With A's certificate but B's Client ID, B's namespace stays closed"},{"id":"ID-03","req":"R06","mandatory":true,"title":"Certificate of gateway A with its plain CN as Client ID instead of the derived one"},{"id":"DUP-01","req":"R11","mandatory":true,"title":"Second connection with the Client ID of an active gateway"},{"id":"ACL-01","req":"R08","mandatory":true,"title":"Gateway A publishes to its own Device->Cloud topic (positive control)"},{"id":"ACL-02","req":"R10","mandatory":true,"title":"A publishes into B's Device->Cloud topic (other installation)"},{"id":"ACL-03","req":"R10","mandatory":true,"title":"C publishes into B's Device->Cloud topic (same installation, other gateway)"},{"id":"ACL-04","req":"R10","mandatory":true,"title":"A publishes to a non-core topic in its own Client ID namespace"},{"id":"ACL-05","req":"R08","mandatory":true,"title":"A publishes into its own Cloud->Device topic (wrong direction)"},{"id":"ACL-06","req":"R07","mandatory":true,"title":"A publishes outside every granted namespace"},{"id":"ACL-07","req":"R09","mandatory":true,"title":"Gateway A subscribes to its own Cloud->Device topic (positive control)"},{"id":"ACL-08","req":"R10","mandatory":true,"title":"A subscribes to B's Cloud->Device topic (other installation)"},{"id":"ACL-09","req":"R10","mandatory":true,"title":"C subscribes to B's Cloud->Device topic (same installation, other gateway)"},{"id":"ACL-10","req":"R09","mandatory":true,"title":"A subscribes to its own Device->Cloud topic (wrong direction)"},{"id":"ACL-11","req":"R10","mandatory":true,"title":"A subscribes to B's Device->Cloud traffic (other installation)"},{"id":"ACL-12","req":"R10","mandatory":true,"title":"A subscribes to the whole tree with a wildcard"},{"id":"ACL-13","req":"R07","mandatory":true,"title":"Valid certificate, Gateway ID unknown to the fleet: publish and subscribe"},{"id":"QOS-01","req":"R12","mandatory":true,"title":"QoS 1 publish is acknowledged and delivered with QoS 1"},{"id":"QOS-02","req":"R12","mandatory":true,"title":"Unacknowledged QoS 1 publish at link loss is redelivered after reconnect"},{"id":"SES-01","req":"R13","mandatory":true,"title":"Command sent while the gateway is offline arrives after reconnect with Clean Start = false"},{"id":"SES-02","req":"R13","mandatory":false,"title":"Clean Start = true discards the session and its queued messages"},{"id":"REC-01","req":"R14","mandatory":true,"title":"Simultaneous link loss of many gateways, reconnect with jittered exponential backoff"},{"id":"LEG-01","req":"R16","mandatory":false,"title":"Legacy certificate (RSA 2048, no CN/SAN) connects as its gateway and publishes"},{"id":"LEG-02","req":"R16","mandatory":false,"title":"Legacy certificate of gateway 2 (same subject) cannot act as gateway 1"},{"id":"ROT-01","req":"R17","mandatory":false,"title":"Old and new (CSR-based, RSA 2048) certificate of one gateway are both accepted"},{"id":"ROT-02","req":"R17","mandatory":false,"title":"Switch old -> new certificate, failed new identity falls back to the old one"},{"id":"PAY-01","req":"R18","mandatory":true,"title":"Binary payload (all byte values, uint32 big-endian header shape) both directions"},{"id":"PAY-02","req":"R21","mandatory":false,"title":"Payload probe sizes (128 B v1.3 reference, 12 KB historical sizing) are delivered"},{"id":"PAY-03","req":"R21","mandatory":false,"title":"Payload above the broker packet limit of the profile is rejected"},{"id":"LWT-01","req":"R19","mandatory":false,"title":"Last Will on the own Device->Cloud topic is published when the link is lost"},{"id":"LWT-02","req":"R10","mandatory":true,"title":"Last Will aimed at B's Device->Cloud topic is not published"},{"id":"EXP-01","req":"R20","mandatory":false,"title":"Command with Message Expiry 2 s, queued while A is offline, is not delivered after 4 s"},{"id":"ACL-14","req":"R24","mandatory":false,"title":"Permissions of C withdrawn while C is connected: publish and existing subscription"},{"id":"RST-01","req":"R22","mandatory":false,"title":"Broker restart: A's persistent session and a queued QoS 1 command survive"},{"id":"REV-01","req":"R23","mandatory":false,"title":"Certificate revoked while connected: open session ends, new connections rejected"},{"id":"LOG-01","req":"R15","mandatory":true,"title":"Accepted connections are logged with client and certificate identity"},{"id":"LOG-02","req":"R15","mandatory":true,"title":"Authentication / TLS failures are logged"},{"id":"LOG-03","req":"R15","mandatory":true,"title":"ACL denials are logged"},{"id":"LOG-04","req":"R15","mandatory":true,"title":"Disconnects are logged"},{"id":"LOG-05","req":"R15","mandatory":true,"title":"No private keys or credentials in the broker log or the evidence"}],"brokers":[{"key":"mosquitto-lab","name":"Mosquitto 2.0","role":"Lab-Referenz","note":"Open-Source-Broker der Lab-Basis. Kein Anbieter-Kandidat; Cedalo / Pro Mosquitto ist die kommerzielle Variante und wurde nicht getestet.","profile_status":"verified","max_packet_bytes":null,"effort":{"R01":"CONFIGURATION | require_certificate, cafile","R02":"CONFIGURATION | require_certificate","R03":"CONFIGURATION | cafile","R04":"CONFIGURATION | validity checked; revocation needs crlfile (not set in lab config)","R05":"CONFIGURATION | use_identity_as_username + acl_file","R06":"UNSUPPORTED | Client ID not bound to the certificate (ID-01, ID-03 FAIL); custom plugin untested","R07":"CONFIGURATION | acl_file; denied SUBSCRIBE is not signalled (PARTIAL)","R08":"CONFIGURATION | acl_file","R09":"CONFIGURATION | acl_file; denied SUBSCRIBE is not signalled (PARTIAL)","R10":"CONFIGURATION | acl_file; denied SUBSCRIBE is not signalled (PARTIAL)","R11":"UNSUPPORTED | session takeover (DUP-01 FAIL); custom plugin untested","R12":"NATIVE | MQTT 5 QoS 1","R13":"NATIVE | persistent sessions","R14":"NATIVE | sessions survive; backoff is a client matter","R15":"CONFIGURATION | log_type, connection_messages","R16":"UNSUPPORTED | certificate without CN has no identity (LEG-01 FAIL)","R17":"CONFIGURATION | two certificates for one CN work","R18":"NATIVE | binary payloads byte-exact (PAY-01)","R19":"NATIVE | Last Will on link loss (LWT-01); foreign Will not delivered (LWT-02)","R20":"NATIVE | Message Expiry honoured (EXP-01)","R21":"NATIVE | 128 B and 12 KB delivered; no message_size_limit set in the lab","R22":"TBD | Mosquitto 2.0.18 (local test): persistence file written, session lost after restart (RST-01 FAIL); repeat with the Docker image","R23":"UNSUPPORTED | lab config: revocation reaches neither open nor new connections (REV-01 FAIL); crlfile would cover new connections only (untested)","R24":"NATIVE | ACL reload via SIGHUP applies to open connections (ACL-14 PASS)"}},{"key":"emqx","name":"EMQX 5.8","role":"Kandidat (führend)","note":"Laut Current State 08.10. der führende Kandidat für den weiteren PoC. Im v1.3-Profil noch nicht gemessen.","profile_status":"template","max_packet_bytes":1048576,"effort":{"R01":"CONFIGURATION | listeners.ssl verify_peer, cacertfile","R02":"CONFIGURATION | fail_if_no_peer_cert","R03":"CONFIGURATION | cacertfile","R04":"CONFIGURATION | validity checked; EKU not enforced (MTLS-07 FAIL); CRL needs enable_crl_check and CRL distribution points in the certificates (MTLS-08 FAIL, TBD)","R05":"CONFIGURATION | peer_cert_as_username = cn + file authorization","R06":"UNSUPPORTED | Client ID not bound to the certificate (ID-01 FAIL, 2026-10-01, lab-eicp); peer_cert_as_clientid = cn replaces the Client ID instead of rejecting (TBD)","R07":"CONFIGURATION | authorization no_match = deny, deny_action = ignore (SUBACK 0x87)","R08":"CONFIGURATION | file authorization","R09":"CONFIGURATION | file authorization","R10":"CONFIGURATION | file authorization","R11":"UNSUPPORTED | session takeover (DUP-01 FAIL); hook or plugin needed (TBD)","R12":"NATIVE | MQTT 5 QoS 1","R13":"NATIVE | persistent sessions","R14":"NATIVE | sessions survive; backoff is a client matter","R15":"CONFIGURATION | console log (patterns still to be tightened)","R16":"UNSUPPORTED | certificate without CN has no username (LEG-01 FAIL); external authentication service (TBD)","R17":"CONFIGURATION | two certificates for one CN work"}},{"key":"hivemq","name":"HiveMQ CE + Lab-Erweiterung","role":"Referenz, nicht mehr verfolgt","note":"HiveMQ CE hat keine eigene Autorisierung; alle Sicherheitsfunktionen kommen aus der Lab-Erweiterung (Eigenentwicklung). Der Anbieter hat nicht geantwortet. Lab-Ergebnis, keine Produktabnahme.","profile_status":"verified","max_packet_bytes":null,"effort":{"R01":"CONFIGURATION | tls-tcp-listener, truststore","R02":"CONFIGURATION | client-authentication-mode REQUIRED","R03":"CONFIGURATION | truststore","R04":"CUSTOM DEVELOPMENT | CRL check in the extension; validity is native","R05":"CUSTOM DEVELOPMENT | CE has no ACL; extension maps CN to permissions","R06":"CUSTOM DEVELOPMENT | extension: client_ids.tsv maps identity -> authorized Client ID (Enterprise Security Extension: unverified)","R07":"CUSTOM DEVELOPMENT | permissions.tsv in the extension","R08":"CUSTOM DEVELOPMENT | extension","R09":"CUSTOM DEVELOPMENT | extension","R10":"CUSTOM DEVELOPMENT | extension","R11":"CUSTOM DEVELOPMENT | isClientConnected check in the extension","R12":"NATIVE | MQTT 5 QoS 1","R13":"NATIVE | persistent sessions","R14":"NATIVE | sessions survive; backoff is a client matter","R15":"CUSTOM DEVELOPMENT | ENETEC-AUDIT lines from the extension; TLS rejections not logged by default","R16":"CUSTOM DEVELOPMENT | fingerprint registry in the extension","R17":"CONFIGURATION | two certificates for one CN work","R18":"NATIVE | binary payloads byte-exact (PAY-01)","R19":"NATIVE | Last Will (LWT-01); foreign Will rejected at CONNECT by the extension (LWT-02)","R20":"NATIVE | Message Expiry honoured (EXP-01)","R21":"NATIVE | 128 B and 12 KB delivered","R22":"NATIVE | CE file persistence: session and queued command survive a restart (RST-01, local run)","R23":"CUSTOM DEVELOPMENT | extension watches the CRL and disconnects revoked open sessions (REV-01)","R24":"CUSTOM DEVELOPMENT | extension reloads permissions and removes withdrawn subscriptions (ACL-14)"}},{"key":"bevywise","name":"Bevywise MQTTRoute","role":"Kandidat (Alternative)","note":"Keine Instanz verfügbar, daher nicht gemessen. Anbieterschätzung: 4–6 Wochen Zusatzentwicklung für Zertifikatszuordnung, Widerruf und dynamische Autorisierung (Current State 08.10.).","profile_status":"template","max_packet_bytes":null,"effort":{}}],"runs":[{"broker":"mosquitto-lab","wire":"v13","date":"2026-10-08","kind":"report","file":"docs/mqtt-tests/reference/2026-10-08-mosquitto-2.0.18-v13.md","label":"Mosquitto 2.0.18, lokal, Hooks über SIM_HOOK_*","cases":{"MTLS-01":{"v":"PASS","obs":"gw-sim-000001: ACCEPTED; gw-sim-000002: ACCEPTED; gw-sim-000003: ACCEPTED; distinct certificates: 3/3"},"MTLS-02":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: TLSV13_ALERT_CERTIFICATE_REQUIRED] tlsv13 alert certificate required (_ssl.c:2590))"},"MTLS-03":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: TLSV1_ALERT_UNKNOWN_CA] tlsv1 alert unknown ca (_ssl.c:2590))"},"MTLS-04":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: TLSV1_ALERT_UNKNOWN_CA] tlsv1 alert unknown ca (_ssl.c:2590))"},"MTLS-05":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: SSLV3_ALERT_CERTIFICATE_EXPIRED] sslv3 alert certificate expired (_ssl.c:2590))"},"MTLS-06":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: SSLV3_ALERT_BAD_CERTIFICATE] sslv3 alert bad certificate (_ssl.c:2590))"},"MTLS-07":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: SSLV3_ALERT_UNSUPPORTED_CERTIFICATE] sslv3 alert unsupported certificate (_ssl.c:2590))"},"MTLS-08":{"v":"FAIL","obs":"ACCEPTED (CONNACK 0)"},"ID-01":{"v":"FAIL","obs":"ACCEPTED (CONNACK 0); legitimate session of gw-sim-000002 DISPLACED"},"ID-02":{"v":"PASS","obs":"connection accepted; publish to B state: PUBACK 135; delivered 0"},"ID-03":{"v":"FAIL","obs":"Client ID gw-sim-000001 (authorized: c4b06565c3cea7d66c4a6): ACCEPTED (CONNACK 0)"},"DUP-01":{"v":"FAIL","obs":"new: ACCEPTED (CONNACK 0); existing: closed by server DISCONNECT (reason 0 Normal disconnection)"},"ACL-01":{"v":"PASS","obs":"PUBACK 0; delivered 1"},"ACL-02":{"v":"PASS","obs":"PUBACK 135; delivered 0"},"ACL-03":{"v":"PASS","obs":"PUBACK 135; delivered 0"},"ACL-04":{"v":"PASS","obs":"PUBACK 135; delivered no authorized reader"},"ACL-05":{"v":"PASS","obs":"PUBACK 135; delivered 0"},"ACL-06":{"v":"PASS","obs":"PUBACK 135; delivered no authorized reader"},"ACL-07":{"v":"PASS","obs":"SUBACK [1]; delivered 1/1"},"ACL-08":{"v":"PARTIAL","obs":"SUBACK [1]; delivered 0/1 (nothing delivered, but subscription not signalled as denied)"},"ACL-09":{"v":"PARTIAL","obs":"SUBACK [1]; delivered 0/1 (nothing delivered, but subscription not signalled as denied)"},"ACL-10":{"v":"PARTIAL","obs":"SUBACK [1]; delivered 0/1 (nothing delivered, but subscription not signalled as denied)"},"ACL-11":{"v":"PARTIAL","obs":"SUBACK [1]; delivered 0/1 (nothing delivered, but subscription not signalled as denied)"},"ACL-12":{"v":"PARTIAL","obs":"SUBACK [1]; delivered 0/2 (nothing delivered, but subscription not signalled as denied)"},"ACL-13":{"v":"PARTIAL","obs":"publish: PUBACK 135; delivered 0; subscribe: SUBACK [1]; delivered 0/1 (nothing delivered, but subscription not signalled as denied)"},"QOS-01":{"v":"PASS","obs":"PUBACK 0; delivered 1x with QoS 1"},"QOS-02":{"v":"PASS","obs":"session_present True; PUBACK after reconnect 0; delivered 2x (duplicates are allowed)"},"SES-01":{"v":"PASS","obs":"command PUBACK 0; reconnect session_present True; queued command delivered 1x"},"SES-02":{"v":"PASS","obs":"session_present False; stale command delivered 0x"},"REC-01":{"v":"PASS","obs":"10 gateways dropped at once; 10 reconnect attempts over 4.2 s (peak 3/s, window 5.0 s); session resumed 10/10"},"LEG-01":{"v":"FAIL","obs":"0000000000000005: REJECTED (CONNACK 134)"},"LEG-02":{"v":"PASS","obs":"certificate of 0000000000000006 with Client ID 0000000000000005: REJECTED (CONNACK 134)"},"ROT-01":{"v":"PASS","obs":"old: ACCEPTED, PUBACK 16; new: ACCEPTED, PUBACK 16"},"ROT-02":{"v":"PASS","obs":"switch to new: ACCEPTED, PUBACK 16; broken new: REJECTED; rollback to old: ACCEPTED, PUBACK 16"},"PAY-01":{"v":"PASS","obs":"277 B up: PUBACK 0, byte-exact True; 277 B down: PUBACK 0, byte-exact True"},"PAY-02":{"v":"PASS","obs":"128 B: PUBACK 0, delivered True; 12288 B: PUBACK 0, delivered True"},"LWT-01":{"v":"PASS","obs":"link cut without DISCONNECT; Last Will delivered 1x"},"LWT-02":{"v":"PASS","obs":"connection accepted; foreign Last Will delivered 0x"},"EXP-01":{"v":"PASS","obs":"control delivered 1x; expired command delivered 0x"},"ACL-14":{"v":"PASS","obs":"after withdrawal: publish PUBACK 135, delivered 0; existing subscription delivered 0"},"RST-01":{"v":"FAIL","obs":"reconnected after 3.1 s; session_present False; queued command delivered 0x"},"REV-01":{"v":"FAIL","obs":"open session still open; new connection: ACCEPTED (CONNACK 0)"},"LOG-01":{"v":"PASS","obs":"108 matching lines; e.g. \"1791470186: New client connected from 127.0.0.1:57493 as c4b06565c3cea7d66c4a6 (p5, c1, k30, u'gw-sim-000001').\""},"LOG-02":{"v":"PASS","obs":"23 matching lines; e.g. \"1791470186: OpenSSL Error[0]: error:0A0000C7:SSL routines::peer did not return a certificate\""},"LOG-03":{"v":"PASS","obs":"8 matching lines; e.g. \"1791470189: Denied PUBLISH from c446bfb561d0c4245c0e7 (d0, q1, r0, m1, 'enetec/v1/c446bfb561d0c4245c0e7/state', ... (61 bytes))\""},"LOG-04":{"v":"PASS","obs":"117 matching lines; e.g. \"1791470186: Client c4b06565c3cea7d66c4a6 disconnected.\""},"LOG-05":{"v":"PASS","obs":"16 files scanned, no private key or credential pattern"},"PAY-03":{"v":"N/A","obs":"not applicable to the wire profile of this run"}},"counts":{"PASS":25,"FAIL":3,"PARTIAL":6,"INCONCLUSIVE":0},"mandatory_total":34,"accepted":false},{"broker":"hivemq","wire":"v13","date":"2026-10-08","kind":"report","file":"docs/mqtt-tests/reference/2026-10-08-hivemq-ce-2026.5-v13.md","label":"HiveMQ CE 2026.5 + Erweiterung, lokal","cases":{"MTLS-01":{"v":"PASS","obs":"gw-sim-000001: ACCEPTED; gw-sim-000002: ACCEPTED; gw-sim-000003: ACCEPTED; distinct certificates: 3/3"},"MTLS-02":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: TLSV13_ALERT_CERTIFICATE_REQUIRED] tlsv13 alert certificate required (_ssl.c:2590))"},"MTLS-03":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: SSLV3_ALERT_CERTIFICATE_UNKNOWN] sslv3 alert certificate unknown (_ssl.c:2590))"},"MTLS-04":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: SSLV3_ALERT_CERTIFICATE_UNKNOWN] sslv3 alert certificate unknown (_ssl.c:2590))"},"MTLS-05":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: SSLV3_ALERT_CERTIFICATE_UNKNOWN] sslv3 alert certificate unknown (_ssl.c:2590))"},"MTLS-06":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: SSLV3_ALERT_CERTIFICATE_UNKNOWN] sslv3 alert certificate unknown (_ssl.c:2590))"},"MTLS-07":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: SSLV3_ALERT_CERTIFICATE_UNKNOWN] sslv3 alert certificate unknown (_ssl.c:2590))"},"MTLS-08":{"v":"PASS","obs":"REJECTED (CONNACK 135)"},"ID-01":{"v":"PASS","obs":"REJECTED (CONNACK 133)"},"ID-02":{"v":"PASS","obs":"connection rejected (REJECTED (CONNACK 133)): identity bound at CONNECT"},"ID-03":{"v":"PASS","obs":"Client ID gw-sim-000001 (authorized: c4b06565c3cea7d66c4a6): REJECTED (CONNACK 133)"},"DUP-01":{"v":"PASS","obs":"new: REJECTED (CONNACK 133); existing: still connected and publishing"},"ACL-01":{"v":"PASS","obs":"PUBACK 0; delivered 1"},"ACL-02":{"v":"PASS","obs":"PUBACK 135; delivered 0; disconnected"},"ACL-03":{"v":"PASS","obs":"PUBACK 135; delivered 0; disconnected"},"ACL-04":{"v":"PASS","obs":"PUBACK 135; delivered no authorized reader; disconnected"},"ACL-05":{"v":"PASS","obs":"PUBACK 135; delivered 0; disconnected"},"ACL-06":{"v":"PASS","obs":"PUBACK 135; delivered no authorized reader; disconnected"},"ACL-07":{"v":"PASS","obs":"SUBACK [1]; delivered 1/1"},"ACL-08":{"v":"PASS","obs":"SUBACK [135]; delivered 0/1"},"ACL-09":{"v":"PASS","obs":"SUBACK [135]; delivered 0/1"},"ACL-10":{"v":"PASS","obs":"SUBACK [135]; delivered 0/1"},"ACL-11":{"v":"PASS","obs":"SUBACK [135]; delivered 0/1"},"ACL-12":{"v":"PASS","obs":"SUBACK [135]; delivered 0/2"},"ACL-13":{"v":"PASS","obs":"connection rejected (REJECTED (CONNACK 133))"},"QOS-01":{"v":"PASS","obs":"PUBACK 0; delivered 1x with QoS 1"},"QOS-02":{"v":"PASS","obs":"session_present True; PUBACK after reconnect 0; delivered 1x (duplicates are allowed)"},"SES-01":{"v":"PASS","obs":"command PUBACK 0; reconnect session_present True; queued command delivered 1x"},"SES-02":{"v":"PASS","obs":"session_present False; stale command delivered 0x"},"REC-01":{"v":"PASS","obs":"10 gateways dropped at once; 10 reconnect attempts over 4.2 s (peak 3/s, window 5.0 s); session resumed 10/10"},"LEG-01":{"v":"PASS","obs":"0000000000000005: PUBACK 0; delivered 1"},"LEG-02":{"v":"PASS","obs":"certificate of 0000000000000006 with Client ID 0000000000000005: REJECTED (CONNACK 133)"},"ROT-01":{"v":"PASS","obs":"old: ACCEPTED, PUBACK 16; new: ACCEPTED, PUBACK 16"},"ROT-02":{"v":"PASS","obs":"switch to new: ACCEPTED, PUBACK 16; broken new: REJECTED; rollback to old: ACCEPTED, PUBACK 16"},"PAY-01":{"v":"PASS","obs":"277 B up: PUBACK 0, byte-exact True; 277 B down: PUBACK 0, byte-exact True"},"PAY-02":{"v":"PASS","obs":"128 B: PUBACK 0, delivered True; 12288 B: PUBACK 0, delivered True"},"LWT-01":{"v":"PASS","obs":"link cut without DISCONNECT; Last Will delivered 1x"},"LWT-02":{"v":"PASS","obs":"rejected at CONNECT (CONNACK 135)"},"EXP-01":{"v":"PASS","obs":"control delivered 1x; expired command delivered 0x"},"ACL-14":{"v":"PASS","obs":"after withdrawal: publish PUBACK 135, delivered 0; existing subscription delivered 0; connection closed by broker"},"RST-01":{"v":"PASS","obs":"reconnected after 0.3 s; session_present True; queued command delivered 1x"},"REV-01":{"v":"PASS","obs":"open session terminated; new connection: REJECTED (CONNACK 135)"},"LOG-01":{"v":"PASS","obs":"100 matching lines; e.g. \"2026-10-08 14:30:31,746 INFO  - ENETEC-AUDIT connect-accepted clientId=c4b06565c3cea7d66c4a6 identity=gw-sim-000001 certSerial=1002\""},"LOG-02":{"v":"PASS","obs":"18 matching lines; e.g. \"2026-10-08 14:30:32,847 INFO  - Successfully updated changed SSL Context\""},"LOG-03":{"v":"PASS","obs":"12 matching lines; e.g. \"2026-10-08 14:30:36,165 WARN  - ENETEC-AUDIT publish-denied clientId=c4b06565c3cea7d66c4a6 identity=gw-sim-000001 topic=enetec/v1/c446bfb561\""},"LOG-04":{"v":"PASS","obs":"108 matching lines; e.g. \"2026-10-08 14:30:31,761 INFO  - ENETEC-AUDIT disconnect clientId=c4b06565c3cea7d66c4a6 reason=NORMAL_DISCONNECTION detail=\"\"\""},"LOG-05":{"v":"PASS","obs":"16 files scanned, no private key or credential pattern"},"PAY-03":{"v":"N/A","obs":"not applicable to the wire profile of this run"}},"counts":{"PASS":34,"FAIL":0,"PARTIAL":0,"INCONCLUSIVE":0},"mandatory_total":34,"accepted":true},{"broker":"hivemq","wire":"lab-eicp","date":"2026-10-08","kind":"report","file":"docs/mqtt-tests/reference/2026-10-08-hivemq-ce-2026.5-lab-eicp.md","label":"HiveMQ CE 2026.5 + Erweiterung, lokal","cases":{"MTLS-01":{"v":"PASS","obs":"gw-sim-000001: ACCEPTED; gw-sim-000002: ACCEPTED; gw-sim-000003: ACCEPTED; distinct certificates: 3/3"},"MTLS-02":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: TLSV13_ALERT_CERTIFICATE_REQUIRED] tlsv13 alert certificate required (_ssl.c:2590))"},"MTLS-03":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: SSLV3_ALERT_CERTIFICATE_UNKNOWN] sslv3 alert certificate unknown (_ssl.c:2590))"},"MTLS-04":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: SSLV3_ALERT_CERTIFICATE_UNKNOWN] sslv3 alert certificate unknown (_ssl.c:2590))"},"MTLS-05":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: SSLV3_ALERT_CERTIFICATE_UNKNOWN] sslv3 alert certificate unknown (_ssl.c:2590))"},"MTLS-06":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: SSLV3_ALERT_CERTIFICATE_UNKNOWN] sslv3 alert certificate unknown (_ssl.c:2590))"},"MTLS-07":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: SSLV3_ALERT_CERTIFICATE_UNKNOWN] sslv3 alert certificate unknown (_ssl.c:2590))"},"MTLS-08":{"v":"PASS","obs":"REJECTED (CONNACK 135)"},"ID-01":{"v":"PASS","obs":"REJECTED (CONNACK 133)"},"ID-02":{"v":"PASS","obs":"connection rejected (REJECTED (CONNACK 133)): identity bound at CONNECT"},"DUP-01":{"v":"PASS","obs":"new: REJECTED (CONNACK 133); existing: still connected and publishing"},"ACL-01":{"v":"PASS","obs":"PUBACK 0; delivered 1"},"ACL-02":{"v":"PASS","obs":"PUBACK 135; delivered 0; disconnected"},"ACL-03":{"v":"PASS","obs":"PUBACK 135; delivered 0; disconnected"},"ACL-04":{"v":"PASS","obs":"PUBACK 135; delivered 0; disconnected"},"ACL-05":{"v":"PASS","obs":"PUBACK 135; delivered 0; disconnected"},"ACL-06":{"v":"PASS","obs":"PUBACK 135; delivered no authorized reader; disconnected"},"ACL-07":{"v":"PASS","obs":"SUBACK [1]; delivered 1/1"},"ACL-08":{"v":"PASS","obs":"SUBACK [135]; delivered 0/1"},"ACL-09":{"v":"PASS","obs":"SUBACK [135]; delivered 0/1"},"ACL-10":{"v":"PASS","obs":"SUBACK [135]; delivered 0/1"},"ACL-11":{"v":"PASS","obs":"SUBACK [135]; delivered 0/1"},"ACL-12":{"v":"PASS","obs":"SUBACK [135]; delivered 0/2"},"ACL-13":{"v":"PASS","obs":"publish: PUBACK 135; delivered 0; disconnected; subscribe: SUBACK [135]; delivered 0/1"},"QOS-01":{"v":"PASS","obs":"PUBACK 0; delivered 1x with QoS 1"},"QOS-02":{"v":"PASS","obs":"session_present True; PUBACK after reconnect 0; delivered 1x (duplicates are allowed)"},"SES-01":{"v":"PASS","obs":"command PUBACK 0; reconnect session_present True; queued command delivered 1x"},"SES-02":{"v":"PASS","obs":"session_present False; stale command delivered 0x"},"REC-01":{"v":"PASS","obs":"10 gateways dropped at once; 10 reconnect attempts over 4.2 s (peak 3/s, window 5.0 s); session resumed 10/10"},"LEG-01":{"v":"PASS","obs":"0000000000000005: PUBACK 0; delivered 1"},"LEG-02":{"v":"PASS","obs":"certificate of 0000000000000006 with Client ID 0000000000000005: REJECTED (CONNACK 133)"},"ROT-01":{"v":"PASS","obs":"old: ACCEPTED, PUBACK 16; new: ACCEPTED, PUBACK 16"},"ROT-02":{"v":"PASS","obs":"switch to new: ACCEPTED, PUBACK 16; broken new: REJECTED; rollback to old: ACCEPTED, PUBACK 16"},"PAY-01":{"v":"PASS","obs":"277 B up: PUBACK 0, byte-exact True; 277 B down: PUBACK 0, byte-exact True"},"PAY-02":{"v":"PASS","obs":"128 B: PUBACK 0, delivered True; 12288 B: PUBACK 0, delivered True"},"LWT-01":{"v":"PASS","obs":"link cut without DISCONNECT; Last Will delivered 1x"},"LWT-02":{"v":"PASS","obs":"rejected at CONNECT (CONNACK 135)"},"EXP-01":{"v":"PASS","obs":"control delivered 1x; expired command delivered 0x"},"ACL-14":{"v":"PASS","obs":"after withdrawal: publish PUBACK 135, delivered 0; existing subscription delivered 0; connection closed by broker"},"RST-01":{"v":"PASS","obs":"reconnected after 0.3 s; session_present True; queued command delivered 1x"},"REV-01":{"v":"PASS","obs":"open session terminated; new connection: REJECTED (CONNACK 135)"},"LOG-01":{"v":"PASS","obs":"104 matching lines; e.g. \"2026-10-08 14:34:10,302 INFO  - ENETEC-AUDIT connect-accepted clientId=gw-sim-000001 identity=gw-sim-000001 certSerial=1002\""},"LOG-02":{"v":"PASS","obs":"14 matching lines; e.g. \"2026-10-08 14:34:10,265 INFO  - Successfully updated changed SSL Context\""},"LOG-03":{"v":"PASS","obs":"14 matching lines; e.g. \"2026-10-08 14:34:14,443 WARN  - ENETEC-AUDIT publish-denied clientId=gw-sim-000001 identity=gw-sim-000001 topic=eicp/v1/sim/plt_sim_002/gate\""},"LOG-04":{"v":"PASS","obs":"110 matching lines; e.g. \"2026-10-08 14:34:10,333 INFO  - ENETEC-AUDIT disconnect clientId=gw-sim-000001 reason=NORMAL_DISCONNECTION detail=\"\"\""},"LOG-05":{"v":"PASS","obs":"16 files scanned, no private key or credential pattern"},"ID-03":{"v":"N/A","obs":"not applicable to the wire profile of this run"},"PAY-03":{"v":"N/A","obs":"not applicable to the wire profile of this run"}},"counts":{"PASS":33,"FAIL":0,"PARTIAL":0,"INCONCLUSIVE":0},"mandatory_total":33,"accepted":true},{"broker":"emqx","wire":"lab-eicp","date":"2026-10-01","kind":"summary","file":"docs/mqtt-tests/reference/2026-10-01-emqx-5.8.6-summary.txt","label":"EMQX 5.8.6, Docker-Lab (macOS), nur Zusammenfassung","cases":{"MTLS-01":{"v":"PASS","obs":null},"MTLS-02":{"v":"PASS","obs":null},"MTLS-03":{"v":"PASS","obs":null},"MTLS-04":{"v":"PASS","obs":null},"MTLS-05":{"v":"PASS","obs":null},"MTLS-06":{"v":"PASS","obs":null},"MTLS-07":{"v":"FAIL","obs":null},"MTLS-08":{"v":"FAIL","obs":null},"ID-01":{"v":"FAIL","obs":null},"ID-02":{"v":"PASS","obs":null},"DUP-01":{"v":"FAIL","obs":null},"ACL-01":{"v":"PASS","obs":null},"ACL-02":{"v":"PASS","obs":null},"ACL-03":{"v":"PASS","obs":null},"ACL-04":{"v":"PASS","obs":null},"ACL-05":{"v":"PASS","obs":null},"ACL-06":{"v":"PASS","obs":null},"ACL-07":{"v":"PASS","obs":null},"ACL-08":{"v":"PASS","obs":null},"ACL-09":{"v":"PASS","obs":null},"ACL-10":{"v":"PASS","obs":null},"ACL-11":{"v":"PASS","obs":null},"ACL-12":{"v":"PASS","obs":null},"ACL-13":{"v":"PASS","obs":null},"QOS-01":{"v":"PASS","obs":null},"QOS-02":{"v":"PASS","obs":null},"SES-01":{"v":"PASS","obs":null},"SES-02":{"v":"PASS","obs":null},"REC-01":{"v":"PASS","obs":null},"LEG-01":{"v":"FAIL","obs":null},"LEG-02":{"v":"PASS","obs":null},"ROT-01":{"v":"PASS","obs":null},"ROT-02":{"v":"PASS","obs":null},"LOG-01":{"v":"PASS","obs":null},"LOG-02":{"v":"PASS","obs":null},"LOG-03":{"v":"PASS","obs":null},"LOG-04":{"v":"PASS","obs":null},"LOG-05":{"v":"PASS","obs":null}},"counts":{"PASS":29,"FAIL":2,"PARTIAL":0,"INCONCLUSIVE":0},"mandatory_total":31,"accepted":false},{"broker":"mosquitto-lab","wire":"lab-eicp","date":"2026-09-30","kind":"report","file":"docs/mqtt-tests/reference/2026-09-30-mosquitto-2.0.18.md","label":"Mosquitto 2.0.18, lokal","cases":{"MTLS-01":{"v":"PASS","obs":"gw-sim-000001: ACCEPTED; gw-sim-000002: ACCEPTED; gw-sim-000003: ACCEPTED; distinct certificates: 3/3"},"MTLS-02":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: TLSV13_ALERT_CERTIFICATE_REQUIRED] tlsv13 alert certificate required (_ssl.c:2590))"},"MTLS-03":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: TLSV1_ALERT_UNKNOWN_CA] tlsv1 alert unknown ca (_ssl.c:2590))"},"MTLS-04":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: TLSV1_ALERT_UNKNOWN_CA] tlsv1 alert unknown ca (_ssl.c:2590))"},"MTLS-05":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: SSLV3_ALERT_CERTIFICATE_EXPIRED] sslv3 alert certificate expired (_ssl.c:2590))"},"MTLS-06":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: SSLV3_ALERT_BAD_CERTIFICATE] sslv3 alert bad certificate (_ssl.c:2590))"},"MTLS-07":{"v":"PASS","obs":"REJECTED (failed to receive on socket: [SSL: SSLV3_ALERT_UNSUPPORTED_CERTIFICATE] sslv3 alert unsupported certificate (_ssl.c:2590))"},"MTLS-08":{"v":"FAIL","obs":"ACCEPTED (CONNACK 0)"},"ID-01":{"v":"FAIL","obs":"ACCEPTED (CONNACK 0); legitimate session of gw-sim-000002 DISPLACED"},"ID-02":{"v":"PASS","obs":"connection accepted; publish to B d2c: PUBACK 135; delivered 0"},"DUP-01":{"v":"FAIL","obs":"new: ACCEPTED (CONNACK 0); existing: closed by server DISCONNECT (reason 0 Normal disconnection)"},"ACL-01":{"v":"PASS","obs":"PUBACK 0; delivered 1"},"ACL-02":{"v":"PASS","obs":"PUBACK 135; delivered 0"},"ACL-03":{"v":"PASS","obs":"PUBACK 135; delivered 0"},"ACL-04":{"v":"PASS","obs":"PUBACK 135; delivered 0"},"ACL-05":{"v":"PASS","obs":"PUBACK 135; delivered 0"},"ACL-06":{"v":"PASS","obs":"PUBACK 135; delivered no authorized reader"},"ACL-07":{"v":"PASS","obs":"SUBACK [1]; delivered 1/1"},"ACL-08":{"v":"PARTIAL","obs":"SUBACK [1]; delivered 0/1 (nothing delivered, but subscription not signalled as denied)"},"ACL-09":{"v":"PARTIAL","obs":"SUBACK [1]; delivered 0/1 (nothing delivered, but subscription not signalled as denied)"},"ACL-10":{"v":"PARTIAL","obs":"SUBACK [1]; delivered 0/1 (nothing delivered, but subscription not signalled as denied)"},"ACL-11":{"v":"PARTIAL","obs":"SUBACK [1]; delivered 0/1 (nothing delivered, but subscription not signalled as denied)"},"ACL-12":{"v":"PARTIAL","obs":"SUBACK [1]; delivered 0/2 (nothing delivered, but subscription not signalled as denied)"},"ACL-13":{"v":"PARTIAL","obs":"publish: PUBACK 135; delivered 0; subscribe: SUBACK [1]; delivered 0/1 (nothing delivered, but subscription not signalled as denied)"},"QOS-01":{"v":"PASS","obs":"PUBACK 0; delivered 1x with QoS 1"},"QOS-02":{"v":"PASS","obs":"session_present True; PUBACK after reconnect 0; delivered 2x (duplicates are allowed)"},"SES-01":{"v":"PASS","obs":"command PUBACK 0; reconnect session_present True; queued command delivered 1x"},"SES-02":{"v":"PASS","obs":"session_present False; stale command delivered 0x"},"REC-01":{"v":"PASS","obs":"10 gateways dropped at once; 10 reconnect attempts over 4.2 s (peak 3/s, window 5.0 s); session resumed 10/10"},"LEG-01":{"v":"FAIL","obs":"0000000000000005: REJECTED (CONNACK 134)"},"LEG-02":{"v":"PASS","obs":"certificate of 0000000000000006 with Client ID 0000000000000005: REJECTED (CONNACK 134)"},"ROT-01":{"v":"PASS","obs":"old: ACCEPTED, PUBACK 16; new: ACCEPTED, PUBACK 16"},"ROT-02":{"v":"PASS","obs":"switch to new: ACCEPTED, PUBACK 16; broken new: REJECTED; rollback to old: ACCEPTED, PUBACK 16"},"LOG-01":{"v":"PASS","obs":"86 matching lines; e.g. \"1790839883: New client connected from 127.0.0.1:42873 as gw-sim-000001 (p5, c1, k30, u'gw-sim-000001').\""},"LOG-02":{"v":"PASS","obs":"20 matching lines; e.g. \"1790839884: OpenSSL Error[0]: error:0A0000C7:SSL routines::peer did not return a certificate\""},"LOG-03":{"v":"PASS","obs":"7 matching lines; e.g. \"1790839887: Denied PUBLISH from gw-sim-000002 (d0, q1, r0, m1, 'eicp/v1/sim/plt_sim_002/gateways/gw-sim-000002/d2c/simulation/acceptance-202\""},"LOG-04":{"v":"PASS","obs":"95 matching lines; e.g. \"1790839883: Client gw-sim-000001 disconnected.\""},"LOG-05":{"v":"PASS","obs":"3 files scanned, no private key or credential pattern"}},"counts":{"PASS":23,"FAIL":2,"PARTIAL":6,"INCONCLUSIVE":0},"mandatory_total":31,"accepted":false}]}</script>
+<script>
+"use strict";
+/* =====================================================================
+   Daten: alles stammt aus dem Repo (make web schreibt es oben hinein).
+   ===================================================================== */
+const DATA = JSON.parse(document.getElementById("lab-data").textContent || "{}");
+const W = DATA.wire || { v13: { base: "enetec/v1", state: "state", cmd: "cmd" }, lab_eicp: { base: "eicp/v1/sim", telemetry: "telemetry/report", command: "simulation/command" }, default: "v13" };
+const STORE_KEY = "mqtt-baukasten-v1";
+const REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---------- SHA-256 (für die abgeleitete Client-ID, wie sim/enetec_sim/wire.py) */
+const K = [0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+  0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+  0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+  0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+  0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+  0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+  0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+  0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+function sha256hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  const len = bytes.length, size = ((len + 9 + 63) >> 6) << 6;
+  const buf = new Uint8Array(size); buf.set(bytes); buf[len] = 0x80;
+  const view = new DataView(buf.buffer);
+  view.setUint32(size - 4, (len * 8) >>> 0); view.setUint32(size - 8, Math.floor(len / 0x20000000));
+  const H = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const w = new Uint32Array(64), ror = (x, n) => (x >>> n) | (x << (32 - n));
+  for (let i = 0; i < size; i += 64) {
+    for (let t = 0; t < 16; t++) w[t] = view.getUint32(i + t * 4);
+    for (let t = 16; t < 64; t++) {
+      const s0 = ror(w[t-15], 7) ^ ror(w[t-15], 18) ^ (w[t-15] >>> 3);
+      const s1 = ror(w[t-2], 17) ^ ror(w[t-2], 19) ^ (w[t-2] >>> 10);
+      w[t] = (w[t-16] + s0 + w[t-7] + s1) >>> 0;
+    }
+    let [a, b, c, d, e, f, g, h] = H;
+    for (let t = 0; t < 64; t++) {
+      const t1 = (h + (ror(e, 6) ^ ror(e, 11) ^ ror(e, 25)) + ((e & f) ^ (~e & g)) + K[t] + w[t]) >>> 0;
+      const t2 = ((ror(a, 2) ^ ror(a, 13) ^ ror(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0;
+      h = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+    }
+    [a, b, c, d, e, f, g, h].forEach((x, j) => { H[j] = (H[j] + x) >>> 0; });
+  }
+  return H.map(x => x.toString(16).padStart(8, "0")).join("");
+}
+/* LAB-PLATZHALTER für das ENTC-47-Pseudonym (lab-sha256-v0), nicht der ENETEC-Algorithmus. */
+const deriveClientId = serial => "c" + sha256hex("enetec-lab-v0:" + serial).slice(0, 20);
+
+/* ---------- Hilfen */
+const $ = sel => document.querySelector(sel);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const fmtDate = iso => { const [y, m, d] = String(iso).slice(0, 10).split("-"); return d ? `${d}.${m}.${y}` : iso; };
+const nf = new Intl.NumberFormat("de-DE");
+
+/* =====================================================================
+   Fachwissen: Testfälle, Anforderungen, Glossar (deutsch)
+   ===================================================================== */
+const VERDICT_DE = {
+  PASS: "Sicher (PASS)", FAIL: "Lücke (FAIL)", PARTIAL: "Teilweise (PARTIAL)",
+  INCONCLUSIVE: "Keine Evidenz", "N/A": "Nicht anwendbar", none: "Nicht gemessen"
+};
+const REQ_DE = {
+  R01: "Eigenes X.509-Zertifikat je Gateway (mTLS)", R02: "Ohne Client-Zertifikat abgelehnt",
+  R03: "Fremde CA abgelehnt", R04: "Ungültige Zertifikate abgelehnt (Laufzeit, EKU, Widerruf)",
+  R05: "Rechte hängen am Zertifikat", R06: "Nur die erlaubte Client-ID wird angenommen",
+  R07: "Deny by default", R08: "Publish nur ins eigene state", R09: "Subscribe nur aufs eigene cmd",
+  R10: "Fremde Gateways und Installationen gesperrt (auch Last Will)", R11: "Doppelte Client-ID übernimmt nicht still",
+  R12: "QoS 1 inkl. Neuzustellung", R13: "Persistente Session (Clean Start = false)", R14: "Reconnect ohne Sturm",
+  R15: "Audit-Log vorhanden, ohne Schlüssel", R16: "Legacy-Zertifikate (AWS IoT) zuordenbar",
+  R17: "Zertifikatsrotation mit Rückfall", R18: "Binärdaten byteexakt", R19: "Last Will bei Linkverlust",
+  R20: "Message Expiry wirkt", R21: "Payload-Größen und Paketgrenze", R22: "Broker-Neustart: Session bleibt",
+  R23: "Widerruf erreicht offene Session", R24: "ACL-Entzug wirkt auf offene Session"
+};
+/* kind steuert den Ablauf (Animation + Schritte), why erklärt den Sinn des Falls. */
+const CASE_DE = {
+  "MTLS-01": { t: "Gateway verbindet sich mit eigenem Zertifikat", kind: "connect-accept", why: "Grundlage für alles Weitere: Jedes Gateway weist sich mit einem eigenen X.509-Zertifikat der Lab-CA aus (mTLS). Das ist die Positivkontrolle der Abnahme." },
+  "MTLS-02": { t: "Verbindung ohne Client-Zertifikat", kind: "connect-reject", what: "ohne Client-Zertifikat", why: "Ohne Zertifikat gibt es keine Identität. Der Broker muss schon den TLS-Handshake abbrechen." },
+  "MTLS-03": { t: "Zertifikat einer fremden CA mit gleichem Namen", kind: "connect-reject", what: "Zertifikat einer fremden CA", why: "Vertrauen hängt am Schlüssel der CA, nicht an ihrem Namen. Eine nachgebaute CA mit gleichem Namen darf nichts ausstellen können." },
+  "MTLS-04": { t: "Selbstsigniertes Zertifikat", kind: "connect-reject", what: "selbstsigniertes Zertifikat", why: "Jeder kann sich ein Zertifikat mit beliebigem CN selbst ausstellen." },
+  "MTLS-05": { t: "Abgelaufenes Zertifikat", kind: "connect-reject", what: "abgelaufenes Zertifikat", why: "Abgelaufene Zertifikate dürfen nicht mehr gelten, auch wenn sie von der richtigen CA stammen." },
+  "MTLS-06": { t: "Zertifikat noch nicht gültig", kind: "connect-reject", what: "Zertifikat mit Gültigkeitsbeginn in der Zukunft", why: "Ein Zertifikat gilt erst ab seinem Gültigkeitsbeginn." },
+  "MTLS-07": { t: "Zertifikat ohne clientAuth (EKU)", kind: "connect-reject", what: "Zertifikat nur für Server (EKU serverAuth)", why: "Ein Server-Zertifikat darf nicht als Client-Ausweis dienen. Das Zertifikatsprofil ist noch offen (ENTC-31), deshalb beratend." },
+  "MTLS-08": { t: "Widerrufenes Zertifikat (CRL)", kind: "connect-reject", what: "widerrufenes Zertifikat", why: "Ein gestohlenes oder ausgetauschtes Gerät muss gesperrt werden können. Die Widerrufsstrategie ist offen (ENTC-58/31), deshalb beratend." },
+  "ID-01": { t: "Zertifikat von A, Client-ID von B", kind: "connect-reject", what: "eigenes Zertifikat, aber Client-ID eines anderen Gateways", why: "Sonst verdrängt ein Gerät die Session eines anderen und tritt unter dessen Client-ID auf." },
+  "ID-02": { t: "Mit A-Zertifikat in B-Topic schreiben", kind: "publish-deny", why: "Die Rechte müssen am Zertifikat hängen, nicht an der frei wählbaren Client-ID. Unter v1.3 steckt die Client-ID im Topic, deshalb landet eine fremde Client-ID direkt im fremden Topic." },
+  "ID-03": { t: "CN statt abgeleiteter Client-ID", kind: "connect-reject", what: "Client-ID = CN statt abgeleiteter Client-ID", why: "Seit v1.3 ist die Client-ID ein Pseudonym der Seriennummer (ENTC-47). Der Broker muss nachschlagen, welche Client-ID zum Zertifikat gehört." },
+  "DUP-01": { t: "Zweite Verbindung mit gleicher Client-ID", kind: "dup", why: "Eine zweite Verbindung darf die aktive Session nicht still übernehmen. Zielkonflikt: Wer ablehnt, blockiert nach einem stillen Abbruch auch den Reconnect bis zum Keep-alive-Ablauf." },
+  "ACL-01": { t: "state ins eigene Topic", kind: "publish-allow", why: "Positivkontrolle: Das Gateway muss seine eigenen Zustände senden können, und der Cloud-Ingest muss sie bekommen." },
+  "ACL-02": { t: "In state eines Gateways einer anderen Installation schreiben", kind: "publish-deny", why: "Isolation zwischen Installationen: Niemand darf Messwerte oder Zustände fremder Anlagen fälschen." },
+  "ACL-03": { t: "In state des Nachbar-Gateways schreiben", kind: "publish-deny", why: "Auch innerhalb einer Installation spricht jedes Gateway nur für sich selbst." },
+  "ACL-04": { t: "Nicht freigegebenes Topic", tLab: "Eigene ID unter fremder Installation", kind: "publish-deny", why: "Deny by default: Auch im eigenen Namensraum sind nur die freigegebenen Topics erlaubt (unter v1.3 nur state)." },
+  "ACL-05": { t: "Ins eigene cmd schreiben (falsche Richtung)", kind: "publish-deny", why: "Commands kommen nur aus der Cloud. Ein Gateway darf sich keine Befehle selbst schicken." },
+  "ACL-06": { t: "Topic außerhalb jedes Namensraums", kind: "publish-deny", why: "Deny by default: Alles, was nicht ausdrücklich freigegeben ist, ist verboten." },
+  "ACL-07": { t: "Eigene Commands abonnieren", kind: "subscribe-allow", why: "Positivkontrolle: Das Gateway muss seine Commands empfangen." },
+  "ACL-08": { t: "cmd einer anderen Installation abonnieren", kind: "subscribe-deny", source: "command", why: "Fremde Commands mitzulesen verrät, was in anderen Anlagen gesteuert wird." },
+  "ACL-09": { t: "cmd des Nachbar-Gateways abonnieren", kind: "subscribe-deny", source: "command", why: "Auch der Nachbar in derselben Installation liest keine fremden Commands." },
+  "ACL-10": { t: "Eigenes state abonnieren (falsche Richtung)", kind: "subscribe-deny", source: "self", why: "Ein Gateway liest nur Commands. Die Richtungstrennung hält das Rechtemodell einfach." },
+  "ACL-11": { t: "state eines fremden Gateways mitlesen", kind: "subscribe-deny", source: "tgt", why: "Messwerte und Zustände fremder Anlagen sind personenbezogen und vertraulich." },
+  "ACL-12": { t: "Alles abonnieren (Wildcard #)", kind: "subscribe-deny", source: "tgt", why: "Eine Wildcard über den ganzen Baum wäre ein Generalschlüssel." },
+  "ACL-13": { t: "Gültiges Zertifikat, Gateway nicht registriert", kind: "unknown", why: "Ein Zertifikat der richtigen CA allein reicht nicht; das Gerät muss bekannt sein (Registry)." },
+  "ACL-14": { t: "Rechte entziehen, während das Gateway verbunden ist", kind: "withdraw", why: "Ein Entzug muss sofort wirken, nicht erst beim nächsten Verbindungsaufbau." },
+  "QOS-01": { t: "QoS 1: Bestätigung und Zustellung", kind: "publish-allow", why: "QoS 1 heißt: mindestens einmal zugestellt, bestätigt mit PUBACK. Ein PUBACK ist keine Bestätigung der Anwendung." },
+  "QOS-02": { t: "Linkabbruch vor dem PUBACK", kind: "inflight", why: "Was beim Abbruch noch nicht bestätigt war, muss nach dem Reconnect erneut gesendet werden. Duplikate sind erlaubt." },
+  "SES-01": { t: "Command, während das Gateway offline ist", kind: "offline", why: "Die persistente Session hält Commands fest, bis das Gateway mit Clean Start = false zurückkommt." },
+  "SES-02": { t: "Clean Start = true verwirft die Session", kind: "offline-clean", why: "Ein Neustart ohne Session darf keine veralteten Commands mehr bekommen." },
+  "REC-01": { t: "Viele Gateways verlieren gleichzeitig das Netz", kind: "storm", why: "Nach einem Regionalausfall dürfen nicht alle Gateways in derselben Sekunde zurückkommen (Jitter, Backoff)." },
+  "LEG-01": { t: "Legacy-Zertifikat ohne CN (AWS IoT)", kind: "connect-accept", why: "Die echten AWS-IoT-Zertifikate haben keinen CN. Der Broker braucht eine Registry (Fingerprint → Gateway)." },
+  "LEG-02": { t: "Legacy-Gateway gibt sich als anderes aus", kind: "connect-reject", what: "Legacy-Zertifikat eines anderen Gateways mit gleicher Subject-Zeile", why: "Legacy-Zertifikate haben alle dieselbe Subject-Zeile. Unterscheiden lassen sie sich nur am Fingerprint." },
+  "ROT-01": { t: "Altes und neues Zertifikat gelten gleichzeitig", kind: "rotate", why: "Während einer Rotation müssen beide Zertifikate eine Zeit lang gelten." },
+  "ROT-02": { t: "Wechsel aufs neue Zertifikat mit Rückfall", kind: "rotate", why: "Schlägt das neue Zertifikat fehl, muss das Gateway mit dem alten weiterarbeiten." },
+  "PAY-01": { t: "Binärdaten byteexakt", kind: "publish-allow", why: "Der v1.3-Wire-Contract ist binär (uint8-Code, uint32-Korrelations-ID). Der Broker darf kein Byte verändern." },
+  "PAY-02": { t: "Nutzdaten 128 B und 12 KB", kind: "publish-allow", why: "128 B ist die v1.3-Referenz, 12 KB die frühere Planungsannahme. Die endgültige Paketgrenze ist offen (ENTC-61)." },
+  "PAY-03": { t: "Nutzdaten über der Paketgrenze", kind: "publish-deny", why: "Läuft nur, wenn das Broker-Profil eine Paketgrenze nennt." },
+  "LWT-01": { t: "Last Will bei Verbindungsabbruch", kind: "will-allow", why: "Der Last Will meldet einen Abbruch ohne DISCONNECT. Ob ENETEC ihn nutzt, ist offen." },
+  "LWT-02": { t: "Last Will auf ein fremdes Topic", kind: "will-deny", why: "Ein Last Will ist eine Nachricht wie jede andere und muss dieselbe Rechteprüfung durchlaufen." },
+  "EXP-01": { t: "Command mit Ablaufzeit (Message Expiry)", kind: "expiry", why: "Ein veralteter Befehl darf nach langer Offline-Zeit nicht mehr ausgeführt werden. Die Werte sind offen." },
+  "RST-01": { t: "Broker-Neustart", kind: "restart", why: "Sessions und eingereihte QoS-1-Commands müssen einen Neustart überstehen, sonst gehen Befehle verloren." },
+  "REV-01": { t: "Zertifikat widerrufen, während verbunden", kind: "revoke", why: "Eine Sperre muss auch die bereits offene Verbindung beenden, nicht nur neue Verbindungen." },
+  "LOG-01": { t: "Angenommene Verbindungen im Log", kind: "log", why: "Wer hat sich wann mit welcher Identität verbunden?" },
+  "LOG-02": { t: "TLS- und Anmeldefehler im Log", kind: "log", why: "Abgelehnte Zertifikate müssen nachvollziehbar sein." },
+  "LOG-03": { t: "ACL-Ablehnungen im Log", kind: "log", why: "Versuchte Zugriffe auf fremde Topics müssen auffallen." },
+  "LOG-04": { t: "Verbindungsabbrüche im Log", kind: "log", why: "Disconnects und Session-Übernahmen müssen sichtbar sein." },
+  "LOG-05": { t: "Keine Schlüssel im Log", kind: "log", why: "Logs und Evidenz dürfen keine privaten Schlüssel oder Passwörter enthalten." }
+};
+const CERTS = {
+  valid: { label: "gültig (Lab-CA)", connectCase: "MTLS-01" },
+  none: { label: "kein Zertifikat", connectCase: "MTLS-02", bad: true },
+  rogue: { label: "fremde CA, gleicher Name", connectCase: "MTLS-03", bad: true },
+  selfsigned: { label: "selbstsigniert", connectCase: "MTLS-04", bad: true },
+  expired: { label: "abgelaufen", connectCase: "MTLS-05", bad: true },
+  future: { label: "noch nicht gültig", connectCase: "MTLS-06", bad: true },
+  eku: { label: "falsche Verwendung (EKU)", connectCase: "MTLS-07", bad: true },
+  revoked: { label: "widerrufen (CRL)", connectCase: "MTLS-08", bad: true },
+  unknown: { label: "gültig, Gateway nicht registriert", connectCase: "ACL-13", bad: true }
+};
+const GLOSSARY = [
+  ["mTLS", "Beide Seiten zeigen ein Zertifikat: der Broker dem Gateway und das Gateway dem Broker. Ohne gültiges Client-Zertifikat kommt keine Verbindung zustande."],
+  ["Zertifikat und CN", "Das X.509-Zertifikat ist der Ausweis des Gateways. Der Common Name (CN) trägt im Lab die Gateway-ID, z. B. gw-sim-000001."],
+  ["CA", "Die Zertifizierungsstelle, die Zertifikate unterschreibt. Der Broker vertraut nur Zertifikaten seiner CA, egal wie eine fremde CA heißt."],
+  ["Widerruf (CRL)", "Eine Sperrliste der CA. Ein Broker muss sie laden und, für eine echte Sperre, auch offene Verbindungen beenden."],
+  ["Client-ID", "Name der MQTT-Verbindung. Unter v1.3 ein Pseudonym der Seriennummer (im Lab: c + 20 Hex-Zeichen). Sie ist kein Ausweis, der Broker muss sie gegen das Zertifikat prüfen."],
+  ["Topic-Schema v1.3", "enetec/v1/{clientId}/state (Gerät → Cloud) und enetec/v1/{clientId}/cmd (Cloud → Gerät), QoS 1, ohne Retain. Das frühere Lab-Schema heißt lab-eicp."],
+  ["ACL und Deny by default", "Die Rechteliste des Brokers: Jedes Gateway darf nur ins eigene state schreiben und das eigene cmd lesen. Alles andere ist verboten."],
+  ["QoS 1 und PUBACK", "Mindestens einmal zustellen. Der Broker bestätigt mit PUBACK; Duplikate sind möglich. Ein PUBACK sagt nichts darüber, ob das Gerät den Befehl ausgeführt hat."],
+  ["Persistente Session", "Mit Clean Start = false und einer Session Expiry hält der Broker Abos und Nachrichten fest, solange das Gateway offline ist."],
+  ["Message Expiry", "Ablaufzeit einer Nachricht. Ist sie abgelaufen, bevor das Gateway zurückkommt, verwirft der Broker sie."],
+  ["Last Will", "Nachricht, die der Broker veröffentlicht, wenn ein Client ohne DISCONNECT verschwindet."],
+  ["Zeuge", "Messprinzip des Harness: Ob eine Nachricht durchkommt, sieht ein berechtigter Empfänger (Cloud-Ingest). Ein PUBACK allein beweist nichts."],
+  ["Positivkontrolle", "Ein Fall, der klappen muss (MTLS-01). Ohne ihn zählt keine Ablehnung, denn ein nicht erreichbarer Broker lehnt auch alles ab."],
+  ["PASS, FAIL, PARTIAL", "PASS: gefordertes Verhalten beobachtet. FAIL: gegenteiliges Verhalten. PARTIAL: Zugriff gesperrt, aber nicht gemeldet (z. B. SUBACK bestätigt, nichts zugestellt)."],
+  ["Pflicht und beratend", "Pflichtfälle entscheiden über die Abnahme. Beratende Fälle betreffen offene Entscheidungen (Widerruf, LWT, Paketgrenze) und zählen nicht."],
+  ["Hook", "Aktion am Broker mitten im Lauf: Neustart, Widerruf, Rechte entziehen. Lab-Broker erledigt make acceptance selbst, andere Broker über SIM_HOOK_*-Befehle."],
+  ["Reconnect-Sturm", "Viele Gateways kommen nach einem Ausfall gleichzeitig zurück. Jitter und exponentieller Backoff verteilen die Versuche."],
+  ["Legacy-Zertifikat", "Heutige AWS-IoT-Zertifikate ohne CN (nur C=UK, ST=United, RSA 2048). Die Zuordnung zum Gateway braucht eine Fingerprint-Registry."]
+];
+
+/* =====================================================================
+   Zustand
+   ===================================================================== */
+function cidOf(gw) { return deriveClientId(gw.legacy ? gw.id : gw.serial); }
+function labState() {
+  const fleet = DATA.fleet || { plants: [], gateways: [], legacy: [], legacy_plant: "plt_sim_legacy" };
+  const plants = fleet.plants.map(p => ({ id: p.plant_id, type: p.type, legacy: false, gateways: [] }));
+  for (const g of fleet.gateways) {
+    const plant = plants.find(p => p.id === g.plant_id);
+    if (plant) plant.gateways.push({ id: g.gateway_id, serial: String(g.serial), sample: false, family: g.family, link: g.link || "stable", devices: g.devices, cert: "valid", cidMode: "own", legacy: false, status: null });
+  }
+  if (fleet.legacy && fleet.legacy.length) {
+    plants.push({ id: fleet.legacy_plant, type: "legacy", legacy: true,
+      gateways: fleet.legacy.map(g => ({ id: g.gateway_id, serial: String(g.serial), sample: false, family: "AWS IoT", link: "stable", cert: "valid", cidMode: "own", legacy: true, status: null })) });
+  }
+  return { v: 1, wire: W.default || "v13", broker: "mosquitto-lab", services: { ingest: true, command: true },
+    plants, selected: { kind: "gateway", id: "gw-sim-000001" }, tab: "vergleich", configView: "mosquitto",
+    traffic: { d2c: DATA.traffic ? DATA.traffic.d2c_per_gateway_per_day : 251, cmd: DATA.traffic ? DATA.traffic.commands_per_gateway_per_h : 0.25,
+      incidents: (DATA.traffic && DATA.traffic.incidents || []).map(i => i.name) } };
+}
+function emptyState() {
+  const s = labState();
+  s.plants = [{ id: "plt_sim_001", type: null, legacy: false, gateways: [] }];
+  s.broker = null; s.services = { ingest: false, command: false }; s.selected = null;
+  return s;
+}
+let state;
+try { state = JSON.parse(localStorage.getItem(STORE_KEY)); } catch (e) { state = null; }
+if (!state || state.v !== 1 || !Array.isArray(state.plants)) state = labState();
+const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* ohne Speicher weiter */ } };
+
+const allGateways = () => state.plants.flatMap(p => p.gateways.map(g => Object.assign(g, { plant: p.id })));
+const findGw = id => allGateways().find(g => g.id === id);
+const plantOf = id => state.plants.find(p => p.gateways.some(g => g.id === id));
+let lastResult = null;   // { title, steps, primary, extra, notes }
+
+/* ---------- Topics und Identität (wie sim/enetec_sim/wire.py) */
+function clientIdFor(gw) { return state.wire === "v13" ? cidOf(gw) : gw.id; }
+function topicsFor(gw) {
+  if (state.wire === "v13") {
+    const base = `${W.v13.base}/${cidOf(gw)}`;
+    return { up: `${base}/${W.v13.state}`, down: `${base}/${W.v13.cmd}`, upFilter: `${base}/${W.v13.state}`, downFilter: `${base}/${W.v13.cmd}` };
+  }
+  const base = `${W.lab_eicp.base}/${gw.plant}/gateways/${gw.id}`;
+  return { up: `${base}/d2c/${W.lab_eicp.telemetry}`, down: `${base}/c2d/${W.lab_eicp.command}`, upFilter: `${base}/d2c/#`, downFilter: `${base}/c2d/#` };
+}
+const allUp = () => state.wire === "v13" ? `${W.v13.base}/+/${W.v13.state}` : `${W.lab_eicp.base}/+/gateways/+/d2c/#`;
+const allDown = () => state.wire === "v13" ? `${W.v13.base}/+/${W.v13.cmd}` : `${W.lab_eicp.base}/+/gateways/+/c2d/#`;
+const rootTopic = () => state.wire === "v13" ? W.v13.base : W.lab_eicp.base;
+
+/* =====================================================================
+   Lab-Ergebnisse
+   ===================================================================== */
+const brokerMeta = key => (DATA.brokers || []).find(b => b.key === key);
+function runFor(broker, wire) {
+  const runs = (DATA.runs || []).filter(r => r.broker === broker).sort((a, b) => b.date.localeCompare(a.date));
+  const same = runs.find(r => r.wire === wire);
+  if (same) return { run: same, fallback: false };
+  return runs.length ? { run: runs[0], fallback: true } : null;
+}
+function resultFor(caseId) {
+  if (!state.broker) return { v: null, reason: "Kein Broker eingebaut." };
+  const rf = runFor(state.broker, state.wire);
+  if (!rf) return { v: null, reason: `Für ${brokerMeta(state.broker)?.name || state.broker} gibt es keinen Lab-Lauf.` };
+  const c = rf.run.cases[caseId];
+  if (!c) return { v: null, run: rf.run, fallback: rf.fallback, reason: `Der Lauf vom ${fmtDate(rf.run.date)} (${rf.run.wire}) enthielt diesen Fall noch nicht.` };
+  return { v: c.v, obs: c.obs, run: rf.run, fallback: rf.fallback };
+}
+const caseMeta = id => (DATA.cases || []).find(c => c.id === id) || { id, req: "", mandatory: false, title: id };
+
+/* =====================================================================
+   Darstellung: Bausteinleiste, Montageplatte, Inspektor
+   ===================================================================== */
+const PALETTE = [
+  { group: "Feld" },
+  { kind: "plant", glyph: "IN", label: "Installation", sub: "Anlage mit Gateways" },
+  { kind: "gateway", glyph: "GW", label: "Gateway", sub: "eigenes Zertifikat" },
+  { kind: "legacy", glyph: "AWS", label: "Legacy-Gateway", sub: "AWS-Zertifikat ohne CN" },
+  { group: "Broker" },
+  { kind: "broker", broker: "mosquitto-lab", glyph: "MQ", label: "Mosquitto 2.0", sub: "Lab-Referenz" },
+  { kind: "broker", broker: "emqx", glyph: "EX", label: "EMQX 5.8", sub: "Kandidat" },
+  { kind: "broker", broker: "hivemq", glyph: "HV", label: "HiveMQ CE", sub: "mit Lab-Erweiterung" },
+  { kind: "broker", broker: "bevywise", glyph: "BW", label: "Bevywise", sub: "nicht gemessen" },
+  { group: "Cloud" },
+  { kind: "ingest", glyph: "IG", label: "Cloud-Ingest", sub: "liest alle state" },
+  { kind: "command", glyph: "CM", label: "Cloud-Command", sub: "schreibt cmd" }
+];
+function renderPalette() {
+  $("#palette").innerHTML = PALETTE.map((p, i) => p.group
+    ? `<div class="pgroup">${esc(p.group)}</div>`
+    : `<button type="button" class="pblock" data-idx="${i}"><span class="glyph">${esc(p.glyph)}</span><span class="ptxt"><span>${esc(p.label)}</span><small>${esc(p.sub)}</small></span></button>`).join("");
+}
+const LESSONS = [
+  { label: "Ein Gateway meldet seinen Zustand", run: () => lesson("gw-sim-000001", g => { g.cert = "valid"; g.cidMode = "own"; }, "pub_own") },
+  { label: "Ein Command erreicht das Gateway", run: () => lesson("gw-sim-000001", g => { g.cert = "valid"; g.cidMode = "own"; }, "sub_own") },
+  { label: "Ein Gerät benutzt eine fremde Client-ID", run: () => lesson("gw-sim-000001", g => { g.cert = "valid"; g.cidMode = "foreign"; }, "connect") },
+  { label: "Gateway offline, Command wartet", run: () => lesson("gw-sim-000001", g => { g.cert = "valid"; g.cidMode = "own"; }, "offline_cmd") },
+  { label: "Zertifikat wird widerrufen", run: () => lesson("gw-sim-000001", g => { g.cert = "valid"; g.cidMode = "own"; }, "revoke") },
+  { label: "Der Broker startet neu", run: () => lesson("gw-sim-000001", g => { g.cert = "valid"; g.cidMode = "own"; }, "restart") },
+  { label: "Broker nebeneinander vergleichen", run: () => { setTab("vergleich"); document.querySelector(".desk").scrollIntoView({ behavior: REDUCED ? "auto" : "smooth" }); } }
+];
+function renderLessons() {
+  $("#lessons").innerHTML = LESSONS.map((l, i) => `<li><button type="button" data-lesson="${i}">${esc(l.label)}</button></li>`).join("");
+}
+function lesson(gwId, setup, action) {
+  if (!findGw(gwId)) { state = labState(); }
+  if (!state.broker) state.broker = "mosquitto-lab";
+  state.services.ingest = true; state.services.command = true;
+  const gw = findGw(gwId); setup(gw);
+  state.selected = { kind: "gateway", id: gwId };
+  renderAll();
+  runAction(action, gwId);
+}
+
+function gwFlags(gw) {
+  const f = [];
+  if (gw.legacy) f.push(`<span class="flag">ohne CN</span>`);
+  if (gw.cert !== "valid") f.push(`<span class="flag bad">${esc(CERTS[gw.cert].label)}</span>`);
+  if (gw.cidMode === "foreign") f.push(`<span class="flag bad">fremde Client-ID</span>`);
+  if (gw.cidMode === "cn" && state.wire === "v13") f.push(`<span class="flag warn">CN als Client-ID</span>`);
+  if (gw.link === "flaky") f.push(`<span class="flag">Funk/LTE</span>`);
+  return f.join("");
+}
+function renderPlants() {
+  const sel = state.selected || {};
+  $("#plants").innerHTML = state.plants.map(p => `
+    <div class="plant${sel.kind === "plant" && sel.id === p.id ? " selected" : ""}" data-plant="${esc(p.id)}" data-drop="plant">
+      <div class="plant-head" data-select-plant="${esc(p.id)}">
+        <span class="pname" title="${esc(p.id)}">${esc(p.id)}</span>
+        <span class="ptype">${p.legacy ? "Legacy (AWS IoT)" : p.type === "commercial" ? "Gewerbe" : p.type === "residential" ? "Wohnobjekt" : "Installation"} · ${p.gateways.length} GW</span>
+      </div>
+      <div class="gws">${p.gateways.map(g => `
+        <button type="button" class="module${sel.kind === "gateway" && sel.id === g.id ? " selected" : ""}" data-node="gw:${esc(g.id)}" data-gw="${esc(g.id)}">
+          <span class="mtop"><span class="mkind">${g.legacy ? "Legacy-GW" : "Gateway"}</span><span class="led ${g.status || ""}" title="${esc(statusText(g.status))}"></span></span>
+          <span class="mname">${esc(g.id)}</span>
+          <span class="msub mono">${esc(clientIdFor(g))}</span>
+          <span class="flags">${gwFlags(g)}</span>
+        </button>`).join("") || `<div class="slot-empty">Gateway hierher ziehen</div>`}</div>
+    </div>`).join("") || `<div class="slot-empty">Installation hierher ziehen</div>`;
+}
+const statusText = s => ({ online: "verbunden", rejected: "abgelehnt", warn: "verbunden, obwohl es abgelehnt werden müsste" }[s] || "nicht verbunden");
+function renderBroker() {
+  const sel = state.selected || {};
+  if (!state.broker) { $("#broker-slot").innerHTML = `<div class="slot-empty">Broker hierher ziehen</div>`; return; }
+  const meta = brokerMeta(state.broker) || { name: state.broker, role: "" };
+  const rf = runFor(state.broker, state.wire);
+  const line = rf ? `${rf.run.counts.PASS}/${rf.run.mandatory_total} Pflichtfälle · ${fmtDate(rf.run.date)}${rf.fallback ? ` · Profil ${rf.run.wire}` : ""}` : "kein Lab-Lauf";
+  $("#broker-slot").innerHTML = `
+    <button type="button" class="module broker${sel.kind === "broker" ? " selected" : ""}" data-node="broker" data-select="broker">
+      <span class="mtop"><span class="mkind">Broker · ${esc(meta.role)}</span></span>
+      <span class="mname">${esc(meta.name)}</span>
+      <span class="msub">${esc(line)}</span>
+    </button>`;
+}
+function renderCloud() {
+  const sel = state.selected || {};
+  const parts = [];
+  if (state.services.ingest) parts.push(`<button type="button" class="module${sel.kind === "ingest" ? " selected" : ""}" data-node="svc:ingest" data-select="ingest"><span class="mtop"><span class="mkind">Cloud-Ingest</span></span><span class="mname">${esc(DATA.fleet?.services?.ingest || "svc-sim-cloud-ingest")}</span><span class="msub mono">liest ${esc(allUp())}</span></button>`);
+  if (state.services.command) parts.push(`<button type="button" class="module${sel.kind === "command" ? " selected" : ""}" data-node="svc:command" data-select="command"><span class="mtop"><span class="mkind">Cloud-Command</span></span><span class="mname">${esc(DATA.fleet?.services?.command || "svc-sim-cloud-command")}</span><span class="msub mono">schreibt ${esc(allDown())}</span></button>`);
+  $("#cloud-slot").innerHTML = parts.join("") || `<div class="slot-empty">Cloud-Ingest und Cloud-Command hierher ziehen</div>`;
+}
+
+/* ---------- Verdrahtung (SVG) */
+/* Leitung zwischen zwei Bausteinen: seitlich, wenn sie nebeneinander stehen, sonst oben/unten. */
+function pathBetween(a, b) {
+  const c = $("#cabinet").getBoundingClientRect(), ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+  const side = ra.right <= rb.left || rb.right <= ra.left;
+  if (side) {
+    const right = ra.right <= rb.left;
+    const ax = (right ? ra.right : ra.left) - c.left, bx = (right ? rb.left : rb.right) - c.left;
+    const ay = ra.top - c.top + ra.height / 2, by = rb.top - c.top + Math.min(rb.height / 2, 40);
+    const mx = (ax + bx) / 2;
+    return `M${ax},${ay} C${mx},${ay} ${mx},${by} ${bx},${by}`;
+  }
+  const down = ra.bottom <= rb.top;
+  const ax = ra.left - c.left + ra.width / 2, bx = rb.left - c.left + rb.width / 2;
+  const ay = (down ? ra.bottom : ra.top) - c.top, by = (down ? rb.top : rb.bottom) - c.top;
+  const my = (ay + by) / 2;
+  return `M${ax},${ay} C${ax},${my} ${bx},${my} ${bx},${by}`;
+}
+const nodeEl = key => document.querySelector(`[data-node="${CSS.escape(key)}"]`);
+function drawWires() {
+  const svg = $("#wires"), broker = nodeEl("broker");
+  const parts = [];
+  if (broker) {
+    for (const g of allGateways()) {
+      const el = nodeEl("gw:" + g.id); if (!el) continue;
+      const color = g.status === "rejected" ? "var(--fail)" : g.status === "warn" ? "var(--warn)" : "var(--wire-state)";
+      const dash = g.status ? "" : ` stroke-dasharray="4 5"`;
+      parts.push(`<path d="${pathBetween(el, broker)}" style="fill:none;stroke:${color}" stroke-width="${g.status ? 2 : 1.4}" opacity="${g.status ? 0.9 : 0.55}"${dash}/>`);
+    }
+    const ing = nodeEl("svc:ingest"); if (ing) parts.push(`<path d="${pathBetween(broker, ing)}" style="fill:none;stroke:var(--wire-state)" stroke-width="2.2" opacity="0.85"/>`);
+    const cmd = nodeEl("svc:command"); if (cmd) parts.push(`<path d="${pathBetween(cmd, broker)}" style="fill:none;stroke:var(--wire-cmd)" stroke-width="2.2" opacity="0.85"/>`);
+  }
+  svg.innerHTML = parts.join("") + `<g id="tokens"></g>`;
+}
+
+/* ---------- Inspektor */
+function renderInspector() {
+  const sel = state.selected, box = $("#inspect");
+  if (!sel) { box.innerHTML = introHtml(); return; }
+  if (sel.kind === "gateway") { const g = findGw(sel.id); box.innerHTML = g ? gatewayHtml(g) : introHtml(); return; }
+  if (sel.kind === "plant") { const p = state.plants.find(x => x.id === sel.id); box.innerHTML = p ? plantHtml(p) : introHtml(); return; }
+  if (sel.kind === "broker") { box.innerHTML = brokerHtml(); return; }
+  if (sel.kind === "ingest" || sel.kind === "command") { box.innerHTML = serviceHtml(sel.kind); return; }
+  box.innerHTML = introHtml();
+}
+function introHtml() {
+  return `<h2>So funktioniert der Baukasten</h2>
+    <p>Links liegen die Bausteine der MQTT-Simulation: Installationen mit Gateways, ein Broker und die Cloud. Zieh sie auf die Montageplatte und klick einen Baustein an.</p>
+    <p>Für ein Gateway kannst du Zertifikat und Client-ID verändern und Aktionen auslösen. Der Baukasten zeigt dann, was der eingebaute Broker <strong>im Lab tatsächlich gemacht hat</strong>, mit Testfall und Beobachtung aus dem Referenzlauf.</p>
+    <div class="legend"><span><i style="background:var(--wire-state)"></i>state (Gerät → Cloud)</span><span><i style="background:var(--wire-cmd)"></i>cmd (Cloud → Gerät)</span><span><i style="background:var(--fail)"></i>abgelehnt</span></div>`;
+}
+function gatewayHtml(g) {
+  const t = topicsFor(g), foreign = foreignTarget(g);
+  const certOpts = g.legacy ? `<option value="valid">AWS-IoT-Zertifikat ohne CN</option>`
+    : Object.entries(CERTS).map(([k, v]) => `<option value="${k}"${g.cert === k ? " selected" : ""}>${esc(v.label)}</option>`).join("");
+  const cidOpts = [`<option value="own"${g.cidMode === "own" ? " selected" : ""}>erlaubte Client-ID</option>`,
+    foreign ? `<option value="foreign"${g.cidMode === "foreign" ? " selected" : ""}>fremde (von ${esc(foreign.id)})</option>` : "",
+    state.wire === "v13" && !g.legacy ? `<option value="cn"${g.cidMode === "cn" ? " selected" : ""}>CN statt abgeleiteter ID</option>` : ""].join("");
+  return `<div class="verdict" style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><h2>${g.legacy ? "Legacy-Gateway" : "Gateway"} <span class="mono">${esc(g.id)}</span></h2><button type="button" class="btn small" data-remove-gw="${esc(g.id)}">Entfernen</button></div>
+    <dl class="kv">
+      <dt>Installation</dt><dd class="mono">${esc(g.plant)}</dd>
+      <dt>Seriennummer</dt><dd class="mono">${esc(g.serial)}${g.sample ? ` <span class="note">(frei gewählt, geht mit in den Export)</span>` : ""}</dd>
+      <dt>Client-ID</dt><dd class="mono">${esc(clientIdFor(g))}${state.wire === "v13" ? ` <span class="note">(${g.legacy ? "aus der Gateway-ID" : "aus der Seriennummer"} abgeleitet)</span>` : ` <span class="note">(= CN)</span>`}</dd>
+      <dt>Darf senden</dt><dd class="mono">${esc(t.upFilter)}</dd>
+      <dt>Darf lesen</dt><dd class="mono">${esc(t.downFilter)}</dd>
+    </dl>
+    <div class="fields">
+      <div class="field"><label for="f-cert">Zertifikat</label><select id="f-cert" data-gw-field="cert"${g.legacy ? " disabled" : ""}>${certOpts}</select></div>
+      <div class="field"><label for="f-cid">Client-ID beim Verbinden</label><select id="f-cid" data-gw-field="cidMode">${cidOpts}</select></div>
+      <div class="field"><label for="f-link">Anbindung</label><select id="f-link" data-gw-field="link"><option value="stable"${g.link !== "flaky" ? " selected" : ""}>stabil (Ethernet)</option><option value="flaky"${g.link === "flaky" ? " selected" : ""}>instabil (Funk/LTE)</option></select></div>
+      <div class="field"><label for="f-id">Gateway-ID</label><input id="f-id" data-gw-field="id" value="${esc(g.id)}" spellcheck="false"></div>
+      ${g.legacy ? "" : `<div class="field"><label for="f-serial">Seriennummer (32 Bit)</label><input id="f-serial" data-gw-field="serial" value="${esc(g.serial)}" inputmode="numeric" spellcheck="false"></div>`}
+    </div>
+    <div class="actions">${actionGroups(g)}</div>`;
+}
+function plantHtml(p) {
+  return `<h2>Installation <span class="mono">${esc(p.id)}</span></h2>
+    <p>${p.legacy ? "Gateways mit heutigen AWS-IoT-Zertifikaten. Sie tragen keine Gateway-ID im Zertifikat." : "Eine Anlage (Plant). Unter v1.3 steht sie nicht mehr im Topic; isoliert wird je Client-ID."}</p>
+    <dl class="kv"><dt>Gateways</dt><dd>${p.gateways.length}</dd><dt>Typ</dt><dd>${p.legacy ? "Legacy" : p.type === "commercial" ? "Gewerbe" : p.type === "residential" ? "Wohnobjekt" : "wird bei make fleet gewürfelt"}</dd></dl>
+    <div class="add-row"><button type="button" class="btn small" data-add-gw="${esc(p.id)}">+ Gateway</button><button type="button" class="btn small" data-remove-plant="${esc(p.id)}">Installation entfernen</button></div>`;
+}
+function brokerHtml() {
+  const meta = brokerMeta(state.broker) || { name: state.broker, note: "" };
+  const runs = (DATA.runs || []).filter(r => r.broker === state.broker).sort((a, b) => b.date.localeCompare(a.date));
+  const effort = Object.entries(meta.effort || {});
+  const brokerOpts = (DATA.brokers || []).map(b => `<option value="${esc(b.key)}"${b.key === state.broker ? " selected" : ""}>${esc(b.name)}</option>`).join("");
+  return `<h2>${esc(meta.name)}</h2>
+    <p>${esc(meta.note || "")}</p>
+    <div class="field"><label for="f-broker">Broker tauschen</label><select id="f-broker">${brokerOpts}</select></div>
+    <div class="agroup"><span class="label-sm">Lab-Läufe</span>${runs.length ? runs.map(r => `<div class="caserow"><span class="chip ${r.accepted ? "PASS" : "FAIL"}">${r.accepted ? "abgenommen" : "nicht abgenommen"}</span><span>${r.counts.PASS}/${r.mandatory_total} Pflichtfälle · ${esc(r.wire)} · ${fmtDate(r.date)}<br><span class="note">${esc(r.label)}</span></span></div>`).join("") : `<p class="note">Kein Lauf im Repo. Mit einer Instanz: make acceptance BROKER=${esc(state.broker)}</p>`}</div>
+    <div class="agroup"><span class="label-sm">Broker-Aktionen</span><div class="btns">
+      ${actionButton("restart")}${actionButton("storm")}${actionButton("audit")}
+    </div></div>
+    ${effort.length ? `<details><summary>Aufwand je Anforderung (Profil)</summary><dl class="kv" style="margin-top:8px">${effort.map(([r, v]) => `<dt>${esc(r)}</dt><dd>${esc(v)}</dd>`).join("")}</dl></details>` : ""}`;
+}
+function serviceHtml(kind) {
+  const id = kind === "ingest" ? DATA.fleet?.services?.ingest : DATA.fleet?.services?.command;
+  const text = kind === "ingest"
+    ? "Platzhalter für die spätere Brücke MQTT → GCP Pub/Sub. Liest alle state-Topics und ist im Harness der Zeuge: Nur was hier ankommt, gilt als zugestellt."
+    : "Platzhalter für den Command-Pfad des Backends. Darf in alle cmd-Topics schreiben, aber nichts lesen.";
+  return `<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><h2>${kind === "ingest" ? "Cloud-Ingest" : "Cloud-Command"}</h2><button type="button" class="btn small" data-remove-svc="${kind}">Entfernen</button></div>
+    <p>${text}</p>
+    <dl class="kv"><dt>Identität</dt><dd class="mono">${esc(id)}</dd><dt>${kind === "ingest" ? "Darf lesen" : "Darf senden"}</dt><dd class="mono">${esc(kind === "ingest" ? allUp() : allDown())}</dd></dl>`;
+}
+
+/* ---------- Aktionen */
+const ACTIONS = {
+  connect: { label: "Verbinden", group: "Verbinden" },
+  dup: { label: "Zweite Verbindung, gleiche Client-ID", group: "Verbinden", cases: ["DUP-01"] },
+  pub_own: { label: "state senden", group: "Gerät → Cloud" },
+  pub_binary: { label: "Binärdaten senden", group: "Gerät → Cloud", cases: ["PAY-01"] },
+  pub_large: { label: "128 B und 12 KB senden", group: "Gerät → Cloud", cases: ["PAY-02"] },
+  pub_other: { label: "In fremde Installation schreiben", group: "Gerät → Cloud", cases: ["ACL-02"], target: "other" },
+  pub_same: { label: "In Nachbar-Gateway schreiben", group: "Gerät → Cloud", cases: ["ACL-03"], target: "same" },
+  pub_noncore: { label: "Nicht freigegebenes Topic", group: "Gerät → Cloud", cases: ["ACL-04"] },
+  pub_own_cmd: { label: "Ins eigene cmd schreiben", group: "Gerät → Cloud", cases: ["ACL-05"] },
+  pub_outside: { label: "Topic außerhalb", group: "Gerät → Cloud", cases: ["ACL-06"] },
+  sub_own: { label: "Eigene Commands abonnieren", group: "Cloud → Gerät", cases: ["ACL-07"] },
+  sub_other_cmd: { label: "cmd fremder Installation", group: "Cloud → Gerät", cases: ["ACL-08"], target: "other" },
+  sub_same_cmd: { label: "cmd des Nachbarn", group: "Cloud → Gerät", cases: ["ACL-09"], target: "same" },
+  sub_own_state: { label: "Eigenes state abonnieren", group: "Cloud → Gerät", cases: ["ACL-10"] },
+  sub_other_state: { label: "Fremdes state mitlesen", group: "Cloud → Gerät", cases: ["ACL-11"], target: "other" },
+  sub_wild: { label: "Alles abonnieren (#)", group: "Cloud → Gerät", cases: ["ACL-12"], target: "other" },
+  offline_cmd: { label: "Offline: Command wartet", group: "Störungen und Sessions", cases: ["SES-01"] },
+  clean_start: { label: "Neustart mit Clean Start", group: "Störungen und Sessions", cases: ["SES-02"] },
+  expiry: { label: "Command mit Ablaufzeit", group: "Störungen und Sessions", cases: ["EXP-01"] },
+  inflight: { label: "Abbruch vor dem PUBACK", group: "Störungen und Sessions", cases: ["QOS-02"] },
+  will_own: { label: "Last Will (eigenes Topic)", group: "Störungen und Sessions", cases: ["LWT-01"] },
+  will_foreign: { label: "Last Will auf fremdes Topic", group: "Störungen und Sessions", cases: ["LWT-02"], target: "other" },
+  revoke: { label: "Zertifikat widerrufen (verbunden)", group: "Zertifikat und Rechte", cases: ["REV-01"] },
+  rotate: { label: "Zertifikat rotieren", group: "Zertifikat und Rechte", cases: ["ROT-02", "ROT-01"] },
+  withdraw: { label: "Rechte entziehen (verbunden)", group: "Zertifikat und Rechte", cases: ["ACL-14"] },
+  legacy_spoof: { label: "Als anderes Legacy-GW ausgeben", group: "Verbinden", cases: ["LEG-02"], legacyOnly: true },
+  restart: { label: "Broker neu starten", group: "Broker", cases: ["RST-01"], broker: true },
+  storm: { label: "Reconnect-Sturm", group: "Broker", cases: ["REC-01"], broker: true },
+  audit: { label: "Audit-Log prüfen", group: "Broker", cases: ["LOG-01", "LOG-02", "LOG-03", "LOG-04", "LOG-05"], broker: true }
+};
+function targetFor(gw, mode) {
+  const own = plantOf(gw.id);
+  const pool = allGateways().filter(x => x.id !== gw.id && !x.legacy);
+  if (mode === "same") return pool.find(x => own && own.gateways.some(y => y.id === x.id)) || null;
+  return pool.find(x => !own || !own.gateways.some(y => y.id === x.id)) || null;
+}
+const foreignTarget = gw => targetFor(gw, "other") || targetFor(gw, "same");
+function actionBlocked(id, gw) {
+  const a = ACTIONS[id];
+  if (!state.broker) return "Erst einen Broker einbauen.";
+  if (a.target && gw && !targetFor(gw, a.target)) return a.target === "same" ? "Braucht ein zweites Gateway in derselben Installation." : "Braucht ein Gateway in einer anderen Installation.";
+  if (a.legacyOnly && gw && allGateways().filter(x => x.legacy).length < 2) return "Braucht zwei Legacy-Gateways.";
+  return "";
+}
+function actionButton(id, gw) {
+  const why = actionBlocked(id, gw);
+  return `<button type="button" class="btn small" data-action="${id}"${gw ? ` data-for="${esc(gw.id)}"` : ""}${why ? ` disabled title="${esc(why)}"` : ""}>${esc(ACTIONS[id].label)}</button>`;
+}
+function actionGroups(g) {
+  const ids = Object.keys(ACTIONS).filter(id => !ACTIONS[id].broker && (!ACTIONS[id].legacyOnly || g.legacy))
+    .filter(id => !g.legacy || ["connect", "legacy_spoof", "pub_own", "sub_own"].includes(id));
+  const groups = [...new Set(ids.map(id => ACTIONS[id].group))];
+  return groups.map(gr => `<div class="agroup"><span class="label-sm">${esc(gr)}</span><div class="btns">${ids.filter(id => ACTIONS[id].group === gr).map(id => actionButton(id, g)).join("")}</div></div>`).join("")
+    + (state.broker ? "" : `<p class="note">Ohne Broker lassen sich keine Aktionen auslösen.</p>`);
+}
+
+/* =====================================================================
+   Szenario-Engine: Testfall bestimmen, Ablauf bauen, animieren, erklären
+   ===================================================================== */
+const step = (from, to, label, tone = "neutral", extra = {}) => Object.assign({ from, to, label, tone }, extra);
+const note = (label, tone = "neutral") => ({ note: true, label, tone });
+
+function connectCase(gw) {
+  if (gw.legacy) return "LEG-01";
+  if (gw.cert !== "valid") return CERTS[gw.cert].connectCase;
+  if (gw.cidMode === "foreign") return "ID-01";
+  if (gw.cidMode === "cn" && state.wire === "v13") return "ID-03";
+  return "MTLS-01";
+}
+/* Ist die Verbindung, über die eine Aktion läuft, überhaupt zustande gekommen? */
+function gate(gw) {
+  const c = connectCase(gw), r = resultFor(c);
+  if (c === "MTLS-01" || c === "LEG-01") return { caseId: c, r, rejected: r.v === "FAIL" };
+  if (r.v === "PASS") return { caseId: c, r, rejected: true };
+  return { caseId: c, r, insecure: r.v === "FAIL" || r.v === "PARTIAL" };
+}
+
+function buildFlow(caseId, r, ctx) {
+  const meta = CASE_DE[caseId] || { kind: "log" }, v = r.v, s = [];
+  const T = ctx.gw ? topicsFor(ctx.gw) : null, tgtT = ctx.tgt ? topicsFor(ctx.tgt) : null;
+  const deliverTo = (to, label, tone) => state.services.ingest || to !== "ingest" ? step("broker", to, label, tone) : note("Kein Cloud-Ingest eingebaut: Niemand sieht, ob zugestellt wird. Im Harness wäre das INCONCLUSIVE (Zeugen-Prinzip).", "warn");
+  const blockedAt = (to, label, tone = "good") => to === "ingest" && !state.services.ingest
+    ? note("Kein Cloud-Ingest eingebaut: Niemand sieht, ob zugestellt wird. Im Harness wäre das INCONCLUSIVE (Zeugen-Prinzip).", "warn")
+    : step("broker", to, label, tone, { stop: true });
+  const fromCmd = (label) => state.services.command ? step("command", "broker", label) : note("Kein Cloud-Command eingebaut: Der Harness nutzt ihn als berechtigten Sender. Hier gedanklich ergänzt.", "warn");
+  switch (meta.kind) {
+    case "connect-accept":
+      s.push(step("gw", "broker", `TLS-Handshake mit ${caseId === "LEG-01" ? "AWS-Zertifikat ohne CN" : "eigenem Zertifikat"}, CONNECT als ${clientIdFor(ctx.gw)}`));
+      if (v === "FAIL") s.push(step("gw", "broker", "Verbindung abgelehnt", "bad", { stop: true }));
+      else s.push(step("broker", "gw", v ? "CONNACK 0 · verbunden" : "erwartet: CONNACK 0", v ? "good" : "neutral"));
+      break;
+    case "connect-reject":
+      s.push(step("gw", "broker", `Verbindungsversuch: ${meta.what || meta.t}`));
+      if (v === "PASS") s.push(step("gw", "broker", "abgelehnt", "good", { stop: true }));
+      else if (v === "FAIL" || v === "PARTIAL") {
+        s.push(step("broker", "gw", "CONNACK 0 · angenommen, obwohl es abgelehnt werden müsste", "bad"));
+        if (caseId === "ID-01" && /DISPLACED/.test(r.obs || "")) s.push(step("broker", "tgt", "bestehende Session des echten Gateways wird getrennt", "bad"));
+      } else s.push(step("gw", "broker", "erwartet: Ablehnung", "neutral", { stop: true }));
+      break;
+    case "publish-allow": {
+      const what = caseId === "PAY-01" ? "Binärdaten (alle 256 Bytewerte, uint32 big-endian)" : caseId === "PAY-02" ? "128 B und 12 KB" : "Zustand";
+      s.push(step("gw", "broker", `PUBLISH ${T.up} · QoS 1 · ${what}`, "neutral", { wire: "state" }));
+      if (v === "FAIL") { s.push(deliverTo("ingest", "nicht (vollständig) zugestellt", "bad")); break; }
+      s.push(step("broker", "gw", v ? "PUBACK 0" : "erwartet: PUBACK 0", v ? "good" : "neutral"));
+      s.push(deliverTo("ingest", v ? (caseId === "PAY-01" ? "byteexakt zugestellt" : "zugestellt") : "erwartet: zugestellt", v ? "good" : "neutral"));
+      break;
+    }
+    case "publish-deny": {
+      const topic = caseId === "ACL-04" ? (state.wire === "v13" ? `${rootTopic()}/${clientIdFor(ctx.gw)}/x-lab-unassigned` : `${W.lab_eicp.base}/(fremde Installation)/gateways/${ctx.gw.id}/d2c/...`)
+        : caseId === "ACL-05" ? T.down : caseId === "ACL-06" ? `${rootTopic()}/unassigned/...` : caseId === "ID-02" ? (tgtT ? tgtT.up : T.up) : tgtT ? tgtT.up : T.up;
+      s.push(step("gw", "broker", `PUBLISH ${topic}`, "neutral", { wire: "state" }));
+      if (v === "PASS") { s.push(step("broker", "gw", "PUBACK 0x87 nicht erlaubt (oder Trennung)", "good")); s.push(blockedAt("ingest", "nichts zugestellt")); }
+      else if (v === "PARTIAL") { s.push(step("broker", "gw", "PUBACK angenommen, Ablehnung nicht gemeldet", "warn")); s.push(blockedAt("ingest", "nichts zugestellt")); }
+      else if (v === "FAIL") s.push(deliverTo("ingest", "zugestellt: fremde Daten im System", "bad"));
+      else s.push(step("gw", "broker", "erwartet: abgelehnt, nichts zugestellt", "neutral", { stop: true }));
+      break;
+    }
+    case "subscribe-allow":
+      s.push(step("gw", "broker", `SUBSCRIBE ${T.downFilter}`, "neutral", { wire: "cmd" }));
+      s.push(step("broker", "gw", v === "FAIL" ? "SUBACK" : v ? "SUBACK 1 · erlaubt" : "erwartet: SUBACK 1", v === "FAIL" ? "neutral" : v ? "good" : "neutral"));
+      s.push(fromCmd(`Command an ${clientIdFor(ctx.gw)}`));
+      s.push(v === "FAIL" ? step("broker", "gw", "nicht zugestellt", "bad", { stop: true }) : step("broker", "gw", v ? "Command zugestellt" : "erwartet: zugestellt", v ? "good" : "neutral", { wire: "cmd" }));
+      break;
+    case "subscribe-deny": {
+      const filt = caseId === "ACL-12" ? `${rootTopic()}/#` : caseId === "ACL-10" ? T.upFilter : meta.source === "command" ? tgtT.downFilter : tgtT.upFilter;
+      s.push(step("gw", "broker", `SUBSCRIBE ${filt}`));
+      if (v === "PASS") s.push(step("broker", "gw", "SUBACK 0x87 · abgelehnt", "good"));
+      else if (v === "PARTIAL") s.push(step("broker", "gw", "SUBACK 1 · bestätigt, Ablehnung nicht gemeldet", "warn"));
+      else if (v === "FAIL") s.push(step("broker", "gw", "SUBACK 1 · bestätigt", "bad"));
+      else s.push(step("broker", "gw", "erwartet: SUBACK 0x87", "neutral"));
+      if (meta.source === "command") s.push(fromCmd(`Command an ${tgtT ? clientIdFor(ctx.tgt) : "anderes Gateway"}`));
+      else if (meta.source === "tgt" && ctx.tgt) s.push(step("tgt", "broker", `PUBLISH ${tgtT.up}`, "neutral", { wire: "state" }));
+      else s.push(step("gw", "broker", `PUBLISH ${T.up}`, "neutral", { wire: "state" }));
+      s.push(v === "FAIL" ? step("broker", "gw", "fremde Nachricht zugestellt", "bad") : step("broker", "gw", v ? "nichts zugestellt" : "erwartet: nichts zugestellt", v ? "good" : "neutral", { stop: true }));
+      break;
+    }
+    case "unknown":
+      s.push(step("gw", "broker", "Verbindung mit gültigem Zertifikat, Gateway nicht in der Registry"));
+      if (v === "PASS") s.push(/rejected/.test(r.obs || "") ? step("gw", "broker", "Verbindung abgelehnt", "good", { stop: true }) : step("broker", "gw", "Publish und Subscribe abgelehnt", "good"));
+      else if (v === "PARTIAL") { s.push(step("broker", "gw", "verbunden; Publish abgelehnt (PUBACK 0x87)", "good")); s.push(step("broker", "gw", "Abo bestätigt, aber nichts zugestellt (nicht gemeldet)", "warn")); }
+      else if (v === "FAIL") s.push(step("broker", "gw", "Daten fließen ohne Registrierung", "bad"));
+      else s.push(step("gw", "broker", "erwartet: abgelehnt oder ohne Rechte", "neutral", { stop: true }));
+      break;
+    case "dup":
+      s.push(step("gw", "broker", `Gateway ist verbunden (${clientIdFor(ctx.gw)})`, "neutral"));
+      s.push(step("gw", "broker", "zweite Verbindung mit derselben Client-ID"));
+      if (v === "PASS") s.push(step("gw", "broker", "zweite Verbindung abgelehnt, bestehende Session bleibt", "good", { stop: true }));
+      else if (v === "FAIL") s.push(step("broker", "gw", "Takeover: bestehende Session wird getrennt", "bad"));
+      else s.push(step("gw", "broker", "erwartet: zweite Verbindung abgelehnt", "neutral", { stop: true }));
+      break;
+    case "offline": case "offline-clean":
+      s.push(step("gw", "broker", `SUBSCRIBE ${T.downFilter} · Session Expiry > 0`, "neutral", { wire: "cmd" }));
+      s.push(note("Netz weg: TCP bricht ohne DISCONNECT ab."));
+      s.push(fromCmd("Command, während das Gateway offline ist"));
+      s.push(note("Der Broker hält das Command in der Session."));
+      if (meta.kind === "offline") {
+        s.push(step("gw", "broker", "Reconnect mit Clean Start = false"));
+        s.push(v === "FAIL" ? step("broker", "gw", "Session oder Command verloren", "bad", { stop: true }) : step("broker", "gw", v ? "session_present = 1, Command zugestellt" : "erwartet: Command zugestellt", v ? "good" : "neutral", { wire: "cmd" }));
+      } else {
+        s.push(step("gw", "broker", "Reconnect mit Clean Start = true (frischer Start)"));
+        s.push(v === "FAIL" ? step("broker", "gw", "veraltetes Command trotzdem zugestellt", "bad") : step("broker", "gw", v ? "keine alte Session, nichts zugestellt" : "erwartet: nichts zugestellt", v ? "good" : "neutral", { stop: true }));
+      }
+      break;
+    case "expiry":
+      s.push(step("gw", "broker", `SUBSCRIBE ${T.downFilter} · persistente Session`, "neutral", { wire: "cmd" }));
+      s.push(note("Netz weg."));
+      s.push(fromCmd("Command A mit Message Expiry 2 s, Command B ohne"));
+      s.push(note("4 Sekunden später kommt das Gateway zurück."));
+      s.push(step("gw", "broker", "Reconnect mit Clean Start = false"));
+      s.push(v === "FAIL" ? step("broker", "gw", "abgelaufenes Command A trotzdem zugestellt", "bad", { wire: "cmd" }) : step("broker", "gw", v ? "nur B zugestellt, A verworfen" : "erwartet: nur B", v ? "good" : "neutral", { wire: "cmd" }));
+      break;
+    case "inflight":
+      s.push(step("gw", "broker", `PUBLISH ${T.up} · QoS 1`, "neutral", { wire: "state" }));
+      s.push(note("Der Link bricht ab, bevor der PUBACK ankommt."));
+      s.push(step("gw", "broker", "Reconnect, Clean Start = false, erneutes Senden mit DUP-Flag", "neutral", { wire: "state" }));
+      s.push(v === "FAIL" ? deliverTo("ingest", "Nachricht verloren", "bad") : deliverTo("ingest", v ? "zugestellt (Duplikat erlaubt)" : "erwartet: zugestellt", v ? "good" : "neutral"));
+      break;
+    case "will-allow":
+      s.push(step("gw", "broker", `CONNECT mit Last Will auf ${T.up}`));
+      s.push(note("Link bricht ab, ohne DISCONNECT."));
+      s.push(v === "FAIL" ? deliverTo("ingest", "kein Last Will veröffentlicht", "bad") : deliverTo("ingest", v ? "Last Will veröffentlicht" : "erwartet: Last Will", v ? "good" : "neutral"));
+      break;
+    case "will-deny":
+      s.push(step("gw", "broker", `CONNECT mit Last Will auf ${tgtT ? tgtT.up : "fremdes Topic"}`));
+      if (v === "PASS" && /CONNECT/.test(r.obs || "")) { s.push(step("gw", "broker", "beim CONNECT abgelehnt", "good", { stop: true })); break; }
+      s.push(note("Link bricht ab, ohne DISCONNECT."));
+      s.push(v === "FAIL" ? deliverTo("ingest", "Last Will im fremden Topic veröffentlicht", "bad") : blockedAt("ingest", v ? "nicht veröffentlicht" : "erwartet: nicht veröffentlicht", v ? "good" : "neutral"));
+      break;
+    case "rotate": {
+      const r1 = resultFor("ROT-01");
+      s.push(step("gw", "broker", "Verbinden mit altem Zertifikat"));
+      s.push(step("broker", "gw", r1.v === "FAIL" ? "abgelehnt" : "verbunden", r1.v === "FAIL" ? "bad" : r1.v ? "good" : "neutral"));
+      s.push(step("gw", "broker", "Neues Zertifikat (CSR auf dem Gerät), altes trennen, neu verbinden"));
+      s.push(step("broker", "gw", r1.v === "FAIL" ? "neues Zertifikat abgelehnt" : "verbunden mit neuem Zertifikat", r1.v === "FAIL" ? "bad" : r1.v ? "good" : "neutral"));
+      s.push(step("gw", "broker", "kaputtes neues Zertifikat (fremde CA)"));
+      s.push(v === "FAIL" ? step("broker", "gw", "Rückfall aufs alte Zertifikat klappt nicht", "bad") : step("broker", "gw", v ? "abgelehnt, Rückfall aufs alte klappt" : "erwartet: Rückfall klappt", v ? "good" : "neutral"));
+      break;
+    }
+    case "revoke":
+      s.push(step("gw", "broker", "verbunden mit Zertifikat revoke-live"));
+      s.push(note("Die CA widerruft das Zertifikat und schreibt eine neue CRL (Hook revoke)."));
+      if (v === "PASS") { s.push(step("broker", "gw", "offene Session beendet", "good")); s.push(step("gw", "broker", "neuer Verbindungsversuch abgelehnt", "good", { stop: true })); }
+      else if (v === "PARTIAL") { s.push(step("broker", "gw", "offene Session läuft weiter", "warn")); s.push(step("gw", "broker", "neuer Verbindungsversuch abgelehnt", "good", { stop: true })); }
+      else if (v === "FAIL") { s.push(step("broker", "gw", "offene Session läuft weiter", "bad")); s.push(step("broker", "gw", "neue Verbindung wird angenommen", "bad")); }
+      else s.push(step("broker", "gw", "erwartet: Session beendet, neue Verbindung abgelehnt", "neutral"));
+      break;
+    case "withdraw":
+      s.push(step("gw", "broker", `verbunden, abonniert ${T.downFilter}`, "neutral", { wire: "cmd" }));
+      s.push(note("Die Rechte dieses Gateways werden entzogen (Hook acl-withdraw)."));
+      s.push(step("gw", "broker", `PUBLISH ${T.up}`, "neutral", { wire: "state" }));
+      if (v === "FAIL") s.push(deliverTo("ingest", "trotz Entzug zugestellt", "bad"));
+      else s.push(blockedAt("ingest", v ? "nicht mehr zugestellt" : "erwartet: nicht zugestellt", v ? "good" : "neutral"));
+      s.push(fromCmd("Command an das Gateway"));
+      s.push(v === "PARTIAL" ? step("broker", "gw", "bestehendes Abo liefert weiter", "warn", { wire: "cmd" }) : v === "FAIL" ? step("broker", "gw", "bestehendes Abo liefert weiter", "bad", { wire: "cmd" }) : step("broker", "gw", v ? "bestehendes Abo liefert nichts mehr" : "erwartet: nichts", v ? "good" : "neutral", { stop: true }));
+      break;
+    case "restart":
+      s.push(step("gw", "broker", "SUBSCRIBE cmd, dann DISCONNECT (Session bleibt)", "neutral", { wire: "cmd" }));
+      s.push(fromCmd("Command, während das Gateway weg ist"));
+      s.push(note("Der Broker startet neu (Hook restart)."));
+      s.push(step("gw", "broker", "Reconnect, Clean Start = false"));
+      s.push(v === "FAIL" ? step("broker", "gw", "Session nach dem Neustart weg, Command verloren", "bad", { stop: true }) : step("broker", "gw", v ? "Session und Command überstehen den Neustart" : "erwartet: Session bleibt", v ? "good" : "neutral", { wire: "cmd" }));
+      break;
+    case "storm":
+      s.push(note("Alle Gateways verlieren gleichzeitig das Netz."));
+      s.push({ storm: true, label: "Reconnect mit Jitter und exponentiellem Backoff", tone: "neutral" });
+      s.push(note(v === "PASS" ? "Alle Sessions wieder da, Versuche über das Zeitfenster verteilt." : v === "FAIL" ? "Nicht alle Sessions kamen zurück oder die Versuche ballten sich." : "Erwartet: alle Sessions zurück, Versuche verteilt.", v === "PASS" ? "good" : v === "FAIL" ? "bad" : "neutral"));
+      break;
+    case "log":
+      s.push(note("Der Harness sucht im Broker-Log des Laufzeitfensters nach Mustern aus dem Broker-Profil."));
+      break;
+  }
+  return s;
+}
+
+/* Hauptablauf einer Aktion */
+let running = false;
+async function runAction(actionId, gwId) {
+  if (running) return;
+  const act = ACTIONS[actionId];
+  // Broker-Aktionen brauchen ein Beispiel-Gateway (wie der Harness: Gateway A).
+  const gw = gwId ? findGw(gwId) : act.broker ? (findGw("gw-sim-000001") || allGateways().find(g => !g.legacy) || null) : null;
+  const blocked = actionBlocked(actionId, gw);
+  if (blocked) { lastResult = { title: act.label, steps: [note(blocked, "warn")], primary: null }; renderProtocol(); return; }
+  running = true;
+  const ctx = { gw, tgt: act.target ? targetFor(gw, act.target) : null };
+  if (gw && gw.cidMode === "foreign" && !ctx.tgt) ctx.tgt = foreignTarget(gw);
+  let caseId, steps = [], notes = [], extra = [], gateStatus = null;
+
+  if (actionId === "connect") {
+    caseId = connectCase(gw);
+    if (gw.cidMode === "foreign") ctx.tgt = foreignTarget(gw);
+  } else if (actionId === "pub_own" && gw && gw.cidMode === "foreign") {
+    caseId = "ID-02";
+    notes.push("Unter v1.3 steckt die Client-ID im Topic: Mit fremder Client-ID ist das „eigene“ Topic das des anderen Gateways.");
+  } else {
+    caseId = (act.cases || ["ACL-01"])[0];
+    extra = (act.cases || []).slice(1);
+    if (actionId === "pub_own") extra = ["QOS-01"];
+    if (gw && !act.broker) {
+      const g = gate(gw);
+      gateStatus = g.rejected ? "rejected" : g.insecure ? "warn" : "online";
+      if (g.rejected) {
+        const gr = g.r;
+        steps = buildFlow(g.caseId, gr, ctx);
+        steps.push(note("Ohne Verbindung findet die eigentliche Aktion nicht statt.", "neutral"));
+        caseId = g.caseId; extra = [];
+        notes.push(`Das Gateway kommt gar nicht erst rein (${CASE_DE[g.caseId].t}).`);
+      } else if (g.insecure) {
+        notes.push(`Achtung: Der Broker hat die Verbindung trotz „${CASE_DE[g.caseId].t}“ angenommen (${g.caseId} ${g.r.v}). Die folgende Aktion läuft also über eine Verbindung, die es nicht geben dürfte.`);
+      }
+    }
+  }
+  const r = resultFor(caseId);
+  if (!steps.length) steps = buildFlow(caseId, r, ctx);
+  if (gw) {
+    const k = CASE_DE[caseId]?.kind;
+    if (k === "connect-accept") gw.status = r.v === "FAIL" ? "rejected" : "online";
+    else if (k === "connect-reject") gw.status = r.v === "PASS" ? "rejected" : r.v ? "warn" : null;
+    else if (k === "revoke") gw.status = r.v === "PASS" ? "rejected" : "warn";
+    else if (gateStatus) gw.status = gateStatus;
+  }
+  lastResult = { title: act.label + (gw ? ` · ${gw.id}` : ""), steps, primary: { caseId, r }, extra: extra.map(id => ({ caseId: id, r: resultFor(id) })), notes, ctx };
+  renderPlants(); renderInspector(); drawWires(); renderProtocol(-1);
+  await animate(steps, ctx);
+  renderProtocol();
+  save();
+  running = false;
+}
+
+/* ---------- Animation */
+function nodeFor(ref, ctx) {
+  if (ref === "gw") return ctx.gw ? nodeEl("gw:" + ctx.gw.id) : null;
+  if (ref === "tgt") return ctx.tgt ? nodeEl("gw:" + ctx.tgt.id) : null;
+  if (ref === "broker") return nodeEl("broker");
+  if (ref === "ingest") return nodeEl("svc:ingest");
+  if (ref === "command") return nodeEl("svc:command");
+  return null;
+}
+const toneColor = t => ({ good: "var(--pass)", bad: "var(--fail)", warn: "var(--warn)" }[t] || "var(--ink)");
+async function flyToken(a, b, s) {
+  const layer = $("#tokens"); if (!layer || !a || !b) return;
+  const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  p.setAttribute("d", pathBetween(a, b)); p.setAttribute("fill", "none"); p.setAttribute("stroke", "none");
+  layer.appendChild(p);
+  const g = document.createElementNS("http://www.w3.org/2000/svg", "g"); g.setAttribute("class", "token");
+  const color = s.wire === "cmd" ? "var(--wire-cmd)" : s.wire === "state" ? "var(--wire-state)" : toneColor(s.tone);
+  g.innerHTML = `<circle r="7" style="fill:${color}"></circle>`;
+  layer.appendChild(g);
+  const len = p.getTotalLength(), end = s.stop ? len * 0.82 : len, dur = 650;
+  const t0 = performance.now();
+  await new Promise(res => {
+    const tick = now => {
+      const k = Math.min(1, (now - t0) / dur), e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      const pt = p.getPointAtLength(end * e);
+      g.setAttribute("transform", `translate(${pt.x},${pt.y})`);
+      k < 1 ? requestAnimationFrame(tick) : res();
+    };
+    requestAnimationFrame(tick);
+  });
+  if (s.stop || s.tone === "bad" || s.tone === "good" || s.tone === "warn") {
+    const pt = p.getPointAtLength(end);
+    const mark = s.stop ? "✕" : s.tone === "good" ? "✓" : "!";
+    g.innerHTML = `<circle r="9" style="fill:${toneColor(s.tone === "neutral" ? "warn" : s.tone)}"></circle><text x="0" y="4" text-anchor="middle" style="fill:var(--module);stroke:none;font-size:12px">${mark}</text>`;
+    g.setAttribute("transform", `translate(${pt.x},${pt.y})`);
+    await sleep(420);
+  }
+  g.remove(); p.remove();
+}
+async function animate(steps, ctx) {
+  for (let i = 0; i < steps.length; i++) {
+    renderProtocol(i);
+    const s = steps[i];
+    if (REDUCED) continue;
+    if (s.note) { await sleep(520); continue; }
+    if (s.storm) {
+      const gws = allGateways().filter(g => !g.legacy).slice(0, 10), broker = nodeEl("broker");
+      await Promise.all(gws.map((g, k) => sleep(k * 130).then(() => flyToken(nodeEl("gw:" + g.id), broker, { tone: "neutral", wire: "state" }))));
+      continue;
+    }
+    await flyToken(nodeFor(s.from, ctx), nodeFor(s.to, ctx), s);
+  }
+}
+
+/* ---------- Prüfprotokoll */
+const ICON = { good: "✓", bad: "✕", warn: "!", neutral: "•" };
+function caseBlock({ caseId, r }, primary) {
+  const meta = caseMeta(caseId), de = CASE_DE[caseId] || {};
+  const v = r.v || "none", chipCls = v === "N/A" ? "NA" : v;
+  const title = state.wire !== "v13" && de.tLab ? de.tLab : (de.t || meta.title);
+  const src = r.run ? `${r.run.label} · ${fmtDate(r.run.date)} · Profil ${r.run.wire}${r.fallback ? " (kein Lauf im gewählten Profil)" : ""}` : "";
+  return `<div class="agroup">
+    <div class="verdict"><span class="chip ${chipCls}">${esc(VERDICT_DE[v] || v)}</span><strong>${esc(caseId)}</strong><span>${esc(title)}</span></div>
+    ${primary && de.why ? `<p>${esc(de.why)}</p>` : ""}
+    <div class="caserow"><span class="note">Anforderung</span><span>${esc(meta.req)} · ${esc(REQ_DE[meta.req] || "")} · ${meta.mandatory ? "Pflicht" : "beratend"}</span>
+    ${src ? `<span class="note">Quelle</span><span>${esc(src)}</span>` : ""}</div>
+    ${r.obs ? `<div><span class="note">Im Lab beobachtet</span><div class="obs">${esc(r.obs)}</div></div>` : r.v ? `<p class="note">Aus diesem Lauf liegt nur das Ergebnis vor, keine Einzelbeobachtung.</p>` : `<p class="note">${esc(r.reason || "Nicht gemessen.")} Messen mit: make acceptance BROKER=${esc(state.broker || "…")}</p>`}
+  </div>`;
+}
+function renderProtocol(activeIdx) {
+  const box = $("#protocol");
+  if (!lastResult) {
+    box.innerHTML = `<h2>Prüfprotokoll</h2><p class="note">Wähle ein Gateway und löse eine Aktion aus, oder starte einen Schritt im Lernpfad. Hier erscheint dann der Ablauf mit dem Ergebnis aus dem Lab.</p>`;
+    return;
+  }
+  const R = lastResult, done = activeIdx === undefined;
+  const stepsHtml = R.steps.map((s, i) => `<li class="${s.tone}${!done && i > activeIdx ? " pending" : ""}"><span class="ic">${ICON[s.tone] || "•"}</span><span>${s.note || s.storm ? esc(s.label) : `<span class="note">${esc(nodeName(s.from, R.ctx))} → ${esc(nodeName(s.to, R.ctx))}:</span> ${esc(s.label)}`}</span></li>`).join("");
+  box.innerHTML = `<h2>Prüfprotokoll</h2>
+    <div class="label-sm">${esc(R.title)}</div>
+    <ol class="steps">${stepsHtml}</ol>
+    ${(R.notes || []).map(n => `<div class="callout">${esc(n)}</div>`).join("")}
+    ${done && R.primary ? caseBlock(R.primary, true) + (R.extra || []).map(e => caseBlock(e, false)).join("") : ""}`;
+}
+function nodeName(ref, ctx) {
+  return { gw: ctx?.gw?.id || "Gateway", tgt: ctx?.tgt?.id || "anderes Gateway", broker: "Broker", ingest: "Cloud-Ingest", command: "Cloud-Command" }[ref] || ref;
+}
+
+/* =====================================================================
+   Pult: Vergleich, Konfiguration, Export, Glossar
+   ===================================================================== */
+let cmpDetail = null;
+function aggregate(run, reqId) {
+  const cases = (DATA.cases || []).filter(c => c.req === reqId);
+  const res = cases.map(c => ({ c, r: run.cases[c.id] })).filter(x => x.r && x.r.v !== "N/A");
+  if (!res.length) return { v: "none", advisory: false, list: [] };
+  const mand = res.filter(x => x.c.mandatory), pool = mand.length ? mand : res;
+  const order = ["FAIL", "INCONCLUSIVE", "PARTIAL", "PASS"];
+  const v = order.find(o => pool.some(x => x.r.v === o)) || "PASS";
+  return { v, advisory: !mand.length, list: res };
+}
+function renderCompare() {
+  const brokers = DATA.brokers || [];
+  const cols = brokers.map(b => ({ b, rf: runFor(b.key, state.wire) }));
+  const head = cols.map(({ b, rf }) => `<th>${esc(b.name)}<br><span class="note" style="font-weight:400;font-family:var(--font-body);font-size:12px">${rf ? `${fmtDate(rf.run.date)} · ${esc(rf.run.wire)}${rf.fallback ? " (älteres Profil)" : ""}` : "nicht gemessen"}</span></th>`).join("");
+  const sumRow = `<tr><td class="req"><strong>Pflichtfälle bestanden</strong></td>${cols.map(({ rf }) => `<td>${rf ? `<strong>${rf.run.counts.PASS}/${rf.run.mandatory_total}</strong>` : "–"}</td>`).join("")}</tr>`;
+  const rows = (DATA.requirements || []).map(req => `<tr${cmpDetail && cmpDetail.req === req.id ? ` class="sel"` : ""}><td class="req"><strong>${esc(req.id)}</strong> ${esc(REQ_DE[req.id] || req.text)}</td>${cols.map(({ b, rf }) => {
+    if (!rf) return `<td><span class="chip none">–</span></td>`;
+    const a = aggregate(rf.run, req.id);
+    if (a.v === "none") return `<td><span class="note">nicht im Lauf</span></td>`;
+    return `<td><button type="button" class="cell" data-cmp="${esc(req.id)}|${esc(b.key)}"><span class="chip ${a.v}">${a.advisory ? "ber. " : ""}${esc(a.v)}</span></button></td>`;
+  }).join("")}</tr>`).join("");
+  let detail = "";
+  if (cmpDetail) {
+    const b = brokers.find(x => x.key === cmpDetail.broker), rf = runFor(cmpDetail.broker, state.wire);
+    if (b && rf) {
+      const a = aggregate(rf.run, cmpDetail.req);
+      detail = `<div class="card"><h2>${esc(cmpDetail.req)} · ${esc(b.name)}</h2>${a.list.map(x => `<div class="caserow"><span class="chip ${x.r.v}">${esc(x.r.v)}</span><span><strong>${esc(x.c.id)}</strong> ${esc((CASE_DE[x.c.id] || {}).t || x.c.title)} · ${x.c.mandatory ? "Pflicht" : "beratend"}${x.r.obs ? `<br><span class="mono note">${esc(x.r.obs)}</span>` : ""}</span></div>`).join("")}</div>`;
+    }
+  }
+  return `<p>Ergebnis je Anforderung aus dem jeweils neuesten Lab-Lauf im gewählten Topic-Schema (<strong>${state.wire === "v13" ? "v1.3" : "lab-eicp"}</strong>). Gibt es dafür keinen Lauf, steht der neueste ältere Lauf dort. Zelle antippen für die einzelnen Testfälle.</p>
+    <div class="scroll-x"><table class="cmp"><thead><tr><th>Anforderung</th>${head}</tr></thead><tbody>${sumRow}${rows}</tbody></table></div>${detail}
+    <p class="note">ber. = nur beratende Fälle. Kein Favorit: Die Abnahme bewertet Sicherheit und Transport. Kosten, Betrieb, Support und Skalierung stehen in der Entscheidungsmatrix (make decide).</p>`;
+}
+
+const CONFIG_VIEWS = {
+  mosquitto: { label: "Mosquitto acl", file: "mosquitto/config/acl" },
+  emqx: { label: "EMQX acl.conf", file: "brokers/emqx/acl.conf" },
+  hivemq: { label: "HiveMQ permissions.tsv", file: "brokers/hivemq/permissions.tsv" },
+  hivemqids: { label: "HiveMQ client_ids.tsv", file: "brokers/hivemq/client_ids.tsv" },
+  identities: { label: "client_identities.tsv", file: "synthetic/client_identities.tsv" }
+};
+function configText(view) {
+  const gws = allGateways(), svc = DATA.fleet?.services || { ingest: "svc-sim-cloud-ingest", command: "svc-sim-cloud-command" };
+  const regular = gws.filter(g => !g.legacy), legacy = gws.filter(g => g.legacy);
+  if (view === "mosquitto") {
+    const out = ["# Mosquitto acl_file (Identität = Zertifikats-CN, use_identity_as_username true)", "# Alles, was hier nicht steht, ist verboten."];
+    for (const g of regular) { const t = topicsFor(g); out.push("", `user ${g.id}`, `topic write ${t.upFilter}`, `topic read  ${t.downFilter}`); }
+    if (legacy.length) { out.push("", "# Legacy-Gateways: greifen nur mit Registry-Zuordnung (Mosquitto kann das nicht)"); for (const g of legacy) { const t = topicsFor(g); out.push("", `user ${g.id}`, `topic write ${t.upFilter}`, `topic read  ${t.downFilter}`); } }
+    out.push("", `user ${svc.ingest}`, `topic read  ${allUp()}`, "", `user ${svc.command}`, `topic write ${allDown()}`);
+    return out.join("\n");
+  }
+  if (view === "emqx") {
+    const rule = (u, a, t) => `{allow, {username, "${u}"}, ${a}, ["${t}"]}.`;
+    const out = ["%% EMQX 5 file authorization (Username = CN, mqtt.peer_cert_as_username = cn)"];
+    for (const g of gws) { const t = topicsFor(g); out.push(rule(g.id, "publish", t.upFilter), rule(g.id, "subscribe", t.downFilter)); }
+    out.push(rule(svc.ingest, "subscribe", allUp()), rule(svc.command, "publish", allDown()), "{deny, all}.");
+    return out.join("\n");
+  }
+  if (view === "hivemq") {
+    const out = ["# enetec-identity extension: identity<TAB>publish|subscribe<TAB>topic filter. Default: deny."];
+    for (const g of gws) { const t = topicsFor(g); out.push(`${g.id}\tpublish\t${t.upFilter}`, `${g.id}\tsubscribe\t${t.downFilter}`); }
+    out.push(`${svc.ingest}\tsubscribe\t${allUp()}`, `${svc.command}\tpublish\t${allDown()}`);
+    return out.join("\n");
+  }
+  if (view === "hivemqids") return ["# identity<TAB>authorized client id"].concat(gws.map(g => `${g.id}\t${clientIdFor(g)}`)).join("\n");
+  return ["# identity\tserial\tclient_id\talgorithm"].concat(gws.map(g => `${g.id}\t${g.legacy ? g.id : g.serial}\t${clientIdFor(g)}\t${state.wire === "v13" ? (W.algorithm || "lab-sha256-v0") : "certificate-cn"}`)).join("\n");
+}
+function renderConfig() {
+  const view = CONFIG_VIEWS[state.configView] ? state.configView : "mosquitto";
+  return `<p>So sähen die Broker-Rechte für deinen Aufbau aus. Erzeugt nach denselben Regeln wie <code>make fleet</code> (sim/enetec_sim/fleet.py); Seriennummern neuer Gateways sind Beispiele.</p>
+    <div class="subtabs">${Object.entries(CONFIG_VIEWS).map(([k, v]) => `<button type="button" class="btn small" data-config="${k}" aria-pressed="${k === view}">${esc(v.label)}</button>`).join("")}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span class="note mono">${esc(CONFIG_VIEWS[view].file)}</span><button type="button" class="btn small" data-copy="config-pre">Kopieren</button></div>
+    <pre class="code" id="config-pre">${esc(configText(view))}</pre>`;
+}
+
+/* ---------- Export nach sim/config.local.toml (reine Funktion, siehe AI-Playbook) */
+function exportToml(s, today) {
+  const plants = s.plants.filter(p => !p.legacy && p.gateways.length);
+  const regular = plants.flatMap(p => p.gateways.map(g => ({ id: g.id, plant: p.id, link: g.link === "flaky" ? "flaky" : "stable", serial: g.serial, type: p.type })));
+  const legacy = s.plants.filter(p => p.legacy).flatMap(p => p.gateways);
+  const flaky = regular.length ? Math.round(100 * regular.filter(g => g.link === "flaky").length / regular.length) / 100 : 0;
+  const incidents = ((DATA.traffic && DATA.traffic.incidents) || []).filter(i => (s.traffic.incidents || []).includes(i.name));
+  const tomlValue = v => typeof v === "string" ? `"${v}"` : String(v);
+  const inline = obj => "{ " + Object.entries(obj).map(([k, v]) => `${k} = ${tomlValue(v)}`).join(", ") + " }";
+  const lines = [
+    `# Exportiert aus dem MQTT-Baukasten am ${today}.`,
+    "# Als sim/config.local.toml speichern; danach: make fleet (dann make simulate / make acceptance).",
+    "# Ergänzt sim/config.toml: Tabellen werden zusammengeführt, Listen ersetzt.",
+    "",
+    "[wire]",
+    `topics = "${s.wire}"`,
+    `client_id = "${s.wire === "v13" ? "derived" : "certificate"}"`,
+    "",
+    "[fleet]",
+    `plants = ${plants.length}`,
+    "# Jede Installation bekommt genau ihre Gateways aus dem Baukasten,",
+    "# mit Seriennummer (daraus die Client-ID) und Anbindung wie dort eingestellt.",
+    "gateways_per_plant = { residential = [1, 1], commercial = [1, 1] }",
+    `flaky_link_share = ${flaky}`,
+    "pinned = ["
+  ].concat(regular.map(g => `  { gateway_id = "${g.id}", plant_id = "${g.plant}", serial_number = "${g.serial}", link = "${g.link}"${g.type === "residential" || g.type === "commercial" ? `, plant_type = "${g.type}"` : ""} },`), [
+    "]",
+    "",
+    "[legacy]",
+    `gateway_ids = [${legacy.map(g => `"${g.id}"`).join(", ")}]`,
+    "",
+    "[dataset]",
+    `d2c_per_gateway_per_day = ${Number(s.traffic.d2c)}`,
+    "",
+    "[commands]",
+    `per_gateway_per_h = ${Number(s.traffic.cmd)}`,
+    "",
+    "[connectivity]",
+    `incidents = [${incidents.length ? "\n" + incidents.map(i => "  " + inline(i) + ",").join("\n") + "\n" : ""}]`
+  ]);
+  return lines.join("\n") + "\n";
+}
+function readiness(s) {
+  const regular = s.plants.filter(p => !p.legacy).flatMap(p => p.gateways);
+  const legacy = s.plants.filter(p => p.legacy).flatMap(p => p.gateways);
+  const hasA = regular.some(g => g.id === "gw-sim-000001");
+  const plantA = s.plants.find(p => p.gateways.some(g => g.id === "gw-sim-000001"));
+  const hasBC = s.plants.some(p => !p.legacy && p !== plantA && p.gateways.length >= 2);
+  const ids = regular.map(g => g.id), badIds = ids.filter(id => !/^gw-sim-\d{6}$/.test(id));
+  const dupIds = ids.filter((id, i) => ids.indexOf(id) !== i);
+  return [
+    { ok: hasA, must: true, text: "Gateway gw-sim-000001 vorhanden (Gateway A: Negativ-Zertifikate und Rotation hängen daran)" },
+    { ok: hasBC, must: true, text: "Eine zweite Installation mit mindestens 2 Gateways (B und C für die Fälle mit fremden Gateways)" },
+    { ok: !badIds.length, must: true, text: badIds.length ? `Gateway-IDs im Format gw-sim-NNNNNN (falsch: ${badIds.join(", ")})` : "Gateway-IDs im Format gw-sim-NNNNNN" },
+    { ok: !dupIds.length, must: true, text: dupIds.length ? `Gateway-IDs eindeutig (doppelt: ${dupIds.join(", ")})` : "Gateway-IDs eindeutig" },
+    { ok: legacy.length >= 2, must: false, text: "Zwei Legacy-Gateways für LEG-01/02 (sonst INCONCLUSIVE, beratend)" },
+    { ok: regular.length >= 10, must: false, text: `Reconnect-Sturm REC-01 nutzt bis zu 10 Gateways (du hast ${regular.length})` },
+    { ok: s.services.ingest && s.services.command, must: false, text: "Cloud-Ingest und Cloud-Command: In der echten Simulation sind beide immer da." }
+  ];
+}
+function renderExport() {
+  const today = new Date().toISOString().slice(0, 10);
+  const checks = readiness(state), ready = checks.filter(c => c.must).every(c => c.ok);
+  const regular = state.plants.filter(p => !p.legacy).flatMap(p => p.gateways).length;
+  const perDay = Math.round(regular * Number(state.traffic.d2c)), cmdDay = Math.round(regular * Number(state.traffic.cmd) * 24);
+  const inc = (DATA.traffic && DATA.traffic.incidents) || [];
+  return `<div class="two">
+    <div class="tabpanel">
+      <p>Aus deinem Aufbau wird eine Konfiguration für die echte Simulation. Sie ergänzt <code>sim/config.toml</code> als <code>sim/config.local.toml</code>.</p>
+      <div class="inline-fields">
+        <div class="field"><label for="t-d2c">state-Nachrichten je Gateway und Tag</label><input id="t-d2c" type="number" min="1" step="1" value="${esc(state.traffic.d2c)}"></div>
+        <div class="field"><label for="t-cmd">Commands je Gateway und Stunde</label><input id="t-cmd" type="number" min="0" step="0.05" value="${esc(state.traffic.cmd)}"></div>
+      </div>
+      <div class="inline-fields">${inc.map((i, k) => `<label class="check" for="t-inc-${k}"><input type="checkbox" id="t-inc-${k}" data-incident="${esc(i.name)}"${(state.traffic.incidents || []).includes(i.name) ? " checked" : ""}> ${esc(i.name === "regional-isp-outage" ? "Regionaler Ausfall (Reconnect-Sturm)" : i.name === "overnight-outage" ? "Langer Nachtausfall (Puffer läuft über)" : i.name)}</label>`).join("")}</div>
+      <p class="note">Ergibt etwa ${nf.format(perDay)} state-Nachrichten und ${nf.format(cmdDay)} Commands pro Tag bei ${regular} Gateways. Planungswert ENETEC: ~2,51 Mio. Nachrichten/Tag bei ~10.000 Gateways.</p>
+      <div class="agroup"><span class="label-sm">Bereit für make acceptance?</span>
+        <ul class="checklist">${checks.map(c => `<li><span class="${c.ok ? "ok" : c.must ? "no" : "hint"}">${c.ok ? "✓" : c.must ? "✕" : "!"}</span><span>${esc(c.text)}</span></li>`).join("")}</ul>
+        <p class="note">${ready ? "Alle Pflichtpunkte erfüllt." : "Die Simulation (make simulate) läuft trotzdem; die Abnahme braucht die rot markierten Punkte."}</p>
+      </div>
+      <div class="agroup"><span class="label-sm">Befehle im Lab-Ordner</span>
+        <pre class="code" id="cmd-pre">${esc(`# Inhalt rechts als sim/config.local.toml speichern, dann:\nmake fleet\nmake simulate${state.broker ? ` BROKER=${state.broker}` : ""}\nmake acceptance${state.broker ? ` BROKER=${state.broker}` : ""}\n\n# Zurück zur Lab-Flotte:\nrm sim/config.local.toml && make fleet`)}</pre>
+        <div><button type="button" class="btn small" data-copy="cmd-pre">Befehle kopieren</button></div>
+      </div>
+    </div>
+    <div class="tabpanel">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span class="note mono">sim/config.local.toml</span><button type="button" class="btn small primary" data-copy="toml-pre">Kopieren</button></div>
+      <pre class="code" id="toml-pre">${esc(exportToml(state, today))}</pre>
+      <p class="note">Leere Installationen werden nicht exportiert. Geräte hinter den Gateways und ihr Raumklima würfelt der Generator. Zertifikatsfehler und Client-ID-Tricks aus dem Baukasten gehören nicht in die Konfiguration: Die Abnahme prüft sie mit eigenen Negativ-Identitäten.</p>
+    </div></div>`;
+}
+function renderGlossary() {
+  return `<dl class="gloss">${GLOSSARY.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>`;
+}
+function setTab(tab) { state.tab = tab; renderDesk(); save(); }
+function renderDesk() {
+  const tab = ["vergleich", "konfiguration", "export", "glossar"].includes(state.tab) ? state.tab : "vergleich";
+  document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+  $("#tabpanel").innerHTML = tab === "vergleich" ? renderCompare() : tab === "konfiguration" ? renderConfig() : tab === "export" ? renderExport() : renderGlossary();
+}
+
+/* =====================================================================
+   Aufbau ändern
+   ===================================================================== */
+function nextGatewayId() {
+  const nums = allGateways().map(g => /^gw-sim-(\d{6})$/.exec(g.id)).filter(Boolean).map(m => Number(m[1]));
+  return "gw-sim-" + String((nums.length ? Math.max(...nums) : 0) + 1).padStart(6, "0");
+}
+function nextPlantId() {
+  const nums = state.plants.map(p => /^plt_sim_(\d{3})$/.exec(p.id)).filter(Boolean).map(m => Number(m[1]));
+  return "plt_sim_" + String((nums.length ? Math.max(...nums) : 0) + 1).padStart(3, "0");
+}
+function sampleSerial() { return String(100000000 + Math.floor(Math.random() * 4194967295)); }
+function addPlant() { const id = nextPlantId(); state.plants.splice(state.plants.filter(p => !p.legacy).length, 0, { id, type: null, legacy: false, gateways: [] }); state.selected = { kind: "plant", id }; }
+function addGateway(plantId) {
+  let plant = state.plants.find(p => p.id === plantId && !p.legacy) || state.plants.find(p => !p.legacy);
+  if (!plant) { addPlant(); plant = state.plants.find(p => !p.legacy); }
+  const id = nextGatewayId();
+  plant.gateways.push({ id, serial: sampleSerial(), sample: true, family: "SmartComfort365", link: "stable", cert: "valid", cidMode: "own", legacy: false, status: null });
+  state.selected = { kind: "gateway", id };
+}
+function addLegacy() {
+  let plant = state.plants.find(p => p.legacy);
+  if (!plant) { plant = { id: DATA.fleet?.legacy_plant || "plt_sim_legacy", type: "legacy", legacy: true, gateways: [] }; state.plants.push(plant); }
+  const nums = plant.gateways.map(g => Number(g.id)).filter(n => !Number.isNaN(n));
+  const id = String((nums.length ? Math.max(...nums) : 4) + 1).padStart(16, "0");
+  plant.gateways.push({ id, serial: id, sample: true, family: "AWS IoT", link: "stable", cert: "valid", cidMode: "own", legacy: true, status: null });
+  state.selected = { kind: "gateway", id };
+}
+function placeBlock(item, dropPlant) {
+  if (item.kind === "plant") addPlant();
+  else if (item.kind === "gateway") addGateway(dropPlant || (state.selected?.kind === "plant" ? state.selected.id : plantOf(state.selected?.id || "")?.id));
+  else if (item.kind === "legacy") addLegacy();
+  else if (item.kind === "broker") { state.broker = item.broker; state.selected = { kind: "broker" }; allGateways().forEach(g => { g.status = null; }); }
+  else if (item.kind === "ingest" || item.kind === "command") { state.services[item.kind] = true; state.selected = { kind: item.kind }; }
+  lastResult = null;
+  renderAll(); save();
+}
+const canDrop = (item, zone) => ({ plant: ["field"], gateway: ["plant", "field"], legacy: ["field", "plant"], broker: ["broker"], ingest: ["cloud"], command: ["cloud"] }[item.kind] || []).includes(zone);
+
+/* ---------- Drag & Drop (Maus und Stift; Touch: antippen) */
+let drag = null;
+function onPalettePointerDown(e) {
+  const btn = e.target.closest(".pblock"); if (!btn || e.pointerType === "touch" || e.button !== 0) return;
+  drag = { item: PALETTE[Number(btn.dataset.idx)], x: e.clientX, y: e.clientY, moved: false, ghost: null };
+}
+function dropZoneAt(x, y, item) {
+  const el = document.elementFromPoint(x, y); if (!el) return null;
+  const plant = el.closest("[data-drop='plant']"), col = el.closest("[data-drop]:not([data-drop='plant'])");
+  if (plant && canDrop(item, "plant")) return { el: plant, zone: "plant", plant: plant.dataset.plant };
+  if (col && canDrop(item, col.dataset.drop)) return { el: col, zone: col.dataset.drop };
+  return null;
+}
+document.addEventListener("pointermove", e => {
+  if (!drag) return;
+  if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return;
+  if (!drag.moved) { drag.moved = true; drag.ghost = Object.assign(document.createElement("div"), { className: "ghost", textContent: drag.item.label }); document.body.appendChild(drag.ghost); }
+  drag.ghost.style.left = (e.clientX + 12) + "px"; drag.ghost.style.top = (e.clientY + 12) + "px";
+  document.querySelectorAll(".drop-hot").forEach(x => x.classList.remove("drop-hot"));
+  const z = dropZoneAt(e.clientX, e.clientY, drag.item); if (z) z.el.classList.add("drop-hot");
+});
+document.addEventListener("pointerup", e => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  document.querySelectorAll(".drop-hot").forEach(x => x.classList.remove("drop-hot"));
+  if (d.ghost) d.ghost.remove();
+  if (!d.moved) return;   // ein Klick wird vom click-Handler behandelt
+  const z = dropZoneAt(e.clientX, e.clientY, d.item);
+  if (z) placeBlock(d.item, z.plant);
+  suppressClick = true; setTimeout(() => { suppressClick = false; }, 0);
+});
+let suppressClick = false;
+
+/* =====================================================================
+   Ereignisse
+   ===================================================================== */
+document.addEventListener("click", e => {
+  const t = e.target;
+  const pb = t.closest(".pblock");
+  if (pb) { if (!suppressClick) placeBlock(PALETTE[Number(pb.dataset.idx)]); return; }
+  const ls = t.closest("[data-lesson]"); if (ls) { LESSONS[Number(ls.dataset.lesson)].run(); return; }
+  const act = t.closest("[data-action]"); if (act) { runAction(act.dataset.action, act.dataset.for || (state.selected?.kind === "gateway" ? state.selected.id : null)); return; }
+  const gwb = t.closest("[data-gw]"); if (gwb) { state.selected = { kind: "gateway", id: gwb.dataset.gw }; renderAll(); save(); return; }
+  const pl = t.closest("[data-select-plant]"); if (pl) { state.selected = { kind: "plant", id: pl.dataset.selectPlant }; renderAll(); save(); return; }
+  const sel = t.closest("[data-select]"); if (sel) { state.selected = { kind: sel.dataset.select }; renderAll(); save(); return; }
+  const addGw = t.closest("[data-add-gw]"); if (addGw) { addGateway(addGw.dataset.addGw); renderAll(); save(); return; }
+  const rmGw = t.closest("[data-remove-gw]"); if (rmGw) { state.plants.forEach(p => { p.gateways = p.gateways.filter(g => g.id !== rmGw.dataset.removeGw); }); state.selected = null; lastResult = null; renderAll(); save(); return; }
+  const rmPl = t.closest("[data-remove-plant]"); if (rmPl) { state.plants = state.plants.filter(p => p.id !== rmPl.dataset.removePlant); state.selected = null; lastResult = null; renderAll(); save(); return; }
+  const rmSvc = t.closest("[data-remove-svc]"); if (rmSvc) { state.services[rmSvc.dataset.removeSvc] = false; state.selected = null; renderAll(); save(); return; }
+  const tab = t.closest("#tabs [data-tab]"); if (tab) { setTab(tab.dataset.tab); return; }
+  const cmp = t.closest("[data-cmp]"); if (cmp) { const [req, broker] = cmp.dataset.cmp.split("|"); cmpDetail = cmpDetail && cmpDetail.req === req && cmpDetail.broker === broker ? null : { req, broker }; renderDesk(); return; }
+  const cfg = t.closest("[data-config]"); if (cfg) { state.configView = cfg.dataset.config; renderDesk(); save(); return; }
+  const cp = t.closest("[data-copy]"); if (cp) { copyFrom(cp.dataset.copy, cp); return; }
+  const wb = t.closest("[data-wire]"); if (wb) { state.wire = wb.dataset.wire; allGateways().forEach(g => { g.status = null; if (state.wire !== "v13" && g.cidMode === "cn") g.cidMode = "own"; }); lastResult = null; renderAll(); save(); return; }
+  if (t.closest("#btn-lab")) { state = labState(); lastResult = null; renderAll(); save(); return; }
+  if (t.closest("#btn-empty")) { state = emptyState(); lastResult = null; renderAll(); save(); return; }
+  if (t.closest("#add-plant")) { addPlant(); renderAll(); save(); return; }
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.matches("[data-gw-field]") && state.selected?.kind === "gateway") {
+    const g = findGw(state.selected.id); if (!g) return;
+    const field = t.dataset.gwField;
+    if (field === "id") {
+      const v = t.value.trim(), ok = g.legacy ? /^\d{16}$/.test(v) : /^gw-sim-\d{6}$/.test(v);
+      if (!ok || (v !== g.id && findGw(v))) { t.value = g.id; lastResult = { title: "Gateway-ID", steps: [note(g.legacy ? "Legacy-IDs haben 16 Ziffern." : "Gateway-IDs haben das Format gw-sim-NNNNNN und sind eindeutig.", "warn")], primary: null }; renderProtocol(); return; }
+      g.id = v; state.selected.id = v;
+    } else if (field === "serial") {
+      const v = t.value.trim(), n = Number(v);
+      const taken = allGateways().some(x => x !== g && !x.legacy && x.serial === v);
+      if (!/^\d{1,10}$/.test(v) || n < 1 || n > 4294967295 || taken) { t.value = g.serial; lastResult = { title: "Seriennummer", steps: [note(taken ? "Diese Seriennummer hat schon ein anderes Gateway." : "Seriennummern sind ganze Zahlen von 1 bis 4294967295 (32 Bit).", "warn")], primary: null }; renderProtocol(); return; }
+      g.serial = String(n); g.sample = true;
+    } else g[field] = t.value;
+    g.status = null; renderAll(); save(); return;
+  }
+  if (t.id === "f-broker") { state.broker = t.value; allGateways().forEach(g => { g.status = null; }); lastResult = null; renderAll(); save(); return; }
+  if (t.id === "t-d2c" || t.id === "t-cmd") { const n = Number(t.value); if (Number.isFinite(n) && n >= 0) state.traffic[t.id === "t-d2c" ? "d2c" : "cmd"] = n; renderDesk(); save(); return; }
+  if (t.matches("[data-incident]")) { const set = new Set(state.traffic.incidents || []); t.checked ? set.add(t.dataset.incident) : set.delete(t.dataset.incident); state.traffic.incidents = [...set]; renderDesk(); save(); }
+});
+document.getElementById("palette").addEventListener("pointerdown", onPalettePointerDown);
+async function copyFrom(id, btn) {
+  const el = document.getElementById(id); if (!el) return;
+  const text = el.textContent, old = btn.textContent;
+  try { await navigator.clipboard.writeText(text); btn.textContent = "Kopiert"; }
+  catch (e) { const range = document.createRange(); range.selectNodeContents(el); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range); btn.textContent = "Markiert: mit Strg/Cmd+C kopieren"; }
+  setTimeout(() => { btn.textContent = old; }, 1800);
+}
+
+/* =====================================================================
+   Start
+   ===================================================================== */
+function renderHeader() {
+  document.querySelectorAll("#wire-seg [data-wire]").forEach(b => b.setAttribute("aria-checked", String(b.dataset.wire === state.wire)));
+  const runs = (DATA.runs || []).length;
+  $("#datasource").textContent = DATA.generated_utc
+    ? `Lab-Version ${DATA.lab_version || "?"} · ${runs} Referenzläufe aus docs/mqtt-tests/reference · Daten vom ${fmtDate(DATA.generated_utc)}. Broker-Verhalten nur so, wie es im Lab gemessen wurde.`
+    : "Keine Lab-Daten eingebaut: im Lab-Ordner make web ausführen.";
+}
+function renderAll() {
+  renderHeader(); renderPlants(); renderBroker(); renderCloud(); renderInspector(); renderProtocol(); renderDesk();
+  requestAnimationFrame(drawWires);
+}
+renderPalette(); renderLessons(); renderAll();
+if (["vergleich", "konfiguration", "export", "glossar"].includes(location.hash.slice(1))) setTab(location.hash.slice(1));
+new ResizeObserver(() => drawWires()).observe(document.getElementById("cabinet"));
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(drawWires);
+</script>

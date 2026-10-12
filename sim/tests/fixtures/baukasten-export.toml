@@ -1,0 +1,36 @@
+# Exportiert aus dem MQTT-Baukasten am 2026-10-12.
+# Als sim/config.local.toml speichern; danach: make fleet (dann make simulate / make acceptance).
+# Ergänzt sim/config.toml: Tabellen werden zusammengeführt, Listen ersetzt.
+
+[wire]
+topics = "v13"
+client_id = "derived"
+
+[fleet]
+plants = 2
+# Jede Installation bekommt genau ihre Gateways aus dem Baukasten,
+# mit Seriennummer (daraus die Client-ID) und Anbindung wie dort eingestellt.
+gateways_per_plant = { residential = [1, 1], commercial = [1, 1] }
+flaky_link_share = 0.2
+pinned = [
+  { gateway_id = "gw-sim-000001", plant_id = "plt_sim_001", serial_number = "284181526", link = "stable" },
+  { gateway_id = "gw-sim-000002", plant_id = "plt_sim_001", serial_number = "2100815044", link = "stable" },
+  { gateway_id = "gw-sim-000003", plant_id = "plt_sim_002", serial_number = "2086655139", link = "stable" },
+  { gateway_id = "gw-sim-000004", plant_id = "plt_sim_002", serial_number = "123456789", link = "flaky" },
+  { gateway_id = "gw-sim-000005", plant_id = "plt_sim_002", serial_number = "809772465", link = "stable" },
+]
+
+[legacy]
+gateway_ids = ["0000000000000005", "0000000000000006"]
+
+[dataset]
+d2c_per_gateway_per_day = 251
+
+[commands]
+per_gateway_per_h = 0.25
+
+[connectivity]
+incidents = [
+  { name = "regional-isp-outage", start_s = 45000, duration_s = 900, share = 0.5 },
+  { name = "overnight-outage", start_s = 72000, duration_s = 14400, select = "largest", count = 1 },
+]

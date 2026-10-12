@@ -5,6 +5,8 @@ data/*
 logs/*
 !logs/.gitkeep
 results/
+# Local overrides of sim/config.toml (e.g. exported from the Baukasten web page)
+sim/config.local.toml
 mosquitto/config/.replacement-test-lock/
 .DS_Store
 __pycache__/

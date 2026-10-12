@@ -103,6 +103,15 @@ def cmd_decide(args, cfg):
     return 0
 
 
+def cmd_web_data(args, cfg):
+    from .webdata import build, inject
+    data = build(cfg)
+    path = inject(data)
+    print(f"{path.relative_to(LAB_ROOT)}: {len(data['runs'])} reference runs, {len(data['fleet']['gateways'])} gateways, "
+          f"{len(data['cases'])} cases. Open the file in a browser.")
+    return 0
+
+
 def cmd_brokers(args, cfg):
     for path in sorted(TARGETS_DIR.glob('*.toml')):
         target = load_target(path)
@@ -184,6 +193,9 @@ def main(argv=None):
     p.add_argument('--decision', default=str(LAB_ROOT / 'sim' / 'decision.toml'))
     p.add_argument('--out-dir')
     p.set_defaults(func=cmd_decide)
+
+    p = sub.add_parser('web-data', help='write fleet, cases and reference runs into web/baukasten/index.html')
+    p.set_defaults(func=cmd_web_data)
 
     p = sub.add_parser('brokers', help='list the broker profiles in sim/targets/')
     p.set_defaults(func=cmd_brokers)
