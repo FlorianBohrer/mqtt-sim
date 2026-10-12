@@ -4,7 +4,13 @@ Everything the page shows about brokers comes from files in this repository: the
 fleet, the wire profile, the acceptance case catalogue, the broker profiles and the reference
 runs listed in web/baukasten/sources.toml. The JSON is written into index.html between two
 markers, so the page works offline (file://) and as one self-contained file.
+
+inject() also embeds the fonts from web/baukasten/fonts as data: URIs (no requests to third
+parties) and writes the SHA-256 of the page script into the Content-Security-Policy, so the
+browser runs only that exact script. Every edit of the script needs `make web` afterwards.
 """
+import base64
+import hashlib
 import json
 import re
 import tomllib
@@ -17,6 +23,17 @@ from .config import LAB_ROOT, TARGETS_DIR, load_target
 WEB_DIR = LAB_ROOT / 'web' / 'baukasten'
 DATA_START = '<script id="lab-data" type="application/json">'
 DATA_END = '</script>'
+FONTS_DIR = WEB_DIR / 'fonts'
+FONTS_START = '/* fonts:start'
+FONTS_END = '/* fonts:end */'
+# (file, family, weight); IBM Plex Sans is a variable font covering 100-700.
+FONTS = [('barlow-condensed-600-latin.woff2', 'Barlow Condensed', '600'),
+         ('barlow-condensed-700-latin.woff2', 'Barlow Condensed', '700'),
+         ('ibm-plex-sans-latin.woff2', 'IBM Plex Sans', '100 700'),
+         ('ibm-plex-mono-400-latin.woff2', 'IBM Plex Mono', '400'),
+         ('ibm-plex-mono-500-latin.woff2', 'IBM Plex Mono', '500')]
+SCRIPT_START = '<script>'
+CSP_SCRIPT_SRC = re.compile(r"script-src 'sha256-[A-Za-z0-9+/=_-]+'")
 VERDICTS = ('PASS', 'FAIL', 'PARTIAL', 'INCONCLUSIVE')
 CASE_ID = re.compile(r'^[A-Z]{2,4}-\d{2}$')
 
@@ -96,7 +113,8 @@ def build(cfg, sources_path=WEB_DIR / 'sources.toml', fleet_path=LAB_ROOT / 'syn
         cases = parse_report(path) if run['kind'] == 'report' else parse_summary(path, run['cases'])
         counts = _counts(cases, mandatory_ids)
         runs.append({'broker': run['broker'], 'wire': run['wire'], 'date': run['date'], 'kind': run['kind'],
-                     'file': run['file'], 'label': run.get('label', ''), 'cases': cases, 'counts': counts,
+                     'file': run['file'], 'label': run.get('label', ''), 'label_en': run.get('label_en', ''),
+                     'cases': cases, 'counts': counts,
                      'mandatory_total': sum(counts.values()),
                      'accepted': sum(counts.values()) > 0 and counts['PASS'] == sum(counts.values())})
 
@@ -104,8 +122,10 @@ def build(cfg, sources_path=WEB_DIR / 'sources.toml', fleet_path=LAB_ROOT / 'syn
     for key, meta in sources.get('brokers', {}).items():
         path = TARGETS_DIR / f'{key}.toml'
         target = load_target(path) if path.exists() else {}
-        brokers.append({'key': key, 'name': meta.get('name', target.get('name', key)), 'role': meta.get('role', ''),
-                        'note': meta.get('note', ''), 'profile_status': target.get('status', 'verified'),
+        brokers.append({'key': key, 'name': meta.get('name', target.get('name', key)), 'name_en': meta.get('name_en', ''),
+                        'role': meta.get('role', ''),
+                        'role_en': meta.get('role_en', ''), 'note': meta.get('note', ''),
+                        'note_en': meta.get('note_en', ''), 'profile_status': target.get('status', 'verified'),
                         'max_packet_bytes': target.get('max_packet_bytes'),
                         'effort': {req: str(value) for req, value in (target.get('effort') or {}).items()}})
 
@@ -139,11 +159,37 @@ def build(cfg, sources_path=WEB_DIR / 'sources.toml', fleet_path=LAB_ROOT / 'syn
     }
 
 
-def inject(data, html_path=WEB_DIR / 'index.html'):
-    """Replace the JSON between the markers in index.html (idempotent)."""
+def font_faces(fonts_dir=FONTS_DIR):
+    """@font-face rules with the woff2 files as data: URIs."""
+    rules = []
+    for name, family, weight in FONTS:
+        data = base64.b64encode((Path(fonts_dir) / name).read_bytes()).decode('ascii')
+        rules.append(f'@font-face {{ font-family: "{family}"; font-style: normal; font-weight: {weight}; '
+                     f'font-display: swap; src: url(data:font/woff2;base64,{data}) format("woff2"); }}')
+    return '\n'.join(rules)
+
+
+def script_hash(html):
+    """CSP source for the page script: 'sha256-<base64>' of the text between <script> and </script>."""
+    data_end = html.index(DATA_END, html.index(DATA_START) + len(DATA_START)) + len(DATA_END)
+    start = html.index(SCRIPT_START, data_end) + len(SCRIPT_START)
+    end = html.index('</script>', start)
+    digest = hashlib.sha256(html[start:end].encode('utf-8')).digest()
+    return "'sha256-" + base64.b64encode(digest).decode('ascii') + "'"
+
+
+def inject(data, html_path=WEB_DIR / 'index.html', fonts_dir=FONTS_DIR):
+    """Write the lab data, the embedded fonts and the CSP script hash into index.html (idempotent)."""
     html = Path(html_path).read_text()
     start = html.index(DATA_START) + len(DATA_START)
     end = html.index(DATA_END, start)
     payload = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
-    Path(html_path).write_text(html[:start] + payload + html[end:])
+    html = html[:start] + payload + html[end:]
+    fstart = html.index('\n', html.index(FONTS_START)) + 1
+    fend = html.index(FONTS_END, fstart)
+    html = html[:fstart] + font_faces(fonts_dir) + '\n' + html[fend:]
+    if not CSP_SCRIPT_SRC.search(html):
+        raise SystemExit(f"{html_path}: Content-Security-Policy with script-src 'sha256-...' not found")
+    html = CSP_SCRIPT_SRC.sub(lambda _: 'script-src ' + script_hash(html), html, count=1)
+    Path(html_path).write_text(html)
     return html_path

@@ -1,15 +1,18 @@
 """Baukasten web page: data generator, config overlay and the export round trip (no browser)."""
 import json
 import os
+import re
 import shutil
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from enetec_sim.config import LAB_ROOT, load_config
 from enetec_sim.fleet import build_fleet
-from enetec_sim.webdata import DATA_END, DATA_START, WEB_DIR, build, inject, parse_report, parse_summary
+from enetec_sim.webdata import (DATA_END, DATA_START, FONTS, WEB_DIR, build, inject, parse_report,
+                                parse_summary, script_hash)
 
 REFERENCE = LAB_ROOT / 'docs' / 'mqtt-tests' / 'reference'
 FIXTURES = Path(__file__).parent / 'fixtures'
@@ -65,6 +68,72 @@ class PageDataTest(unittest.TestCase):
             inject(data, page)
             self.assertEqual(once, page.read_text())
             self.assertNotIn('contains </script>', once)
+
+
+class PageSecurityTest(unittest.TestCase):
+    """The page runs offline, loads nothing from third parties and runs only its own script."""
+
+    def setUp(self):
+        self.html = (WEB_DIR / 'index.html').read_text()
+        self.head = self.html[:self.html.index('<style>')]
+
+    def test_csp_allows_only_the_page_script(self):
+        csp = re.search(r'<meta http-equiv="Content-Security-Policy" content="([^"]+)">', self.head)
+        self.assertIsNotNone(csp, 'CSP meta tag missing in <head>')
+        policy = csp.group(1)
+        for directive in ("default-src 'none'", "base-uri 'none'", "form-action 'none'", "object-src 'none'"):
+            self.assertIn(directive, policy)
+        self.assertIn('script-src ' + script_hash(self.html), policy,
+                      'CSP script hash is stale: run make web after editing the page script')
+        self.assertNotIn('unsafe-eval', policy)
+        self.assertNotRegex(policy, r"script-src[^;]*'unsafe-inline'")
+
+    def test_no_third_party_resources_or_inline_handlers(self):
+        markup = re.sub(r'<script\b.*?</script>', '', self.html, flags=re.S)
+        self.assertNotRegex(markup, r'<(link|iframe|object|embed|img|form)\b')
+        self.assertNotRegex(markup, r'\s(src|href)\s*=\s*["\']?(https?:)?//')
+        self.assertNotRegex(markup, r'<[^>]+\son[a-z]+\s*=', 'inline event handler found')
+        self.assertNotRegex(self.html, r'url\((["\']?)(https?:)?//')
+        self.assertIn('<meta name="referrer" content="no-referrer">', self.head)
+
+    def test_fonts_are_embedded(self):
+        faces = re.findall(r'@font-face \{ font-family: "([^"]+)";[^}]*url\(data:font/woff2;base64,', self.html)
+        self.assertEqual(len(faces), len(FONTS))
+        self.assertTrue((WEB_DIR / 'fonts' / 'OFL-IBM-Plex.txt').is_file())
+        self.assertTrue((WEB_DIR / 'fonts' / 'OFL-Barlow.txt').is_file())
+
+    def test_inject_writes_the_hash_of_the_edited_script(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            page = Path(tmp) / 'index.html'
+            page.write_text(self.html.replace('"use strict";', '"use strict"; /* edited */', 1))
+            inject({'x': 1}, page)
+            html = page.read_text()
+            self.assertIn('script-src ' + script_hash(html), html)
+            self.assertNotIn('script-src ' + script_hash(self.html), html)
+
+
+class BilingualTest(unittest.TestCase):
+    """German and English texts exist for every case, requirement, broker and run."""
+
+    def test_every_case_and_requirement_has_both_languages(self):
+        html = (WEB_DIR / 'index.html').read_text()
+        data = build(load_config())
+        for table in ('CASE_DE', 'CASE_EN'):
+            block = html[html.index(f'const {table} = {{'):]
+            block = block[:block.index('\n};')]
+            keys = set(re.findall(r'^  "([A-Z]{2,4}-\d{2})": \{', block, flags=re.M))
+            self.assertEqual(keys, {c['id'] for c in data['cases']}, table)
+        for table in ('REQ_DE', 'REQ_EN'):
+            block = html[html.index(f'const {table} = {{'):]
+            block = block[:block.index('\n};')]
+            self.assertEqual(set(re.findall(r'\b(R\d{2}):', block)), {r['id'] for r in data['requirements']}, table)
+
+    def test_sources_carry_english_texts(self):
+        sources = tomllib.loads((WEB_DIR / 'sources.toml').read_text())
+        for key, meta in sources['brokers'].items():
+            self.assertTrue(meta.get('role_en') and meta.get('note_en'), key)
+        for run in sources['run']:
+            self.assertTrue(run.get('label_en'), run['file'])
 
 
 class OverlayAndExportTest(unittest.TestCase):

@@ -78,7 +78,8 @@ Ein Labor für die MQTT-Kommunikation **Gateway ↔ Broker** im ENETEC-Umzug von
 | `scripts/13_acceptance.sh` | Abnahme inkl. Hook-Runner | |
 | `brokers/<broker>/` | Broker-Konfiguration und Anleitung | Rezept A |
 | `web/baukasten/index.html` | Webseite (eine Datei, ohne Build) | Rezept D |
-| `web/baukasten/sources.toml` | welche Referenzläufe die Seite zeigt | Rezept C |
+| `web/baukasten/sources.toml` | welche Referenzläufe die Seite zeigt, Broker-Texte DE/EN | Rezept C |
+| `web/baukasten/fonts/` | eingebettete Schriften (SIL OFL 1.1) | nur mit Lizenzdatei |
 | `docs/mqtt-tests/reference/` | Referenzberichte (Evidenz) | nur echte Läufe |
 | `docs/MQTT-SIM-ENV.md` / `.en.md` | Anleitung DE / EN | bei jeder Nutzer-sichtbaren Änderung |
 | `docs/STAND-*.md` | Statusberichte | Rezept F |
@@ -132,14 +133,23 @@ Ein Labor für die MQTT-Kommunikation **Gateway ↔ Broker** im ENETEC-Umzug von
 
 ### D. Baukasten-Webseite erweitern
 
-Die Seite ist **eine** HTML-Datei ohne Build-Schritt. Sie läuft per `file://` und als veröffentlichte Seite.
+Die Seite ist **eine** HTML-Datei ohne Build-Schritt. Sie läuft per `file://` und als veröffentlichte Seite,
+auf Deutsch und Englisch (Umschalter oben rechts, `?lang=en`, sonst Browsersprache).
+
+`make web` schreibt drei Dinge in die Datei: die Lab-Daten (`DATA`), die Schriften aus
+`web/baukasten/fonts/` als `data:`-URIs und den SHA-256 des Seitenskripts in die
+Content-Security-Policy. **Nach jeder Änderung am Skript `make web` ausführen**, sonst blockiert der
+Browser das Skript (die Seite bleibt leer) und `test_csp_allows_only_the_page_script` schlägt fehl.
 
 **Aufbau im Skript:**
 
 | Teil | Inhalt |
 |---|---|
 | `DATA` | Daten aus `make web`, nicht von Hand |
-| `CASE_DE` | Testfall → deutscher Titel, Ablauftyp (`kind`), Begründung (`why`) |
+| `CASE_DE` / `CASE_EN` | Testfall → Titel, Ablauftyp (`kind`, nur DE), Begründung (`why`) |
+| `REQ_DE` / `REQ_EN`, `GLOSSARY` / `GLOSSARY_EN`, `UI` | Anforderungen, Glossar, feste HTML-Texte (`data-i18n`) |
+| `L(de, en)` | wählt den Text der aktuellen Sprache; jeder neue Text braucht beide Fassungen |
+| `cleanState()` | prüft den gespeicherten Zustand aus `localStorage` (Whitelist) |
 | `ACTIONS` | Knöpfe am Gateway/Broker → Testfall(e) |
 | `buildFlow()` | Ablaufschritte je `kind` und Ergebnis (PASS/FAIL/PARTIAL/nicht gemessen) |
 | `LESSONS` | Lernpfad |
@@ -149,14 +159,26 @@ Die Seite ist **eine** HTML-Datei ohne Build-Schritt. Sie läuft per `file://` u
 **Regeln:**
 - Ergebnis-Farbe und Text kommen immer aus `resultFor(caseId)`. Gibt es keinen Lauf, steht dort „nicht gemessen“.
 - Die abgeleitete Client-ID muss mit Python übereinstimmen (`deriveClientId` ↔ `wire.derive_client_id`).
-- Farben nur über die CSS-Tokens in `:root`, Hell- und Dunkelmodus pflegen. Keine externen Skripte
-  außer erlaubten CDNs; die Seite kommt ohne Bibliotheken aus.
-- Texte deutsch, kurz, aus Sicht der Nutzer.
+- Farben nur über die CSS-Tokens in `:root`, Hell- und Dunkelmodus pflegen.
+- Texte kurz, aus Sicht der Nutzer, immer **deutsch und englisch** (`L("…", "…")`, Tabellen `*_EN`,
+  in `sources.toml` die Felder `*_en`). `BilingualTest` prüft Testfälle, Anforderungen und Quellen.
+
+**Sicherheitsregeln (nicht verhandelbar):**
+- Kein Nachladen von Dritten: keine CDNs, keine Webfonts, kein `fetch`. Die CSP (`default-src 'none'`)
+  verbietet es ohnehin; `PageSecurityTest` prüft es.
+- Kein zweites Inline-Skript, keine `on…=`-Attribute, kein `eval`/`new Function`. Ereignisse nur über
+  die zentralen `addEventListener`-Handler.
+- Alles, was in HTML eingesetzt wird, läuft durch `esc()`. Werte in `class`-Attributen nur über
+  `VCLASS()`/`SCLASS()`/`TONE()` (feste Listen), nie roh.
+- `data-*`-Werte aus dem DOM und Formularwerte vor Gebrauch gegen feste Listen prüfen
+  (`Object.hasOwn(ACTIONS, …)`, `TABS`, `SELECTABLE`, `CERTS` …).
+- Neues Feld im Zustand → auch in `cleanState()` prüfen; sonst wird es beim Laden verworfen.
+- Export (`exportToml`) nur aus geprüften Werten; Zeichenketten über `tomlValue()` (JSON-Quoting).
 
 **Prüfen nach jeder Änderung:**
-1. `node --check` auf das extrahierte Skript.
-2. Einmal im Browser: Lab-Flotte laden, jede Aktion auslösen, keine Fehler in der Konsole, kein
-   seitliches Scrollen bei 390 px Breite.
+1. `make web`, dann `node --check` auf das extrahierte Skript.
+2. Einmal im Browser, **in beiden Sprachen**: Lab-Flotte laden, jede Aktion auslösen, keine Fehler und
+   keine CSP-Meldungen in der Konsole, kein seitliches Scrollen bei 360 und 390 px Breite.
 3. Hat sich `exportToml` geändert:
    - Export für einen selbst gebauten Aufbau erzeugen und mit
      `SIM_CONFIG_OVERLAY=<datei> python -m enetec_sim generate --no-acl --out <tmp>` gegenprüfen;
@@ -205,7 +227,7 @@ Die Seite ist **eine** HTML-Datei ohne Build-Schritt. Sie läuft per `file://` u
       (im Container: `make sim-test`; Integrationstests brauchen lokal `mosquitto` und `openssl`)
 - [ ] Generierte Dateien aktuell:
   - nach Änderungen an Flotte oder Generator `make fleet`
-  - nach neuen Läufen oder Fall-Texten `make web`
+  - nach neuen Läufen, Fall-Texten oder **jeder Änderung am Skript der Webseite** `make web`
   - die Reproduzierbarkeits-Tests sind grün
 - [ ] Doku nachgezogen: Anleitung DE und EN, `acceptance-harness.md`, Broker-README
 - [ ] Bei Nutzer-sichtbaren Änderungen `VERSION` erhöht (`JJJJ-MM-TT-rN`)

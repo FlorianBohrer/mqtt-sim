@@ -207,7 +207,8 @@ Vollständige Regeln: [`mqtt-tests/acceptance-harness.md`](mqtt-tests/acceptance
 
 ### Der Baukasten
 
-`web/baukasten/index.html` direkt im Browser öffnen (kein Server, kein Docker nötig):
+`web/baukasten/index.html` direkt im Browser öffnen (kein Server, kein Docker nötig). Die Seite ist
+zweisprachig: **DE | EN** oben rechts (oder `index.html?lang=en`).
 
 - **Aufbauen:** Installationen, Gateways, Broker und Cloud aus der Bausteinleiste auf die Montageplatte ziehen
   oder antippen.
@@ -217,7 +218,12 @@ Vollständige Regeln: [`mqtt-tests/acceptance-harness.md`](mqtt-tests/acceptance
   Rechte entziehen, Broker-Neustart, Reconnect-Sturm. Jede Aktion zeigt den Ablauf und das Ergebnis,
   das der gewählte Broker **im Lab tatsächlich** hatte, mit Testfall, Anforderung und Beobachtung aus dem
   Referenzbericht. Ohne Lauf steht dort „nicht gemessen“.
-- **Lernpfad:** sieben geführte Schritte.
+- **Broker tauschen:** Die Leiste über dem Schaltschrank zeigt alle Broker mit ihrer Pflichtquote. Ein Klick
+  tauscht den Broker und spielt die letzte Aktion dort noch einmal ab; im Prüfprotokoll gibt es dafür
+  „Gleicher Fall bei den anderen Brokern“.
+- **Paket-Monitor:** Unter dem Schaltschrank laufen die MQTT-Pakete des Ablaufs mit (simuliert, das
+  Ergebnis stammt aus dem Lab-Lauf).
+- **Lernpfad:** sieben geführte Schritte mit Fortschritt.
 - **Pult:** Brokervergleich je Anforderung, generierte ACLs, Glossar.
 - **Export:** Der Aufbau wird zu `sim/config.local.toml`. Damit erzeugt `make fleet` genau diese Gateways,
   mit Seriennummern, Client-IDs und Anbindungen wie im Baukasten. `sim/config.local.toml` ergänzt
@@ -225,6 +231,11 @@ Vollständige Regeln: [`mqtt-tests/acceptance-harness.md`](mqtt-tests/acceptance
   `rm sim/config.local.toml && make fleet`.
 
 Neue Referenzläufe kommen über `web/baukasten/sources.toml` und `make web` auf die Seite.
+
+**Sicherheit der Seite:** Sie lädt nichts von Dritten (Schriften sind eingebettet, SIL OFL 1.1),
+schickt nichts weg und führt nur ihr eigenes Skript aus (Content-Security-Policy mit Skript-Hash,
+den `make web` schreibt). Der Aufbau wird nur im eigenen Browser gespeichert (`localStorage`) und beim
+Laden geprüft; ein manipulierter Stand wird verworfen.
 
 ## 6. Einen eigenen Broker anbinden
 
@@ -280,6 +291,7 @@ Berichte: `docs/mqtt-tests/reference/`. Legacy-Analyse: [`mqtt-tests/legacy-cert
 |---|---|
 | `No rule to make target 'acceptance'` | alter Ordner oder alte ZIP. Version prüfen (`cat VERSION`, aktuell `2026-10-12-r1` oder neuer), neue ZIP über den Ordner entpacken (`unzip -o`) |
 | Baukasten zeigt „Keine Lab-Daten eingebaut“ | `make web` im Lab-Ordner ausführen und die Seite neu laden |
+| Baukasten bleibt leer, Konsole meldet „Content Security Policy“ | Skript der Seite wurde geändert, ohne `make web` auszuführen: `make web` schreibt den neuen Skript-Hash |
 | `make fleet` erzeugt eine andere Flotte als erwartet | `sim/config.local.toml` aus dem Baukasten liegt noch im Ordner; zurück mit `rm sim/config.local.toml && make fleet` |
 | `This original PoC test uses the earlier topic layout` | Einzeltests 04–10 brauchen das alte Schema: `make fleet WIRE=lab-eicp`, danach zurück mit `make fleet` |
 | RST-01 / REV-01 / ACL-14 INCONCLUSIVE mit `hook … not available` oder `unsupported` | Broker nicht vom Lab gestartet oder Profil ohne `[hooks]`: `SIM_HOOK_RESTART` / `SIM_HOOK_CRL_RELOAD` / `SIM_HOOK_ACL_RELOAD` setzen. Ändert das Abnahmeergebnis nicht |

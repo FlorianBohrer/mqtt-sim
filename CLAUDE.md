@@ -23,7 +23,9 @@ Baukasten-Webseite `web/baukasten/index.html`. Doku auf Deutsch (`docs/MQTT-SIM-
 - Tests: `cd sim && python3 -m unittest discover -s tests -t .` (Container: `make sim-test`)
 - Ohne Docker: `SIM_LOCAL=1 make fleet | make web | make acceptance …` (Python ≥ 3.11, paho-mqtt 2.1)
 - Abnahme: `make acceptance [BROKER=emqx] [WIRE=lab-eicp]`; Vergleich: `make compare A=… B=…`; Matrix: `make decide`
-- Webseite: `make web` (Daten neu), dann `web/baukasten/index.html` im Browser öffnen
+- Webseite: `make web` (Daten, Schriften, CSP-Skript-Hash; **nach jeder Skriptänderung**), dann
+  `web/baukasten/index.html` im Browser öffnen. Texte immer DE + EN (`L(de, en)`), Sicherheitsregeln
+  im Playbook, Rezept D.
 
 ## Vor jedem Commit
 Tests grün, generierte Dateien aktuell, Doku DE/EN nachgezogen, `VERSION` erhöht bei Nutzer-sichtbaren

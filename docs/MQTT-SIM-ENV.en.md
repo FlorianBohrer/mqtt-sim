@@ -205,7 +205,8 @@ Full rules: [`mqtt-tests/acceptance-harness.md`](mqtt-tests/acceptance-harness.m
 
 ### The Baukasten (building kit)
 
-Open `web/baukasten/index.html` directly in a browser (no server, no Docker). The page is in German.
+Open `web/baukasten/index.html` directly in a browser (no server, no Docker). The page is bilingual:
+**DE | EN** at the top right (or `index.html?lang=en`).
 
 - **Build:** drag installations, gateways, a broker and the cloud services from the block bar onto the
   mounting plate, or tap them.
@@ -215,7 +216,12 @@ Open `web/baukasten/index.html` directly in a browser (no server, no Docker). Th
   revocation, permission withdrawal, broker restart, reconnect storm. Each action shows the flow and the
   result the selected broker **actually had in the lab**, with test case, requirement and observation
   from the reference report. Without a run it says "not measured".
-- **Learning path:** seven guided steps.
+- **Swap broker:** the bar above the cabinet shows every broker with its mandatory pass rate. A click
+  swaps the broker and replays the last action there; the test log offers the same via "Same case on
+  the other brokers".
+- **Packet monitor:** below the cabinet the MQTT packets of the flow run along (simulated; the verdict
+  comes from the lab run).
+- **Learning path:** seven guided steps with progress.
 - **Desk:** broker comparison per requirement, generated ACLs, glossary.
 - **Export:** the layout becomes `sim/config.local.toml`. `make fleet` then creates exactly these
   gateways, with serial numbers, Client IDs and links as in the Baukasten. The file supplements
@@ -223,6 +229,11 @@ Open `web/baukasten/index.html` directly in a browser (no server, no Docker). Th
   `rm sim/config.local.toml && make fleet`.
 
 New reference runs reach the page through `web/baukasten/sources.toml` and `make web`.
+
+**Page security:** it loads nothing from third parties (fonts are embedded, SIL OFL 1.1), sends
+nothing anywhere and only runs its own script (Content Security Policy with a script hash written by
+`make web`). The layout is only stored in your own browser (`localStorage`) and checked on load; a
+tampered state is discarded.
 
 ## 6. Connecting your own broker
 
@@ -277,7 +288,8 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 | Message | Cause and solution |
 |---|---|
 | `No rule to make target 'acceptance'` | old folder or old ZIP. Check the version (`cat VERSION`, currently `2026-10-12-r1` or newer), unzip the new ZIP over the folder (`unzip -o`) |
-| Baukasten says "Keine Lab-Daten eingebaut" | run `make web` in the lab folder and reload the page |
+| Baukasten says "No lab data embedded" | run `make web` in the lab folder and reload the page |
+| Baukasten stays empty, console reports "Content Security Policy" | the page script was edited without running `make web`: `make web` writes the new script hash |
 | `make fleet` creates a different fleet than expected | a `sim/config.local.toml` from the Baukasten is still there; back with `rm sim/config.local.toml && make fleet` |
 | `This original PoC test uses the earlier topic layout` | the individual tests 04–10 need the earlier layout: `make fleet WIRE=lab-eicp`, back with `make fleet` |
 | RST-01 / REV-01 / ACL-14 INCONCLUSIVE with `hook … not available` or `unsupported` | broker not started by the lab, or profile without `[hooks]`: set `SIM_HOOK_RESTART` / `SIM_HOOK_CRL_RELOAD` / `SIM_HOOK_ACL_RELOAD`. Does not change the acceptance result |
@@ -319,7 +331,7 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 |---|---|
 | [`STAND-2026-10-08.md`](STAND-2026-10-08.md) | Status summary as of 2026-10-08 (German) |
 | [`mqtt-tests/acceptance-harness.md`](mqtt-tests/acceptance-harness.md) | Wire profile, requirements R01–R24, PASS rules, hooks, comparison, decision matrix (German) |
-| [`../web/baukasten/index.html`](../web/baukasten/index.html) | Baukasten web page (German) |
+| [`../web/baukasten/index.html`](../web/baukasten/index.html) | Baukasten web page (German / English) |
 | [`AI-PLAYBOOK.md`](AI-PLAYBOOK.md) | Rules and recipes for AI assistants in this repo (German) |
 | [`mqtt-tests/synthetic-simulation.md`](mqtt-tests/synthetic-simulation.md) | Data model, assumptions, simulation, reference run (German) |
 | [`mqtt-tests/legacy-certificates.md`](mqtt-tests/legacy-certificates.md) | Analysis of the AWS certificate, rotation, questions for ENETEC (German) |

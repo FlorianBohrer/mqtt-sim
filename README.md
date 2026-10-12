@@ -36,7 +36,7 @@ The CA private key is used only for signing. It is never installed in a Gateway 
 
 > **Guide:** development history, setup and usage of the whole simulation environment: [docs/MQTT-SIM-ENV.en.md](docs/MQTT-SIM-ENV.en.md) (English), [docs/MQTT-SIM-ENV.md](docs/MQTT-SIM-ENV.md) (Deutsch)
 >
-> **Baukasten:** build the simulation interactively in the browser: open [web/baukasten/index.html](web/baukasten/index.html) (refresh its data with `make web`).
+> **Baukasten:** build the simulation interactively in the browser, in German or English: open [web/baukasten/index.html](web/baukasten/index.html) (refresh its data, fonts and script hash with `make web`).
 > **AI playbook:** rules for AI assistants in this repo: [CLAUDE.md](CLAUDE.md), [docs/AI-PLAYBOOK.md](docs/AI-PLAYBOOK.md).
 
 > **Topic layout (since 2026-10-08):** the acceptance harness and the simulation default to MQTT wire

@@ -8,26 +8,38 @@
 # kind = "summary"  nur die Zusammenfassung (summary.txt / Terminal-Ausgabe): Ergebnis je Fall,
 #                   keine Beobachtung. `cases` nennt alle Faelle, die der Lauf enthielt; was dort
 #                   weder unter "Not passed" noch unter "Advisory" steht, war PASS.
+#
+# Die Seite ist zweisprachig: name/role/note/label deutsch, name_en/role_en/note_en/label_en englisch
+# (fehlt die englische Fassung, zeigt die Seite die deutsche).
 
 [brokers.mosquitto-lab]
 name = "Mosquitto 2.0"
 role = "Lab-Referenz"
+role_en = "lab reference"
 note = "Open-Source-Broker der Lab-Basis. Kein Anbieter-Kandidat; Cedalo / Pro Mosquitto ist die kommerzielle Variante und wurde nicht getestet."
+note_en = "Open-source broker the lab is built on. Not a vendor candidate; Cedalo / Pro Mosquitto is the commercial variant and was not tested."
 
 [brokers.emqx]
 name = "EMQX 5.8"
 role = "Kandidat (führend)"
+role_en = "candidate (leading)"
 note = "Laut Current State 08.10. der führende Kandidat für den weiteren PoC. Im v1.3-Profil noch nicht gemessen."
+note_en = "According to the current state of 8 Oct the leading candidate for the further PoC. Not yet measured in the v1.3 profile."
 
 [brokers.hivemq]
 name = "HiveMQ CE + Lab-Erweiterung"
+name_en = "HiveMQ CE + lab extension"
 role = "Referenz, nicht mehr verfolgt"
+role_en = "reference, no longer pursued"
 note = "HiveMQ CE hat keine eigene Autorisierung; alle Sicherheitsfunktionen kommen aus der Lab-Erweiterung (Eigenentwicklung). Der Anbieter hat nicht geantwortet. Lab-Ergebnis, keine Produktabnahme."
+note_en = "HiveMQ CE has no authorisation of its own; all security functions come from the lab extension (in-house development). The vendor did not reply. Lab result, not a product acceptance."
 
 [brokers.bevywise]
 name = "Bevywise MQTTRoute"
 role = "Kandidat (Alternative)"
+role_en = "candidate (alternative)"
 note = "Keine Instanz verfügbar, daher nicht gemessen. Anbieterschätzung: 4–6 Wochen Zusatzentwicklung für Zertifikatszuordnung, Widerruf und dynamische Autorisierung (Current State 08.10.)."
+note_en = "No instance available, hence not measured. Vendor estimate: 4–6 weeks of additional development for certificate mapping, revocation and dynamic authorisation (current state of 8 Oct)."
 
 [[run]]
 broker = "mosquitto-lab"
@@ -36,6 +48,7 @@ date = "2026-10-08"
 kind = "report"
 file = "docs/mqtt-tests/reference/2026-10-08-mosquitto-2.0.18-v13.md"
 label = "Mosquitto 2.0.18, lokal, Hooks über SIM_HOOK_*"
+label_en = "Mosquitto 2.0.18, local, hooks via SIM_HOOK_*"
 
 [[run]]
 broker = "hivemq"
@@ -44,6 +57,7 @@ date = "2026-10-08"
 kind = "report"
 file = "docs/mqtt-tests/reference/2026-10-08-hivemq-ce-2026.5-v13.md"
 label = "HiveMQ CE 2026.5 + Erweiterung, lokal"
+label_en = "HiveMQ CE 2026.5 + extension, local"
 
 [[run]]
 broker = "hivemq"
@@ -52,6 +66,7 @@ date = "2026-10-08"
 kind = "report"
 file = "docs/mqtt-tests/reference/2026-10-08-hivemq-ce-2026.5-lab-eicp.md"
 label = "HiveMQ CE 2026.5 + Erweiterung, lokal"
+label_en = "HiveMQ CE 2026.5 + extension, local"
 
 [[run]]
 broker = "emqx"
@@ -60,6 +75,7 @@ date = "2026-10-01"
 kind = "summary"
 file = "docs/mqtt-tests/reference/2026-10-01-emqx-5.8.6-summary.txt"
 label = "EMQX 5.8.6, Docker-Lab (macOS), nur Zusammenfassung"
+label_en = "EMQX 5.8.6, Docker lab (macOS), summary only"
 cases = ["MTLS-01", "MTLS-02", "MTLS-03", "MTLS-04", "MTLS-05", "MTLS-06", "MTLS-07", "MTLS-08",
          "ID-01", "ID-02", "DUP-01",
          "ACL-01", "ACL-02", "ACL-03", "ACL-04", "ACL-05", "ACL-06", "ACL-07", "ACL-08", "ACL-09",
@@ -75,3 +91,4 @@ date = "2026-09-30"
 kind = "report"
 file = "docs/mqtt-tests/reference/2026-09-30-mosquitto-2.0.18.md"
 label = "Mosquitto 2.0.18, lokal"
+label_en = "Mosquitto 2.0.18, local"
