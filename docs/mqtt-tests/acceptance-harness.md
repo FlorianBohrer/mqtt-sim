@@ -157,7 +157,7 @@ beantwortet sie:
 | `acl-withdraw` / `acl-restore` | ACL-Dateien ohne / mit Gateway C neu schreiben (`enetec_sim acl`), dann Profil `[hooks] acl_reload` | dasselbe, dann `SIM_HOOK_ACL_RELOAD="<befehl>"` |
 
 `crl_reload` / `acl_reload`: `hup` = SIGHUP an den Container, `none` = Broker liest die Datei
-selbst nach (HiveMQ-Erweiterung), fehlt = nicht unterstützt → der Fall bleibt INCONCLUSIVE. Ein
+selbst nach, fehlt = nicht unterstützt → der Fall bleibt INCONCLUSIVE. Ein
 Fall gilt erst als erfüllt, wenn die Änderung innerhalb von `observe_s` wirkt. Nach einem Lauf
 mit REV-01 erzeugt der nächste `make acceptance` die Negativ-Identitäten neu (frische CRL).
 
@@ -169,8 +169,7 @@ Broker-Profile liegen in `sim/targets/` (`make brokers`):
 |---|---|---|
 | `mosquitto-lab` | verifiziert, wird per Compose gestartet | `make acceptance` |
 | `emqx` | EMQX 5.8 als Lab-Container, wird automatisch gestartet; Log-Muster noch zu bestätigen ([`brokers/emqx/`](../../brokers/emqx/README.md)) | `make acceptance BROKER=emqx` |
-| `hivemq` | HiveMQ CE 2026.5 + Lab-Erweiterung (Identität, Client-ID-Bindung, Duplikat-Ablehnung, Widerruf, Deny-by-default), wird gebaut und gestartet; lokal **ACCEPTED** ([`brokers/hivemq/`](../../brokers/hivemq/README.md)) | `make acceptance BROKER=hivemq` |
-| `bevywise` | Vorlage, ohne Log-Muster (LOG-Fälle bleiben INCONCLUSIVE); Einrichtung in [`brokers/bevywise/`](../../brokers/bevywise/README.md) | `make acceptance BROKER=bevywise SIM_BROKER_LOG=<log>` |
+| `cedalo` | Pro Mosquitto (Cedalo) als Lab-Container, gleiche ACL wie Mosquitto plus `crlfile`; braucht Lizenz und `docker login registry.cedalo.com`; Vorlage bis zum ersten Lauf ([`brokers/cedalo/`](../../brokers/cedalo/README.md)) | `make acceptance BROKER=cedalo` |
 
 `make simulate BROKER=<profil>` nutzt dasselbe Profil. Host und Port kommen aus dem Profil;
 `SIM_BROKER_HOST`/`SIM_BROKER_PORT` überschreiben sie. Aus dem `sim`-Container heraus wird
@@ -187,8 +186,7 @@ Die Fälle bleiben unverändert, nur die Broker-Seite ändert sich:
    - Zertifikats-CN als Identität verwenden (Legacy-Zertifikate ohne CN: Fingerprint-Registry)
    - nur die erlaubte Client-ID je Identität zulassen (`synthetic/client_identities.tsv`)
    - je Gateway nur `write enetec/v1/<clientId>/state` und `read enetec/v1/<clientId>/cmd`
-     (fertige Regeln: `mosquitto/config/acl`, `brokers/emqx/acl.conf`, `brokers/hivemq/permissions.tsv`,
-     `brokers/bevywise/generated/acl-requests.json`)
+     (fertige Regeln: `mosquitto/config/acl` für Mosquitto und Pro Mosquitto, `brokers/emqx/acl.conf`)
    - Ingest liest nur `state`, Command schreibt nur `cmd`; alles andere wird verweigert
 3. Broker-Log des Laufzeitfensters exportieren und über `SIM_BROKER_LOG` übergeben.
 4. Für RST-01, REV-01, ACL-14: `SIM_HOOK_RESTART`, `SIM_HOOK_CRL_RELOAD`, `SIM_HOOK_ACL_RELOAD`
@@ -202,8 +200,8 @@ CUSTOM / UNSUPPORTED erfolgt anschließend je Kandidat in der ENTC-59-Matrix.
 ### Zwei Broker vergleichen
 
 ```bash
-make compare A=hivemq B=mosquitto-lab
-make compare A=hivemq B=emqx FRESH=1
+make compare A=emqx B=mosquitto-lab
+make compare A=cedalo B=emqx FRESH=1
 make compare
 ```
 
@@ -217,8 +215,7 @@ Ergebnis je Anforderung (R01–R24) nebeneinander, Fälle mit unterschiedlichem 
 Beobachtung, gemeinsame Schwächen und den Aufwand je Anforderung
 (NATIVE / CONFIGURATION / PLUGIN / EXTERNAL SERVICE / CUSTOM DEVELOPMENT / UNSUPPORTED, aus
 dem Abschnitt `[effort]` des Profils). Er wählt keinen Anbieter aus, weil Kosten, Betrieb,
-Support und Skalierung nicht Teil der Abnahme sind. Beispiel:
-[`reference/2026-10-01-compare-hivemq-vs-mosquitto.md`](reference/2026-10-01-compare-hivemq-vs-mosquitto.md).
+Support und Skalierung nicht Teil der Abnahme sind.
 
 Mit `FRESH=1` bei nicht vom Lab verwalteten Brokern (z. B. Cloud-Instanz) sind
 `SIM_BROKER_LOG` bzw. die Profile für den Log-Export nötig; sonst bleiben die LOG-Fälle INCONCLUSIVE.
@@ -244,10 +241,9 @@ Liest `sim/decision.toml` und den letzten Lauf je Broker-Profil. Ergebnis in
 - **Sensitivität:** Wenn ein Favorit feststeht, prüft die Matrix, ob er wechselt, sobald ein
   einzelnes Gewicht um ±50 % geändert wird.
 - Die Gewichte sind ein Vorschlag des Labs (ASSUMPTION) und mit SOLHEA/ENETEC abzustimmen.
-  Belegt eingetragen sind nur die Bevywise-Schätzung (4–6 Wochen Eigenentwicklung) und die
-  fehlende HiveMQ-Rückmeldung (Current State 08.10).
-
-Beispiel mit dem Stand vom 08.10.: [`reference/2026-10-08-decision-matrix.md`](reference/2026-10-08-decision-matrix.md).
+  Kandidaten: EMQX und Pro Mosquitto (Cedalo); `mosquitto-lab` erscheint als Referenz ohne Rang.
+  Handbewertungen sind bisher keine eingetragen: Die Cedalo-Herstellerangaben
+  ([`brokers/cedalo/README.md`](../../brokers/cedalo/README.md)) sind recherchiert, aber ungeprüft.
 
 ## 5. Referenzergebnisse
 
@@ -256,12 +252,10 @@ Beispiel mit dem Stand vom 08.10.: [`reference/2026-10-08-decision-matrix.md`](r
 | Broker | Ergebnis | Pflichtfälle | Beratend nicht bestanden | Bericht |
 |---|---|---|---|---|
 | Mosquitto 2.0.18, Lab-Konfiguration | NOT ACCEPTED | 25/34 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL (Subscribe-Ablehnung nicht signalisiert) | MTLS-08, LEG-01, RST-01 (Session nach Neustart verloren, Persistenzdatei war geschrieben), REV-01 | [`2026-10-08-mosquitto-2.0.18-v13.md`](reference/2026-10-08-mosquitto-2.0.18-v13.md) |
-| HiveMQ CE 2026.5 + Lab-Erweiterung | ACCEPTED | 34/34 PASS | – (ACL-14, RST-01, REV-01 PASS) | [`2026-10-08-hivemq-ce-2026.5-v13.md`](reference/2026-10-08-hivemq-ce-2026.5-v13.md), `lab-eicp`: [`…-lab-eicp.md`](reference/2026-10-08-hivemq-ce-2026.5-lab-eicp.md) (33/33, ID-03 N/A) |
 
-Beide Läufe fanden lokal ohne Docker statt; Neustart, CRL- und ACL-Reload kamen über
-`SIM_HOOK_*`-Befehle. HiveMQ ist laut Current State 08.10 nicht mehr aktiv im Rennen; das
-Ergebnis zeigt, was mit einer Erweiterung erreichbar ist, und ist keine Produktabnahme. EMQX und
-Bevywise sind im v13-Profil noch nicht gelaufen.
+Der Lauf fand lokal ohne Docker statt; Neustart, CRL- und ACL-Reload kamen über
+`SIM_HOOK_*`-Befehle. EMQX und Pro Mosquitto (Cedalo) sind im v13-Profil noch nicht gelaufen.
+HiveMQ und Bevywise wurden am 12.10. gestrichen; ihre Berichte stehen in der Git-Historie.
 
 ### 2026-09-30, Mosquitto 2.0.18, Profil lab-eicp (historisch)
 

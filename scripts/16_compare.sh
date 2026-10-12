@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Vergleich zweier Broker (ENTC-59): make compare A=hivemq B=mosquitto-lab
+# Vergleich zweier Broker (ENTC-59): make compare A=emqx B=mosquitto-lab
 #   FRESH=1   Abnahme fuer beide Broker zuerst neu ausfuehren (sonst: letzter vollstaendiger Lauf je Broker)
 #   Profile:  make brokers
 # Ausgabe: results/compare-<A>-vs-<B>-<zeit>/ comparison.md, comparison.json, summary.txt

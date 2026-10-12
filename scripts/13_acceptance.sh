@@ -92,7 +92,7 @@ fi
 if grep -q '^lab_managed = true' "$TARGET" && [ -z "${SIM_BROKER_HOST:-}" ] &&
    command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
   if [ -n "$IMAGE_BUILD" ]; then
-    printf 'Building %s from %s (first run downloads Maven/HiveMQ images) ...\n' "$IMAGE" "$IMAGE_BUILD"
+    printf 'Building %s from %s (first run downloads the base images) ...\n' "$IMAGE" "$IMAGE_BUILD"
     docker build -q -t "$IMAGE" "$IMAGE_BUILD" >/dev/null || die "docker build -t $IMAGE $IMAGE_BUILD failed"
   fi
   # Always (re)create: the broker must load the certificates, registry and CRL of this run.

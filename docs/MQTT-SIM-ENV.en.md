@@ -43,7 +43,7 @@ Client ID derived from the serial number. The earlier layout stays available as 
 | **4. Acceptance harness (ENTC-63)** | 31 mandatory cases for 15 requirements (R01–R15), PASS/FAIL per requirement, exit 0 only if everything passes. What is measured is actual delivery, not just the return code. | `make acceptance` with reports and evidence |
 | **5. Broker profiles** | The broker is replaceable: a profile (`sim/targets/*.toml`) describes address, certificate trust and log patterns. The tests stay the same. | `make acceptance BROKER=<profile>` |
 | **6. Legacy and rotation** | The real AWS IoT certificate of test gateway `0000000000000005` had no CN (only `C=UK, ST=United`, RSA 2048). This led to the LEG and ROT cases. | R16/R17 (informational at first) |
-| **7. More brokers** | Configurations for Bevywise, EMQX and HiveMQ. HiveMQ CE has no authorization of its own, so there is a small lab extension. | HiveMQ passes 31/31, also in the Docker run |
+| **7. More brokers** | Configuration for EMQX; until 08 Oct also HiveMQ (with lab extension) and Bevywise, dropped on 12 Oct (git history). New: Pro Mosquitto by Cedalo. | `make acceptance BROKER=emqx` or `BROKER=cedalo` |
 | **8. Comparison** | Select two profiles, results side by side, effort classes per requirement. | `make compare A=… B=…` |
 | **9. Wire contract v1.3** (08 Oct) | Topics `enetec/v1/{clientId}/state\|cmd`, Client ID as a pseudonym of the serial (ENTC-47; algorithm still open, a placeholder in the lab), registry certificate → serial → Client ID. The earlier layout remains as a compatibility profile. | `make acceptance` (v13), `WIRE=lab-eicp` |
 | **10. Open cases from the Current State** (08 Oct) | Binary transport, Last Will (also to foreign topics), Message Expiry, payload sizes, broker restart, revocation and ACL withdrawal on an active connection. The last three need an action on the broker in the middle of the run (hooks). Plus the weighted decision matrix. | R18–R24, `make decide` |
@@ -66,7 +66,7 @@ Client ID derived from the serial number. The earlier layout stays available as 
   synthetic/              certificates (certs/)        broker permissions, generated:
   fleet.json              lab CA, per gateway/service, mosquitto/config/acl
   client_identities.tsv   negative, legacy, rotation   brokers/emqx/acl.conf
-  dataset/*                                            brokers/hivemq/permissions.tsv, client_ids.tsv
+  dataset/*                                            (Pro Mosquitto uses the same acl as Mosquitto)
         │                     │
         ▼                     ▼
   sim container (Python, paho-mqtt 2.1, OpenSSL 3)
@@ -77,7 +77,7 @@ Client ID derived from the serial number. The earlier layout stays available as 
    └─ decide     : weighted matrix (decision.toml)    ──►  results/decision-<time>/
         │ MQTT 5 + mTLS
         ▼
-  Broker under test: Mosquitto │ HiveMQ CE + extension │ EMQX │ Bevywise (external)
+  Broker under test: Mosquitto (lab reference) │ EMQX │ Pro Mosquitto (Cedalo, licence needed)
 ```
 
 **Actors in the test:** each gateway has its own certificate (CN = the lab's Gateway ID) and an
@@ -144,7 +144,7 @@ Nothing else is needed. On the first run, `make acceptance` builds everything it
 3. Negative, legacy and rotation identities
 4. The broker (with an image build, depending on the profile)
 
-The first run takes a few minutes, longer for HiveMQ because of the Maven build.
+The first run takes a few minutes (pulling images, issuing certificates).
 
 **Starting over:** `make clean` deletes certificates, broker data and logs. The results under
 `results/` are kept. After `make init` or `make clean`, certificates are re-issued automatically
@@ -155,12 +155,12 @@ when needed.
 | Command | Purpose |
 |---|---|
 | `make acceptance` | Acceptance against the lab Mosquitto. Exit 0 only if all mandatory cases pass |
-| `make acceptance BROKER=hivemq` | Acceptance against another profile (`make brokers` lists them) |
+| `make acceptance BROKER=emqx` | Acceptance against another profile (`make brokers` lists them: `mosquitto-lab`, `emqx`, `cedalo`) |
 | `make acceptance WIRE=lab-eicp` | with the earlier topic layout and Client ID = CN |
 | `make simulate` | 24 h of traffic, time-compressed (×720, about 2 minutes), then evaluation |
-| `make simulate BROKER=hivemq SPEED=2880 GATEWAYS=gw-sim-000001,gw-sim-000006` | with options |
-| `make compare A=hivemq B=mosquitto-lab` | compare two brokers (latest complete run per broker) |
-| `make compare A=hivemq B=emqx FRESH=1` | run acceptance for both again, then compare |
+| `make simulate BROKER=emqx SPEED=2880 GATEWAYS=gw-sim-000001,gw-sim-000006` | with options |
+| `make compare A=emqx B=mosquitto-lab` | compare two brokers (latest complete run per broker) |
+| `make compare A=cedalo B=emqx FRESH=1` | run acceptance for both again, then compare |
 | `make decide` | weighted decision matrix from `sim/decision.toml` and the latest runs |
 | `make web` | refresh the data of the Baukasten web page from the repo (fleet, reference runs) |
 | `make fleet` | Regenerate fleet, dataset, ACLs and certificates (after changing `sim/config.toml`); `make fleet WIRE=lab-eicp` for the individual tests 04–10 |
@@ -252,32 +252,33 @@ tampered state is discarded.
 7. Add the candidate to `sim/decision.toml` so that it appears in `make decide`.
 
 Existing profiles and guides: [`brokers/emqx/`](../brokers/emqx/README.md),
-[`brokers/hivemq/`](../brokers/hivemq/README.md), [`brokers/bevywise/`](../brokers/bevywise/README.md) (German).
+[`brokers/cedalo/`](../brokers/cedalo/README.md) (Pro Mosquitto, with licence notes and vendor information with sources; German).
 
-## 7. Status of the results (2026-10-08)
+## 7. Status of the results (2026-10-12)
 
 **Wire profile v13 (current):**
 
 | Broker | Mandatory cases | Advisory | Where tested |
 |---|---|---|---|
-| HiveMQ CE 2026.5 + ENETEC extension | **34/34 PASS** | restart, revocation on an active connection, ACL withdrawal: PASS | locally (without Docker) |
-| Mosquitto 2.0.18 (lab) | 25 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL | RST-01 FAIL (session gone after restart), REV-01 FAIL, ACL-14 PASS | locally (without Docker) |
-| EMQX 5.8 | not run in the v13 profile yet | – | – |
-| Bevywise | configuration prepared (v13 rules), no broker available | – | – |
+| Mosquitto 2.0.18 (lab reference, basis of Pro Mosquitto) | 25 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL | RST-01 FAIL (session gone after restart), REV-01 FAIL, ACL-14 PASS | locally (without Docker) |
+| EMQX 5.8 (candidate, leading) | not run in the v13 profile yet | – | – |
+| Pro Mosquitto (Cedalo, candidate) | profile and configuration prepared, no run yet (licence needed) | – | – |
 
-According to the Current State of 08 Oct, HiveMQ is no longer actively pursued; the result shows what
-an extension can achieve and is not a product acceptance.
+**Profile lab-eicp (until 2026-10-01, historical):** Mosquitto 23 PASS / 2 FAIL / 6 PARTIAL,
+EMQX 29/31 (Client ID binding, duplicate Client ID).
 
-**Profile lab-eicp (until 2026-10-01, historical):** HiveMQ 31/31, Mosquitto 23 PASS / 2 FAIL / 6 PARTIAL,
-EMQX 29/31 (Client ID binding, duplicate Client ID), Bevywise without evidence.
+**Cedalo according to the vendor** (researched on 12 Oct, not checked in the lab; sources in
+[`brokers/cedalo/README.md`](../brokers/cedalo/README.md)): native Google Pub/Sub bridge, HA cluster from
+3 nodes, certificate management with revocation and disconnecting clients in the Management Center,
+persistent queueing, audit trail. Nothing found on Client ID binding (R06), takeover protection (R11)
+and certificates without CN (R16), exactly where open-source Mosquitto fails.
 
 **Key findings**
-- **Client ID binding (v13):** a derived Client ID requires the broker to look up the mapping certificate → authorized Client ID. Mosquitto cannot do this (ID-03 FAIL); HiveMQ only with the extension (`client_ids.tsv`).
-- **Revocation on an active connection** needs more than a CRL at connect time: the HiveMQ extension watches the CRL and disconnects affected sessions; Mosquitto with the lab configuration reaches neither open nor new connections.
+- **Client ID binding (v13):** a derived Client ID requires the broker to look up the mapping certificate → authorized Client ID. Mosquitto cannot do this (ID-03 FAIL); for Pro Mosquitto and EMQX a solution (plugin, hook, registry lookup) is open.
+- **Revocation on an active connection** needs more than a CRL at connect time: the broker has to disconnect affected sessions. Mosquitto with the lab configuration reaches neither open nor new connections; the Cedalo profile sets `crlfile`, and Cedalo also offers disconnecting clients from the Management Center.
 - **Broker restart:** Mosquitto 2.0.18 wrote its persistence file, yet the session was gone after the restart (local run, to be repeated with the Docker image).
 - **Mosquitto:** a Client ID that differs from the certificate is accepted and displaces the real session. A duplicate Client ID leads to session takeover. Denied subscriptions are acknowledged (only delivery stays blocked).
 - **EMQX:** deny by default, direction separation and cross-gateway blocks pass completely, with the denial signalled (SUBACK 0x87). Like Mosquitto it fails on CN ≠ Client ID and on duplicate Client ID; in addition, wrong key usage (EKU), revocation (without CRL distribution points) and legacy certificates without CN are not caught (informational only).
-- **HiveMQ CE** has no authorization of its own. The requirements are only met with a lab extension (identity, Client ID binding, duplicate rejection, revocation, deny by default). For production: connect it to the backend registry, or use the commercial Enterprise Security Extension.
 - **Legacy certificates (AWS IoT)** contain no Gateway ID. A broker needs a registry mapping (fingerprint → Gateway ID), or the gateways get new certificates with the ID in the CN.
 - **Duplicate Client ID** has a trade-off: after a silent connection loss the broker rejects reconnects until the keep-alive expires (up to about 180 s).
 
@@ -287,7 +288,7 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 
 | Message | Cause and solution |
 |---|---|
-| `No rule to make target 'acceptance'` | old folder or old ZIP. Check the version (`cat VERSION`, currently `2026-10-12-r1` or newer), unzip the new ZIP over the folder (`unzip -o`) |
+| `No rule to make target 'acceptance'` | old folder or old ZIP. Check the version (`cat VERSION`, currently `2026-10-12-r3` or newer), unzip the new ZIP over the folder (`unzip -o`) |
 | Baukasten says "No lab data embedded" | run `make web` in the lab folder and reload the page |
 | Baukasten stays empty, console reports "Content Security Policy" | the page script was edited without running `make web`: `make web` writes the new script hash |
 | `make fleet` creates a different fleet than expected | a `sim/config.local.toml` from the Baukasten is still there; back with `rm sim/config.local.toml && make fleet` |
@@ -297,10 +298,11 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 | `Negative identities failed` | old ZIP without the OpenSSL 3 fix, or Docker is not running |
 | `failed to get console` / `pull access denied for enetec-sim` | old ZIP; the current version builds the image with `docker build -q` |
 | `certs/... does not chain to the current lab CA` | certificates from an earlier CA; `make fleet` re-issues them, otherwise `make clean` |
-| `Broker certificate has no SAN "hivemq"` | lab from an older version; `make clean && make acceptance BROKER=…` |
+| `Broker certificate has no SAN "cedalo"` | lab from an older version; `make clean && make acceptance BROKER=…` |
+| `pull access denied` for `registry.cedalo.com` | `docker login registry.cedalo.com` with the credentials from the Cedalo trial; licence file to `brokers/cedalo/license/license.lic` |
 | all cases INCONCLUSIVE | broker not reachable (port, host, is the container running?) |
 | LOG cases INCONCLUSIVE | no broker log passed, or log patterns in the profile do not match: set `SIM_BROKER_LOG=…` and adjust the patterns |
-| Port in use | another broker or container; `docker compose down`. Mosquitto uses 8883, EMQX 8884, HiveMQ 8885 |
+| Port in use | another broker or container; `docker compose down`. Mosquitto uses 8883, EMQX 8884, Pro Mosquitto 8885 |
 | Two runs interfere | do not start runs in parallel; they use the same Client IDs |
 
 ## 9. Limits and next steps
@@ -320,7 +322,7 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 
 **Next steps:**
 1. Run EMQX (leading candidate) in the v13 profile; for ACL-14 configure a reload of the file ACL via the EMQX API as `acl_reload`.
-2. Bevywise against a real instance; request Cedalo/Pro Mosquitto as a benchmark.
+2. Pro Mosquitto: request the 30-day trial, run `make acceptance BROKER=cedalo`, ask Cedalo about the open points (R06, R11, R16, Pub/Sub bridge, on-premises price) ([`brokers/cedalo/README.md`](../brokers/cedalo/README.md)).
 3. Agree the weights in `sim/decision.toml` with SOLHEA/ENETEC and fill in the hand scores with sources.
 4. Load test for the 15,000 connections and Pub/Sub integration, reported separately from functional acceptance.
 5. Adopt the Client ID derivation algorithm (ENTC-47) and the packet limit (ENTC-61) once decided.
@@ -329,7 +331,9 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 
 | Document | Contents |
 |---|---|
-| [`STAND-2026-10-08.md`](STAND-2026-10-08.md) | Status summary as of 2026-10-08 (German) |
+| [`STAND-2026-10-12.md`](STAND-2026-10-12.md) | Current status: candidates EMQX and Pro Mosquitto (Cedalo), next steps (German) |
+| [`STAND-2026-10-08.md`](STAND-2026-10-08.md) | Status as of 08 Oct (historical, with HiveMQ and Bevywise; German) |
+| [`../brokers/cedalo/README.md`](../brokers/cedalo/README.md) | Pro Mosquitto: setup, expectations, vendor information with sources (German) |
 | [`mqtt-tests/acceptance-harness.md`](mqtt-tests/acceptance-harness.md) | Wire profile, requirements R01–R24, PASS rules, hooks, comparison, decision matrix (German) |
 | [`../web/baukasten/index.html`](../web/baukasten/index.html) | Baukasten web page (German / English) |
 | [`AI-PLAYBOOK.md`](AI-PLAYBOOK.md) | Rules and recipes for AI assistants in this repo (German) |

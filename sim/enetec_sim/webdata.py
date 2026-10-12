@@ -120,6 +120,12 @@ def build(cfg, sources_path=WEB_DIR / 'sources.toml', fleet_path=LAB_ROOT / 'syn
 
     brokers = []
     for key, meta in sources.get('brokers', {}).items():
+        facts = []
+        for fact in meta.get('facts', []):
+            url = fact.get('url', '')
+            if not (fact.get('de') and fact.get('en')) or (url and not url.startswith('https://')):
+                raise SystemExit(f'sources.toml: brokers.{key}.facts needs de, en and an https:// url (or none)')
+            facts.append({'de': fact['de'], 'en': fact['en'], 'url': url})
         path = TARGETS_DIR / f'{key}.toml'
         target = load_target(path) if path.exists() else {}
         brokers.append({'key': key, 'name': meta.get('name', target.get('name', key)), 'name_en': meta.get('name_en', ''),
@@ -127,7 +133,8 @@ def build(cfg, sources_path=WEB_DIR / 'sources.toml', fleet_path=LAB_ROOT / 'syn
                         'role_en': meta.get('role_en', ''), 'note': meta.get('note', ''),
                         'note_en': meta.get('note_en', ''), 'profile_status': target.get('status', 'verified'),
                         'max_packet_bytes': target.get('max_packet_bytes'),
-                        'effort': {req: str(value) for req, value in (target.get('effort') or {}).items()}})
+                        'effort': {req: str(value) for req, value in (target.get('effort') or {}).items()},
+                        'facts': facts})
 
     gateways = [{'gateway_id': g['gateway_id'], 'plant_id': g['plant_id'], 'plant_type': g.get('plant_type'),
                  'family': g.get('family'), 'serial': g['serial_number'], 'client_id': g['client_id'],

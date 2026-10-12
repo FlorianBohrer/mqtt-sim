@@ -39,7 +39,7 @@ beschrieben.
  GatewaySim × N ── MQTT 5 + mTLS, Client-ID = Zertifikats-CN = Gateway-ID ──► Broker
    • d2c telemetry/report, QoS 1                                           (Lab: Mosquitto;
    • c2d/# abonniert, QoS 1                                                 später EMQX,
-   • Netzabbruch = TCP-Close ohne DISCONNECT                                HiveMQ, Bevywise)
+   • Netzabbruch = TCP-Close ohne DISCONNECT                                Pro Mosquitto)
    • Offline-Puffer, Reconnect mit Clean Start = false                          │ ACL generiert,
                                                                                 │ deny by default
                                         svc-sim-cloud-ingest  ◄── liest d2c ────┤ (≙ MQTT→Pub/Sub-Bridge)

@@ -48,11 +48,10 @@ Ein Labor für die MQTT-Kommunikation **Gateway ↔ Broker** im ENETEC-Umzug von
 6. **Payloads sind opak.** Der Harness dekodiert keine Anwendungsdaten. Das JSON der Simulation ist ein
    synthetisches Fixture, nicht das v1.3-Binärformat.
 7. **Keine Geheimnisse.** Keine echten Zertifikate, Schlüssel, Passwörter oder Kundendaten committen.
-   `certs/`, `results/`, `data/`, `sim/config.local.toml` und das Bevywise-Bundle bleiben lokal (`.gitignore`).
+   `certs/`, `results/`, `data/`, `sim/config.local.toml` und die Cedalo-Lizenz (`brokers/cedalo/license/`) bleiben lokal (`.gitignore`).
 8. **Generierte Dateien nie von Hand ändern.** Dazu gehören:
    - `synthetic/`
-   - `mosquitto/config/acl`, `brokers/emqx/acl.conf`, `brokers/hivemq/*.tsv`
-   - `brokers/bevywise/generated/`
+   - `mosquitto/config/acl` (auch für Pro Mosquitto), `brokers/emqx/acl.conf`
    - der Datenblock in `web/baukasten/index.html`
 
    Stattdessen den Generator ändern und neu erzeugen. Die Tests prüfen, dass die Dateien aktuell sind.

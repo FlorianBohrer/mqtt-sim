@@ -37,21 +37,12 @@ name = "EMQX"
 profile = "emqx"
 shortlist = true   # SOURCE: Current State 08.10 §9, fuehrender Kandidat fuer den weiteren PoC
 
-[candidates.bevywise]
-name = "Bevywise MQTTRoute / CrystalMQ"
-profile = "bevywise"
-shortlist = true   # SOURCE: Current State 08.10 §9, Alternative
-development_effort = { score = 1, source = "SOURCE: vendor assessment (Current State 08.10 §9): certificate mapping/revocation, dynamic Gateway-Plant authorization and clustered enforcement need customer-specific work, 4-6 weeks" }
-
 [candidates.cedalo]
 name = "Cedalo / Pro Mosquitto"
-shortlist = true   # SOURCE: Current State 08.10 §9, als unabhaengiger Benchmark vorgeschlagen (nicht bestaetigt)
-
-[candidates.hivemq]
-name = "HiveMQ (CE + ENETEC lab extension)"
-profile = "hivemq"
-shortlist = false  # SOURCE: Current State 08.10 §9, kommerzieller Anbieter antwortet nicht; Lab-Ergebnis != Produktabnahme
-vendor_support = { score = 1, source = "SOURCE: Current State 08.10 §9, commercial provider not responding" }
+profile = "cedalo"
+shortlist = true   # SOURCE: Current State 08.10 §9 (unabhaengiger Benchmark); 12.10.: HiveMQ und Bevywise gestrichen, Cedalo bleibt neben EMQX
+# Handbewertungen bewusst offen: Die Herstellerangaben (brokers/cedalo/README.md, z. B. Google-Pub/Sub-Bridge,
+# HA-Cluster ab 3 Knoten, Cloud-Preise) sind recherchiert, aber nicht im Lab geprueft. Bewertung durch ENETEC.
 
 [candidates.mosquitto-lab]
 name = "Mosquitto 2.0 (lab baseline)"

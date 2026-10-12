@@ -6,7 +6,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .config import (DEFAULT_ACL, EMQX_ACL, HIVEMQ_PERMISSIONS, DEFAULT_CONFIG, DEFAULT_OUT, DEFAULT_TARGET, LAB_ROOT, TARGETS_DIR,
+from .config import (DEFAULT_ACL, EMQX_ACL, DEFAULT_CONFIG, DEFAULT_OUT, DEFAULT_TARGET, LAB_ROOT, TARGETS_DIR,
                      load_config, load_target)
 
 
@@ -27,8 +27,7 @@ def _broker(args):
 def cmd_generate(args, cfg):
     from .generate import generate
     fleet, summary = generate(cfg, Path(args.out), None if args.no_acl else Path(args.acl),
-                              None if args.no_acl else EMQX_ACL,
-                              None if args.no_acl else HIVEMQ_PERMISSIONS)
+                              None if args.no_acl else EMQX_ACL)
     t = summary['telemetry']
     print(f"fleet: {summary['fleet']['plants']} plants, {summary['fleet']['gateways']} gateways, "
           f"{summary['fleet']['devices']} devices -> {args.out}")
@@ -61,16 +60,6 @@ def cmd_simulate(args, cfg):
     return report['exit']
 
 
-def cmd_bevywise(args, cfg):
-    from .config import write_json
-    from .fleet import bevywise_acl_requests
-    fleet = json.loads((Path(args.out) / 'fleet.json').read_text())
-    target = Path(args.dest)
-    write_json(target, bevywise_acl_requests(fleet))
-    print(f'{target}: {len(bevywise_acl_requests(fleet))} ACL requests (one per Client ID)')
-    return 0
-
-
 def cmd_acl(args, cfg):
     """Re-render the broker ACL files from synthetic/fleet.json (no new dataset). --withdraw ID
     drops every grant of that identity: hook acl-withdraw of the acceptance case ACL-14."""
@@ -80,9 +69,8 @@ def cmd_acl(args, cfg):
         known = {g['gateway_id'] for g in fleet['gateways'] + fleet.get('legacy_gateways', [])}
         if args.withdraw not in known:
             raise SystemExit(f'{args.withdraw} is not a gateway of the fleet')
-    write_acls(fleet, Path(args.acl), EMQX_ACL, HIVEMQ_PERMISSIONS, withdraw=args.withdraw)
-    print(f"ACLs written{' without ' + args.withdraw if args.withdraw else ''}: {args.acl}, {EMQX_ACL.name}, "
-          f'{HIVEMQ_PERMISSIONS.name}')
+    write_acls(fleet, Path(args.acl), EMQX_ACL, withdraw=args.withdraw)
+    print(f"ACLs written{' without ' + args.withdraw if args.withdraw else ''}: {args.acl}, {EMQX_ACL.name}")
     return 0
 
 
@@ -177,12 +165,9 @@ def main(argv=None):
     p.add_argument('--withdraw', help='leave out every permission of this Gateway ID')
     p.set_defaults(func=cmd_acl)
 
-    p = sub.add_parser('bevywise-acl', help='ACL request bodies for the Bevywise REST API')
-    p.add_argument('--dest', default=str(LAB_ROOT / 'brokers' / 'bevywise' / 'generated' / 'acl-requests.json'))
-    p.set_defaults(func=cmd_bevywise)
 
     p = sub.add_parser('compare', help='compare two brokers from their latest acceptance runs')
-    p.add_argument('broker_a', help='profile name, e.g. hivemq')
+    p.add_argument('broker_a', help='profile name, e.g. emqx')
     p.add_argument('broker_b', help='profile name, e.g. mosquitto-lab')
     p.add_argument('--run-a', help='use this acceptance run directory instead of the latest one')
     p.add_argument('--run-b')

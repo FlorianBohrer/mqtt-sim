@@ -1,0 +1,65 @@
+# Broker profile: Pro Mosquitto by Cedalo (candidate, ENTC-59), started by make acceptance BROKER=cedalo
+# as docker compose service "cedalo" with brokers/cedalo/mosquitto.conf and the generated Mosquitto
+# ACL (mosquitto/config/acl). Needs a Cedalo licence and `docker login registry.cedalo.com`,
+# see brokers/cedalo/README.md.
+# STATUS: template. No lab run yet; image tag, licence variable and log patterns are taken from
+# Cedalo's published examples and the open-source Mosquitto it is built on, not confirmed here.
+
+name = "Pro Mosquitto by Cedalo (lab container)"
+status = "template"
+lab_managed = true
+compose_service = "cedalo"
+ready_log = 'running'         # open-source Mosquitto prints "mosquitto version ... running" (OPEN for Pro)
+host = "localhost"            # from the Mac
+port = 8885                   # host port mapped to the container's 8883
+compose_host = "cedalo"       # from the sim container
+compose_port = 8883
+# server_ca = "certs/ca/ca.crt"   # default: lab CA signed the broker certificate
+observe_s = 3.0
+session_expiry_s = 300
+reconnect_gateways = 10
+reconnect_window_s = 5.0
+# max_packet_bytes: not set in brokers/cedalo/mosquitto.conf (packet limit OPEN, ENTC-61), PAY-03 stays N/A
+
+[hooks]
+# brokers/cedalo/mosquitto.conf sets crlfile = certs/negative/crl.pem. Mosquitto re-reads it on
+# SIGHUP; whether an open connection is closed after a revocation is exactly what REV-01 measures.
+crl_reload = "hup"
+acl_reload = "hup"
+
+[log]
+# Same patterns as the open-source Mosquitto (Pro Mosquitto is built on it). Confirm with the first run.
+timestamp = '(\d{10}):'
+connect_accepted = '''New client connected from \S+ as \S+ \(.*u'[^']+'\)'''
+auth_failure = 'OpenSSL Error|certificate verify failed|peer did not return a certificate'
+acl_denied = 'Denied (PUBLISH|SUBSCRIBE)'
+disconnect = 'Client \S+ (disconnected|closed its connection)|already connected, closing old connection'
+
+[effort]
+# Not measured yet: every entry is "TBD", so make decide leaves development_effort OPEN.
+# Notes = what Cedalo publishes (brokers/cedalo/README.md, sources there) and what the open-source
+# Mosquitto run (mosquitto-lab) showed for the same mechanism.
+R01 = "TBD | require_certificate + cafile as in open-source Mosquitto; Cedalo lists mTLS and certificate management with custom CAs"
+R02 = "TBD | require_certificate"
+R03 = "TBD | cafile"
+R04 = "TBD | crlfile set in brokers/cedalo/mosquitto.conf; Cedalo: revoke client certificates from the Management Center"
+R05 = "TBD | use_identity_as_username + acl_file (generated); production alternative: Dynamic Security roles"
+R06 = "TBD | open-source Mosquitto does not bind the Client ID to the certificate (ID-01/ID-03 FAIL); no Pro feature found for it"
+R07 = "TBD | acl_file deny by default; open-source Mosquitto does not signal denied SUBSCRIBE (PARTIAL)"
+R08 = "TBD | acl_file"
+R09 = "TBD | acl_file"
+R10 = "TBD | acl_file"
+R11 = "TBD | open-source Mosquitto takes over the session (DUP-01 FAIL); no Pro feature found for it"
+R12 = "TBD | MQTT 5 QoS 1"
+R13 = "TBD | persistent sessions; Cedalo: persistent queueing on disk (SQLite/LMDB persistence)"
+R14 = "TBD | sessions survive; backoff is a client matter"
+R15 = "TBD | log_type, connection_messages; Cedalo: Audit Trail plugin (connections, subscriptions, ACL changes, syslog)"
+R16 = "TBD | certificate without CN has no identity in open-source Mosquitto (LEG-01 FAIL); no Pro feature found for it"
+R17 = "TBD | two certificates for one CN; Cedalo: certificate rotation is a Pro lifecycle topic"
+R18 = "TBD | binary payloads"
+R19 = "TBD | Last Will"
+R20 = "TBD | Message Expiry"
+R21 = "TBD | message_size_limit not set (packet limit OPEN, ENTC-61)"
+R22 = "TBD | open-source Mosquitto 2.0.18 lost the session after a restart (RST-01 FAIL); Cedalo: persistent queueing survives restarts"
+R23 = "TBD | crlfile covers new connections; Cedalo: disconnect clients from the Management Center (open sessions)"
+R24 = "TBD | ACL reload via SIGHUP worked in open-source Mosquitto (ACL-14 PASS)"

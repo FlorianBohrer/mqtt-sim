@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<hivemq-extension>
-    <id>enetec-identity</id>
-    <name>ENETEC lab identity and topic permissions</name>
-    <version>1.0.0</version>
-    <priority>1000</priority>
-    <start-priority>1000</start-priority>
-    <author>ENETEC lab (synthetic test setup)</author>
-</hivemq-extension>

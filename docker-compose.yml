@@ -33,19 +33,24 @@ services:
       - ./brokers/emqx/acl.conf:/opt/emqx/etc/acl.conf:ro
       - ./certs:/opt/emqx/etc/certs/lab:ro
 
-  # HiveMQ CE + ENETEC identity extension: make acceptance BROKER=hivemq (brokers/hivemq/).
-  # Image built by scripts/13_acceptance.sh (docker build -t enetec-hivemq:local brokers/hivemq).
-  hivemq:
-    image: enetec-hivemq:local
-    pull_policy: never
-    container_name: enetec-hivemq
-    profiles: ["hivemq"]
+  # Pro Mosquitto (Cedalo) as ENTC-59 candidate: make acceptance BROKER=cedalo (brokers/cedalo/README.md).
+  # Needs `docker login registry.cedalo.com` and a licence file in brokers/cedalo/license/ (30-day
+  # on-premises trial). Same lab CA, certificates and generated Mosquitto ACL as the lab broker.
+  # OPEN: current image tag. 2.9 is the newest tag seen in Cedalo's examples; set CEDALO_IMAGE to
+  # the tag shown in your Cedalo account.
+  cedalo:
+    image: ${CEDALO_IMAGE:-registry.cedalo.com/mosquitto/mosquitto:2.9}
+    container_name: enetec-cedalo
+    profiles: ["cedalo"]
+    environment:
+      CEDALO_LICENSE_FILE: /mosquitto/license/license.lic
     ports:
-      - "8885:8883"     # mTLS (Mac: localhost:8885, compose network: hivemq:8883)
+      - "8885:8883"     # mTLS (Mac: localhost:8885, compose network: cedalo:8883)
     volumes:
-      - ./certs:/opt/hivemq/lab-certs:ro
-      - ./brokers/hivemq/permissions.tsv:/opt/hivemq/extensions/enetec-identity/conf/permissions.tsv:ro
-      - ./brokers/hivemq/client_ids.tsv:/opt/hivemq/extensions/enetec-identity/conf/client_ids.tsv:ro
+      - ./brokers/cedalo/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/config/acl:/mosquitto/config/acl:ro
+      - ./certs:/mosquitto/certs:ro
+      - ./brokers/cedalo/license:/mosquitto/license:ro
 
   # Synthetic fleet / simulation runtime (python -m enetec_sim), see docs/mqtt-tests/.
   sim:

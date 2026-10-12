@@ -9,15 +9,16 @@
 #                   keine Beobachtung. `cases` nennt alle Faelle, die der Lauf enthielt; was dort
 #                   weder unter "Not passed" noch unter "Advisory" steht, war PASS.
 #
-# Die Seite ist zweisprachig: name/role/note/label deutsch, name_en/role_en/note_en/label_en englisch
+# Die Seite ist zweisprachig: name/role/note/label deutsch, name_en/role_en/note_en/label_en englisch.
+# [[brokers.<key>.facts]]: Herstellerangaben (de, en, url), getrennt von Messergebnissen angezeigt
 # (fehlt die englische Fassung, zeigt die Seite die deutsche).
 
 [brokers.mosquitto-lab]
 name = "Mosquitto 2.0"
 role = "Lab-Referenz"
 role_en = "lab reference"
-note = "Open-Source-Broker der Lab-Basis. Kein Anbieter-Kandidat; Cedalo / Pro Mosquitto ist die kommerzielle Variante und wurde nicht getestet."
-note_en = "Open-source broker the lab is built on. Not a vendor candidate; Cedalo / Pro Mosquitto is the commercial variant and was not tested."
+note = "Open-Source-Broker der Lab-Basis. Kein Anbieter-Kandidat, aber die Grundlage von Pro Mosquitto (Cedalo): Was hier fehlt, muss Pro Mosquitto liefern."
+note_en = "Open-source broker the lab is built on. Not a vendor candidate, but the basis of Pro Mosquitto (Cedalo): whatever is missing here, Pro Mosquitto has to deliver."
 
 [brokers.emqx]
 name = "EMQX 5.8"
@@ -26,20 +27,43 @@ role_en = "candidate (leading)"
 note = "Laut Current State 08.10. der führende Kandidat für den weiteren PoC. Im v1.3-Profil noch nicht gemessen."
 note_en = "According to the current state of 8 Oct the leading candidate for the further PoC. Not yet measured in the v1.3 profile."
 
-[brokers.hivemq]
-name = "HiveMQ CE + Lab-Erweiterung"
-name_en = "HiveMQ CE + lab extension"
-role = "Referenz, nicht mehr verfolgt"
-role_en = "reference, no longer pursued"
-note = "HiveMQ CE hat keine eigene Autorisierung; alle Sicherheitsfunktionen kommen aus der Lab-Erweiterung (Eigenentwicklung). Der Anbieter hat nicht geantwortet. Lab-Ergebnis, keine Produktabnahme."
-note_en = "HiveMQ CE has no authorisation of its own; all security functions come from the lab extension (in-house development). The vendor did not reply. Lab result, not a product acceptance."
+[brokers.cedalo]
+name = "Pro Mosquitto (Cedalo)"
+role = "Kandidat"
+role_en = "candidate"
+note = "Kommerzielle Ausgabe von Eclipse Mosquitto (Cedalo, Freiburg). Noch kein Lab-Lauf: alle Fälle „nicht gemessen“. Profil, Konfiguration und Herstellerangaben mit Quellen: brokers/cedalo/README.md."
+note_en = "Commercial edition of Eclipse Mosquitto (Cedalo, Freiburg). No lab run yet: every case is \"not measured\". Profile, configuration and vendor information with sources: brokers/cedalo/README.md."
 
-[brokers.bevywise]
-name = "Bevywise MQTTRoute"
-role = "Kandidat (Alternative)"
-role_en = "candidate (alternative)"
-note = "Keine Instanz verfügbar, daher nicht gemessen. Anbieterschätzung: 4–6 Wochen Zusatzentwicklung für Zertifikatszuordnung, Widerruf und dynamische Autorisierung (Current State 08.10.)."
-note_en = "No instance available, hence not measured. Vendor estimate: 4–6 weeks of additional development for certificate mapping, revocation and dynamic authorisation (current state of 8 Oct)."
+# Herstellerangaben (recherchiert 2026-10-12, nicht im Lab geprüft). Die Seite zeigt sie getrennt
+# von den Messergebnissen, immer mit Quelle.
+[[brokers.cedalo.facts]]
+de = "Native Google-Pub/Sub-Bridge: MQTT-Topics nach Google Cloud Pub/Sub (passt zum Umzug AWS IoT → GCP)."
+en = "Native Google Pub/Sub bridge: MQTT topics to Google Cloud Pub/Sub (fits the move AWS IoT → GCP)."
+url = "https://cedalo.com/mqtt-broker-pro-mosquitto/mqtt-integrations/"
+
+[[brokers.cedalo.facts]]
+de = "HA-Cluster ab 3 Knoten: Full Sync (aktiv/passiv, Leader per RAFT) oder Dynamic-Security Sync (aktiv/aktiv); seit Plattform 3.2 High Performance Clustering (Enterprise)."
+en = "HA cluster from 3 nodes: Full Sync (active/passive, leader via RAFT) or Dynamic-Security Sync (active/active); since platform 3.2 High Performance Clustering (Enterprise)."
+url = "https://www.cedalo.com/pro-mosquitto/high-availability"
+
+[[brokers.cedalo.facts]]
+de = "Zertifikatsverwaltung im Management Center: CAs und Client-Zertifikate importieren, verteilen, widerrufen; Clients gezielt trennen."
+en = "Certificate management in the Management Center: import, deploy and revoke CAs and client certificates; disconnect individual clients."
+url = "https://www.cedalo.com/pro-mosquitto/management-center"
+
+[[brokers.cedalo.facts]]
+de = "Persistent Queueing auf Platte (übersteht Neustarts), Audit-Trail-Plugin (Verbindungen, Abos, ACL-Änderungen, syslog)."
+en = "Persistent queueing on disk (survives restarts), audit trail plugin (connections, subscriptions, ACL changes, syslog)."
+url = "https://www.cedalo.com/pro-mosquitto/broker"
+
+[[brokers.cedalo.facts]]
+de = "Test: 30 Tage On-Premises (Docker-Compose + Lizenzdatei) oder 14 Tage Cloud. Cloud-Preise S 39 €/M 89 € pro Monat bis 30/300 Clients; ~10.000 Gateways nur im Enterprise-Tarif (Preis auf Anfrage)."
+en = "Trial: 30 days on-premises (Docker Compose + licence file) or 14 days cloud. Cloud prices S €39/M €89 per month for up to 30/300 clients; ~10,000 gateways only on the Enterprise plan (price on request)."
+url = "https://www.cedalo.com/pricing"
+
+[[brokers.cedalo.facts]]
+de = "Keine Angabe gefunden zu: Client-ID an das Zertifikat binden (R06), Session-Takeover verhindern (R11), Zertifikate ohne CN zuordnen (R16). Bei Cedalo erfragen."
+en = "Nothing found on: binding the client ID to the certificate (R06), preventing session takeover (R11), mapping certificates without CN (R16). Ask Cedalo."
 
 [[run]]
 broker = "mosquitto-lab"
@@ -49,24 +73,6 @@ kind = "report"
 file = "docs/mqtt-tests/reference/2026-10-08-mosquitto-2.0.18-v13.md"
 label = "Mosquitto 2.0.18, lokal, Hooks über SIM_HOOK_*"
 label_en = "Mosquitto 2.0.18, local, hooks via SIM_HOOK_*"
-
-[[run]]
-broker = "hivemq"
-wire = "v13"
-date = "2026-10-08"
-kind = "report"
-file = "docs/mqtt-tests/reference/2026-10-08-hivemq-ce-2026.5-v13.md"
-label = "HiveMQ CE 2026.5 + Erweiterung, lokal"
-label_en = "HiveMQ CE 2026.5 + extension, local"
-
-[[run]]
-broker = "hivemq"
-wire = "lab-eicp"
-date = "2026-10-08"
-kind = "report"
-file = "docs/mqtt-tests/reference/2026-10-08-hivemq-ce-2026.5-lab-eicp.md"
-label = "HiveMQ CE 2026.5 + Erweiterung, lokal"
-label_en = "HiveMQ CE 2026.5 + extension, local"
 
 [[run]]
 broker = "emqx"

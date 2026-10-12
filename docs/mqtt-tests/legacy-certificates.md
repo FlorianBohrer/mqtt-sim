@@ -35,7 +35,7 @@ Legacy-Gateways (Debian Jessie/Buster) können Schlüssel und CSR auch lokal erz
 2. **Fremd-Broker können die Kette voraussichtlich nicht prüfen.** Der Aussteller ist eine
    AWS-interne CA. Dass AWS deren Zertifikat nicht bereitstellt, ist meine Annahme und mit
    ENETEC oder AWS zu bestätigen. Trifft sie zu, ist eine Neuausstellung über die eigene PKI
-   Voraussetzung für EMQX, HiveMQ oder Bevywise, also keine Option.
+   Voraussetzung für EMQX oder Pro Mosquitto, also keine Option.
 3. **Der Server-Trust muss ebenfalls migriert werden** (VeriSign G5 → CA des neuen Brokers).
    Das passt zur geplanten CA-Übergangsphase von ENETEC.
 4. **Laufzeiten bis 2049** machen einen funktionierenden Widerruf zwingend (MTLS-08).

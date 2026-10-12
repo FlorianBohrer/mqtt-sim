@@ -13,7 +13,7 @@ Baukasten-Webseite `web/baukasten/index.html`. Doku auf Deutsch (`docs/MQTT-SIM-
   (SOURCE / INTERPRETED / ASSUMPTION / OPEN).
 - Broker-Verhalten nur aus Läufen in `docs/mqtt-tests/reference/`. Ergebnisse nie von Hand eintragen.
 - Harness-Prinzipien: Zeuge statt PUBACK, Positivkontrolle MTLS-01, unerreichbar ≠ abgelehnt, INCONCLUSIVE ≠ PASS.
-- Generierte Dateien nicht von Hand ändern: `synthetic/`, Broker-ACLs, `brokers/bevywise/generated/`,
+- Generierte Dateien nicht von Hand ändern: `synthetic/`, Broker-ACLs (`mosquitto/config/acl`, `brokers/emqx/acl.conf`),
   Datenblock der Webseite. Generator ändern, dann `make fleet` bzw. `make web`.
 - `WIRE=lab-eicp` muss das alte Schema byte-identisch erzeugen; neue Optionen ändern bestehende Ausgaben nicht.
 - Keine Geheimnisse, keine Lauf-Ergebnisse, kein `sim/config.local.toml` committen.

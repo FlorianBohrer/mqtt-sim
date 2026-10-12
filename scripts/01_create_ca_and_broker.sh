@@ -71,7 +71,7 @@ extendedKeyUsage = serverAuth
 DNS.1 = broker
 DNS.2 = localhost
 DNS.3 = emqx
-DNS.4 = hivemq
+DNS.4 = cedalo
 IP.1 = 127.0.0.1
 CONF
 
