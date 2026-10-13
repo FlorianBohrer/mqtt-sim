@@ -46,7 +46,7 @@ class PageDataTest(unittest.TestCase):
         runs = {(r['broker'], r['wire']): r for r in data['runs']}
         self.assertEqual(runs[('mosquitto-lab', 'v13')]['counts'], {'PASS': 25, 'FAIL': 3, 'PARTIAL': 6, 'INCONCLUSIVE': 0})
         self.assertFalse(runs[('mosquitto-lab', 'v13')]['accepted'])
-        self.assertEqual({b['key'] for b in data['brokers']}, {'mosquitto-lab', 'emqx', 'cedalo'})
+        self.assertEqual({b['key'] for b in data['brokers']}, {'mosquitto-lab', 'emqx', 'emqx-registry', 'cedalo'})
         self.assertFalse(any(r['broker'] == 'cedalo' for r in data['runs']), 'Cedalo has no lab run yet')
         self.assertEqual(runs[('emqx', 'lab-eicp')]['counts']['PASS'], 29)
         # v1.3 runs of 2026-10-13 (Docker lab): RST-01 opens the session like a gateway (Clean Start = false)
@@ -55,6 +55,9 @@ class PageDataTest(unittest.TestCase):
             self.assertEqual(runs[key]['date'], '2026-10-13', key)
             self.assertEqual(runs[key]['cases']['RST-01']['v'], 'PASS', key)
         self.assertEqual(runs[('emqx', 'v13')]['cases']['EXP-01']['v'], 'FAIL', 'durable sessions deliver expired commands')
+        # Lab prototype: EMQX + registry authentication closes R06/R11
+        self.assertEqual(runs[('emqx-registry', 'v13')]['counts'], {'PASS': 34, 'FAIL': 0, 'PARTIAL': 0, 'INCONCLUSIVE': 0})
+        self.assertTrue(runs[('emqx-registry', 'v13')]['accepted'])
         self.assertEqual(sum(c['mandatory'] for c in data['cases']), 34)
 
     def test_committed_page_carries_current_data(self):

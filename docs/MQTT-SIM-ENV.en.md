@@ -161,7 +161,7 @@ when needed.
 | Command | Purpose |
 |---|---|
 | `make acceptance` | Acceptance against the lab Mosquitto. Exit 0 only if all mandatory cases pass |
-| `make acceptance BROKER=emqx` | Acceptance against another profile (`make brokers` lists them: `mosquitto-lab`, `emqx`, `cedalo`) |
+| `make acceptance BROKER=emqx` | Acceptance against another profile (`make brokers` lists them: `mosquitto-lab`, `emqx`, `emqx-registry`, `cedalo`) |
 | `make acceptance WIRE=lab-eicp` | with the earlier topic layout and Client ID = CN |
 | `make simulate` | 24 h of traffic, time-compressed (×720, about 2 minutes), then evaluation |
 | `make simulate BROKER=emqx SPEED=2880 GATEWAYS=gw-sim-000001,gw-sim-000006` | with options |
@@ -278,6 +278,7 @@ Existing profiles and guides: [`brokers/emqx/`](../brokers/emqx/README.md),
 
 | Broker | Mandatory cases | Advisory | Simulation |
 |---|---|---|---|
+| EMQX 5.8.6 + registry (lab prototype, [`brokers/emqx-registry/`](../brokers/emqx-registry/README.md)) | **34 PASS, accepted** | as EMQX | PASS in 2 of 3 runs (once the last batch arrived late) |
 | EMQX 5.8.6 (candidate, leading) | **31 PASS**, 3 FAIL (ID-01, ID-03, DUP-01) | RST-01 PASS (durable sessions), EXP-01 FAIL, ACL-14 PARTIAL, MTLS-07/-08, REV-01, LEG-01 FAIL | PASS, 10/10 checks |
 | Mosquitto 2.0.18 (lab reference, basis of Pro Mosquitto) | 25 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL | RST-01 PASS, EXP-01 PASS, ACL-14 PASS, MTLS-08, REV-01, LEG-01 FAIL | PASS, 10/10 checks |
 | Pro Mosquitto (Cedalo, candidate) | profile and configuration prepared, no run yet (licence needed) | – | – |
@@ -299,7 +300,7 @@ persistent queueing, audit trail. Nothing found on Client ID binding (R06), take
 and certificates without CN (R16), exactly where open-source Mosquitto fails.
 
 **Key findings**
-- **Client ID binding (R06) and duplicate Client ID (R11)** are the only open mandatory points for both brokers. Both accept a foreign Client ID and let a second connection take over the session. Solution open: authentication against the registry (e.g. the HTTP authenticator in EMQX, a plugin for Mosquitto).
+- **Client ID binding (R06) and duplicate Client ID (R11)** are the only open mandatory points for both brokers on their own. Both accept a foreign Client ID and let a second connection take over the session. **Solved for EMQX in the lab prototype:** an HTTP authenticator asks a registry on every connect (certificate → Client ID, open connections via the REST API); that passes all 34 mandatory cases. In production this has to be the real, redundant registry from ENTC-47. Mosquitto would need a plugin.
 - **EMQX** passes deny by default, direction separation and cross-gateway blocks completely, with the denial signalled (SUBACK 0x87). The open-source edition logs accepted connections only through a rule (`audit_client_connected`). Version 5.8.6 does not check the EKU, revocation only works via CRL distribution points.
 - **Trade-off in EMQX:** durable sessions keep the session and commands across a restart, but then still deliver expired commands (Message Expiry). Without them it is the other way round. For a cluster the open-source image lacks the replicated storage.
 - **Mosquitto** does not signal denied subscriptions (SUBACK 0x01, delivery stays blocked). With `persistence true` the session survives a restart; the earlier finding "session gone after restart" was a bug in case RST-01 (session opened with Clean Start = true), fixed on 13 Oct.
@@ -330,7 +331,7 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 | `Unable to load server key file "/mosquitto/certs/broker/broker.key"` (Linux) | lab from an older version: the key was readable for the host user only. `make acceptance` fixes this itself, otherwise `chmod 644 certs/broker/broker.key` (test key) |
 | `429 Too Many Requests` when pulling an image | Docker Hub limit for anonymous pulls: `docker login`, or pull the image from a mirror and rename it, e.g. `docker pull mirror.gcr.io/emqx/emqx:5.8.6 && docker tag mirror.gcr.io/emqx/emqx:5.8.6 emqx/emqx:5.8.6` |
 | `cluster discovery strategy must be 'singleton'` (EMQX does not start) | durable sessions with local storage need a single node: `cluster.discovery_strategy = singleton` in `brokers/emqx/emqx.conf` |
-| Port in use | another broker or container; `docker compose down`. Mosquitto uses 8883, EMQX 8884, Pro Mosquitto 8885 |
+| Port in use | another broker or container; `docker compose down`. Mosquitto uses 8883, EMQX 8884, Pro Mosquitto 8885, EMQX + registry 8886 |
 | Two runs interfere | do not start runs in parallel; they use the same Client IDs |
 
 ## 9. Limits and next steps
@@ -349,7 +350,7 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 - Log checks are pattern searches per profile.
 
 **Next steps:**
-1. Solve and measure R06 and R11 for EMQX: authentication against the registry (certificate → serial number → Client ID) that rejects a foreign or duplicate Client ID.
+1. Turn the registry prototype for EMQX ([`brokers/emqx-registry/`](../brokers/emqx-registry/README.md)) into a real, redundant component (registry from ENTC-47) and agree with ENETEC on the behaviour after a silent link loss (R11 blocks reconnects until the keep-alive expires).
 1. Decide the EMQX trade-off R20 (Message Expiry) versus R22 (restart), or measure again with a newer EMQX version.
 2. Pro Mosquitto: request the 30-day trial, run `make acceptance BROKER=cedalo`, ask Cedalo about the open points (R06, R11, R16, Pub/Sub bridge, on-premises price) ([`brokers/cedalo/README.md`](../brokers/cedalo/README.md)).
 3. Agree the weights in `sim/decision.toml` with SOLHEA/ENETEC and fill in the hand scores with sources.

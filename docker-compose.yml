@@ -33,6 +33,39 @@ services:
       - ./brokers/emqx/acl.conf:/opt/emqx/etc/acl.conf:ro
       - ./certs:/opt/emqx/etc/certs/lab:ro
 
+  # EMQX with registry authentication (lab prototype for R06/R11): make acceptance BROKER=emqx-registry.
+  # Same EMQX configuration as above (included as emqx-base.conf) plus an HTTP authenticator that asks
+  # the registry service below on every CONNECT. See brokers/emqx-registry/ and brokers/registry/.
+  emqx-registry:
+    image: emqx/emqx:5.8.6
+    container_name: enetec-emqx-registry
+    profiles: ["emqx-registry"]
+    depends_on: [registry]
+    ports:
+      - "8886:8883"     # mTLS (host: localhost:8886, compose network: emqx-registry:8883)
+    volumes:
+      - ./brokers/emqx/emqx.conf:/opt/emqx/etc/emqx-base.conf:ro
+      - ./brokers/emqx-registry/emqx.conf:/opt/emqx/etc/emqx.conf:ro
+      - ./brokers/emqx/acl.conf:/opt/emqx/etc/acl.conf:ro
+      - ./certs:/opt/emqx/etc/certs/lab:ro
+
+  # Lab registry: certificate CN -> authorised Client ID (synthetic/fleet.json), duplicate check via
+  # the EMQX REST API. Standard library only; reachable inside the compose network only.
+  registry:
+    image: python:3.12-alpine
+    container_name: enetec-registry
+    profiles: ["emqx-registry"]
+    command: ["python", "-u", "/app/registry.py"]
+    environment:
+      FLEET: /lab/synthetic/fleet.json
+      EMQX_API: http://emqx-registry:18083/api/v5
+      EMQX_API_KEY_FILE: /lab/certs/emqx-registry/api_key.txt
+      DUPLICATE_GRACE_S: "3"
+    volumes:
+      - ./brokers/registry:/app:ro
+      - ./synthetic:/lab/synthetic:ro
+      - ./certs/emqx-registry:/lab/certs/emqx-registry:ro
+
   # Pro Mosquitto (Cedalo) as ENTC-59 candidate: make acceptance BROKER=cedalo (brokers/cedalo/README.md).
   # Needs `docker login registry.cedalo.com` and a licence file in brokers/cedalo/license/ (30-day
   # on-premises trial). Same lab CA, certificates and generated Mosquitto ACL as the lab broker.

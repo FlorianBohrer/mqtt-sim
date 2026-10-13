@@ -72,6 +72,7 @@ DNS.1 = broker
 DNS.2 = localhost
 DNS.3 = emqx
 DNS.4 = cedalo
+DNS.5 = emqx-registry
 IP.1 = 127.0.0.1
 CONF
 

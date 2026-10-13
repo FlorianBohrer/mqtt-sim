@@ -56,9 +56,9 @@ Den **Zielkonflikt** RST-01 gegen EXP-01 belegt ein zweiter Lauf ohne Durable Se
 
 ## Was für die Abnahme noch fehlt
 
-1. **R06 und R11:** eine Authentifizierung, die Zertifikat (CN oder Fingerprint) und Client-ID gegen
-   die Registry prüft und eine falsche oder doppelte Client-ID ablehnt, z. B. der HTTP-Authenticator
-   von EMQX gegen einen kleinen Registry-Dienst. Noch nicht gebaut und nicht gemessen.
+1. **R06 und R11:** gelöst im Lab-Prototyp [`brokers/emqx-registry/`](../emqx-registry/README.md):
+   HTTP-Authenticator plus Registry-Dienst, 34 von 34 Pflichtfällen. Für den Betrieb fehlt die echte,
+   redundante Registry (ENTC-47).
 2. **R20 gegen R22:** bei EMQX klären, ob neuere Versionen die Message Expiry in Durable Sessions
    beachten.
 3. **Widerruf (R23):** CRL-Verteilpunkte in die Zertifikate oder OCSP; offene Verbindungen müssten

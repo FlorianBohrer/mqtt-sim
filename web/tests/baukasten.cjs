@@ -38,7 +38,7 @@ async function clean(page, label) {
     check(gws === 12, `${lang}: lab fleet has 12 gateways (got ${gws})`);
 
     // Jede Aktion eines normalen Gateways bei jedem Broker
-    for (const broker of ["mosquitto-lab", "emqx", "cedalo"]) {
+    for (const broker of ["mosquitto-lab", "emqx", "emqx-registry", "cedalo"]) {
       await page.click(`#broker-switch [data-switch-broker="${broker}"]`); await idle(page);
       await page.click('[data-gw="gw-sim-000001"]');
       const ids = await page.$$eval('#inspect [data-action]:not([disabled])', e => e.map(b => b.dataset.action));

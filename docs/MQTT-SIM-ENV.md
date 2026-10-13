@@ -163,7 +163,7 @@ automatisch neu ausgestellt.
 | Befehl | Zweck |
 |---|---|
 | `make acceptance` | Abnahme gegen den Lab-Mosquitto. Exit 0 nur, wenn alle Pflichtfälle bestehen |
-| `make acceptance BROKER=emqx` | Abnahme gegen ein anderes Profil (`make brokers` listet sie: `mosquitto-lab`, `emqx`, `cedalo`) |
+| `make acceptance BROKER=emqx` | Abnahme gegen ein anderes Profil (`make brokers` listet sie: `mosquitto-lab`, `emqx`, `emqx-registry`, `cedalo`) |
 | `make acceptance WIRE=lab-eicp` | mit dem früheren Topic-Schema und Client-ID = CN |
 | `make simulate` | 24 h Verkehr, zeitgerafft (×720, etwa 2 Minuten), danach Auswertung |
 | `make simulate BROKER=emqx SPEED=2880 GATEWAYS=gw-sim-000001,gw-sim-000006` | mit Optionen |
@@ -280,6 +280,7 @@ Vorhandene Profile und Anleitungen: [`brokers/emqx/`](../brokers/emqx/README.md)
 
 | Broker | Pflichtfälle | Beratend | Simulation |
 |---|---|---|---|
+| EMQX 5.8.6 + Registry (Lab-Prototyp, [`brokers/emqx-registry/`](../brokers/emqx-registry/README.md)) | **34 PASS, abgenommen** | wie EMQX | PASS in 2 von 3 Läufen (einmal letzter Schwung zu spät) |
 | EMQX 5.8.6 (Kandidat, führend) | **31 PASS**, 3 FAIL (ID-01, ID-03, DUP-01) | RST-01 PASS (Durable Sessions), EXP-01 FAIL, ACL-14 PARTIAL, MTLS-07/-08, REV-01, LEG-01 FAIL | PASS, 10/10 Prüfungen |
 | Mosquitto 2.0.18 (Lab-Referenz, Basis von Pro Mosquitto) | 25 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL | RST-01 PASS, EXP-01 PASS, ACL-14 PASS, MTLS-08, REV-01, LEG-01 FAIL | PASS, 10/10 Prüfungen |
 | Pro Mosquitto (Cedalo, Kandidat) | Profil und Konfiguration vorbereitet, noch kein Lauf (Lizenz nötig) | – | – |
@@ -302,7 +303,7 @@ Queueing, Audit Trail. Keine Angabe gefunden zu Client-ID-Bindung (R06), Takeove
 Zertifikaten ohne CN (R16), genau den Punkten, an denen Open-Source-Mosquitto scheitert.
 
 **Wichtigste Befunde**
-- **Client-ID-Bindung (R06) und doppelte Client-ID (R11)** sind bei beiden Brokern die einzigen offenen Pflichtpunkte. Beide lassen eine fremde Client-ID zu und lassen eine zweite Verbindung die Session übernehmen. Lösung offen: Authentifizierung gegen die Registry (z. B. HTTP-Authenticator bei EMQX, Plugin bei Mosquitto).
+- **Client-ID-Bindung (R06) und doppelte Client-ID (R11)** sind bei beiden Brokern allein die einzigen offenen Pflichtpunkte. Beide lassen eine fremde Client-ID zu und lassen eine zweite Verbindung die Session übernehmen. **Für EMQX gelöst im Lab-Prototyp:** Ein HTTP-Authenticator fragt bei jedem Verbindungsaufbau eine Registry (Zertifikat → Client-ID, Abfrage offener Verbindungen über die REST-API); damit 34 von 34 Pflichtfällen. Im Betrieb muss das die echte, redundante Registry aus ENTC-47 sein. Für Mosquitto bräuchte es ein Plugin.
 - **EMQX** besteht Deny-by-default, Richtungstrennung und Cross-Gateway-Sperren vollständig, mit signalisierter Ablehnung (SUBACK 0x87). Angenommene Verbindungen loggt die Open-Source-Ausgabe nur über eine Regel (`audit_client_connected`). EKU wird in 5.8.6 nicht geprüft, Widerruf nur über CRL-Verteilpunkte.
 - **Zielkonflikt bei EMQX:** Durable Sessions halten Session und Commands über einen Neustart, liefern dann aber abgelaufene Commands (Message Expiry) noch aus. Ohne sie ist es umgekehrt. Für einen Cluster fehlt dem Open-Source-Image der replizierte Speicher.
 - **Mosquitto** meldet verweigerte Subscriptions nicht als Ablehnung (SUBACK 0x01, Zustellung bleibt aus). Mit `persistence true` übersteht die Session einen Neustart; der frühere Befund „Session nach Neustart weg“ war ein Fehler im Fall RST-01 (Session mit Clean Start = true eröffnet), seit 13.10. behoben.
@@ -333,7 +334,7 @@ Berichte: `docs/mqtt-tests/reference/`. Legacy-Analyse: [`mqtt-tests/legacy-cert
 | `Unable to load server key file "/mosquitto/certs/broker/broker.key"` (Linux) | Lab aus einer älteren Version: Schlüssel war nur für den Host-Benutzer lesbar. `make acceptance` korrigiert das selbst, sonst `chmod 644 certs/broker/broker.key` (Test-Schlüssel) |
 | `429 Too Many Requests` beim Laden eines Images | Docker-Hub-Limit für anonyme Abrufe: `docker login` oder das Image über einen Spiegel laden und umbenennen, z. B. `docker pull mirror.gcr.io/emqx/emqx:5.8.6 && docker tag mirror.gcr.io/emqx/emqx:5.8.6 emqx/emqx:5.8.6` |
 | `cluster discovery strategy must be 'singleton'` (EMQX startet nicht) | Durable Sessions mit lokalem Speicher gehen nur mit einem Knoten: `cluster.discovery_strategy = singleton` in `brokers/emqx/emqx.conf` |
-| Port belegt | anderer Broker oder Container; `docker compose down`. Mosquitto nutzt 8883, EMQX 8884, Pro Mosquitto 8885 |
+| Port belegt | anderer Broker oder Container; `docker compose down`. Mosquitto nutzt 8883, EMQX 8884, Pro Mosquitto 8885, EMQX + Registry 8886 |
 | Zwei Läufe stören sich | Läufe nicht parallel starten; sie verwenden dieselben Client-IDs |
 
 ## 9. Grenzen und nächste Schritte
@@ -352,7 +353,7 @@ Berichte: `docs/mqtt-tests/reference/`. Legacy-Analyse: [`mqtt-tests/legacy-cert
 - Log-Prüfungen sind Mustersuchen je Profil.
 
 **Nächste Schritte:**
-1. R06 und R11 für EMQX lösen und messen: Authentifizierung gegen die Registry (Zertifikat → Seriennummer → Client-ID), die eine fremde oder doppelte Client-ID ablehnt.
+1. Den Registry-Prototyp für EMQX ([`brokers/emqx-registry/`](../brokers/emqx-registry/README.md)) in eine echte, redundante Komponente überführen (Registry aus ENTC-47) und das Verhalten beim stillen Linkverlust (R11 blockiert Reconnects bis zum Keep-alive) mit ENETEC abstimmen.
 1. Den EMQX-Zielkonflikt R20 (Message Expiry) gegen R22 (Neustart) entscheiden oder mit einer neueren EMQX-Version erneut messen.
 2. Pro Mosquitto: 30-Tage-Test anfordern, `make acceptance BROKER=cedalo`, offene Punkte (R06, R11, R16, Pub/Sub-Bridge, Preis On-Premises) bei Cedalo erfragen ([`brokers/cedalo/README.md`](../brokers/cedalo/README.md)).
 3. Gewichte in `sim/decision.toml` mit SOLHEA/ENETEC abstimmen und die Handbewertungen mit Quellen füllen.

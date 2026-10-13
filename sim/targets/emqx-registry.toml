@@ -1,0 +1,75 @@
+# Broker profile: EMQX 5.8 with registry authentication (lab prototype for R06/R11), started by
+# make acceptance BROKER=emqx-registry as docker compose services "emqx-registry" and "registry":
+# brokers/emqx/emqx.conf plus brokers/emqx-registry/emqx.conf (HTTP authenticator), the registry in
+# brokers/registry/registry.py. Everything else as in sim/targets/emqx.toml.
+
+name = "EMQX 5.8 + registry authentication (lab container)"
+status = "verified"
+lab_managed = true
+compose_service = "emqx-registry"
+ready_log = 'is running now'
+host = "localhost"            # from the Mac
+port = 8886                   # host port mapped to the container's 8883
+compose_host = "emqx-registry"   # from the sim container
+compose_port = 8883
+# server_ca = "certs/ca/ca.crt"   # default: lab CA signed the broker certificate
+observe_s = 3.0
+session_expiry_s = 300
+reconnect_gateways = 10
+reconnect_window_s = 5.0
+
+# Packet limit set in brokers/emqx/emqx.conf (mqtt.max_packet_size = 1MB): PAY-03 checks it.
+max_packet_bytes = 1048576
+
+prepare_script = "scripts/19_emqx_registry.sh"   # REST API key for the registry
+
+[hooks]
+# EMQX checks CRLs only from the certificates' CRL Distribution Point (HTTP); the lab certificates
+# carry none, so a revocation never reaches EMQX here (REV-01 shows it). The file ACL is not
+# re-read on its own; "emqx ctl conf reload" re-reads it (checked 2026-10-13: withdrawal gives
+# PUBACK 0x87 at once, restore 0x10).
+crl_reload = "none"
+acl_reload = "exec:emqx ctl conf reload --merge"
+
+[log]
+# Observed in the Docker run of 2026-10-01 (docker compose logs, lines start with an ISO timestamp):
+#   [info] clientid: gw-sim-000001, msg: terminate, peername: ...          (disconnect)
+#   [notice] TLS server: In state wait_cert at tls_handshake_1_3.erl:...    (TLS failure)
+#   [info] tag: AUTHZ, clientid: ..., msg: authorization_permission_denied  (ACL denial)
+# Accepted connections are not logged at info level by EMQX itself; the rule audit_client_connected
+# in brokers/emqx/emqx.conf writes one line per connection (rule console output, no own timestamp:
+# the harness captures docker compose logs with --timestamps):
+#   [rule action] ... <<"client_connected clientid=c4b0... username=gw-sim-000001 peer=...">>
+timestamp = '(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)'
+connect_accepted = 'client_connected clientid=\S+ username=\S+'
+auth_failure = 'TLS server: In state|tls_alert|ssl_error'
+acl_denied = 'authorization_permission_denied'
+disconnect = 'msg: (terminate|disconnected|socket_closed|takeover|discarded)'
+
+[effort]
+# Lab assessment per requirement: CLASS | note. Based on the v1.3 acceptance runs of 2026-10-13
+# (EMQX 5.8.6 container plus brokers/registry/registry.py). As sim/targets/emqx.toml except R06, R11.
+R01 = "CONFIGURATION | listeners.ssl verify_peer, cacertfile"
+R02 = "CONFIGURATION | fail_if_no_peer_cert"
+R03 = "CONFIGURATION | cacertfile"
+R04 = "CONFIGURATION | validity checked; no EKU option on the 5.8.6 listener (MTLS-07 FAIL, profile OPEN ENTC-31); CRL only from the certificates' CRL distribution point (enable_crl_check), the lab certificates carry none (MTLS-08 FAIL)"
+R05 = "CONFIGURATION | peer_cert_as_username = cn + file authorization"
+R06 = "EXTERNAL SERVICE | HTTP authenticator asks the registry: certificate CN -> authorised Client ID (ID-01, ID-02, ID-03 PASS, CONNACK 0x87); lab prototype, production needs the real registry (ENTC-47) with HA"
+R07 = "CONFIGURATION | authorization no_match = deny, deny_action = ignore (PUBACK/SUBACK 0x87)"
+R08 = "CONFIGURATION | file authorization"
+R09 = "CONFIGURATION | file authorization, denied SUBSCRIBE signalled (SUBACK 0x87)"
+R10 = "CONFIGURATION | file authorization, denied SUBSCRIBE signalled (SUBACK 0x87)"
+R11 = "EXTERNAL SERVICE | registry checks the EMQX REST API for an open connection with the Client ID and rejects the second one (DUP-01 PASS); 3 s grace for a dropped old link; a silent link loss blocks reconnects until the keep-alive expires"
+R12 = "NATIVE | MQTT 5 QoS 1"
+R13 = "NATIVE | persistent sessions"
+R14 = "NATIVE | sessions survive; backoff is a client matter"
+R15 = "CONFIGURATION | console log; accepted connections only via the rule audit_client_connected (open source has no audit log); production: rule to a log sink"
+R16 = "UNSUPPORTED | certificate without CN: the registry rejects it (LEG-01 FAIL); mapping by fingerprint needs the certificate in the authenticator request (untested)"
+R17 = "CONFIGURATION | two certificates for one CN work"
+R18 = "NATIVE | binary payloads byte-exact (PAY-01)"
+R19 = "NATIVE | Last Will on link loss (LWT-01); foreign Will not delivered (LWT-02)"
+R20 = "UNSUPPORTED | with durable sessions an expired queued command is still delivered (EXP-01 FAIL); without them EXP-01 PASS but RST-01 FAIL"
+R21 = "CONFIGURATION | mqtt.max_packet_size = 1MB, larger packet disconnects (PAY-03 PASS)"
+R22 = "CONFIGURATION | durable_sessions.enable = true, single node (discovery_strategy = singleton); a cluster needs builtin_raft, not in the open-source image"
+R23 = "UNSUPPORTED | revocation reaches neither open nor new connections (REV-01 FAIL); CRL only via distribution point, no forced disconnect tested"
+R24 = "CONFIGURATION | emqx ctl conf reload re-reads the file ACL: publish blocked at once, an existing subscription keeps delivering (ACL-14 PARTIAL)"

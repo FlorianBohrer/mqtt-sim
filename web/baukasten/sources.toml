@@ -27,6 +27,13 @@ role_en = "candidate (leading)"
 note = "Laut Current State 08.10. der führende Kandidat für den weiteren PoC. Im v1.3-Profil 31 von 34 Pflichtfällen; es fehlen nur die Bindung der Client-ID an das Zertifikat (R06) und der Schutz vor Übernahme (R11). Durable Sessions halten Sessions über einen Neustart, liefern aber abgelaufene Commands noch aus (EXP-01)."
 note_en = "According to the current state of 8 Oct the leading candidate for the further PoC. In the v1.3 profile 31 of 34 mandatory cases; only binding the client ID to the certificate (R06) and preventing takeover (R11) are missing. Durable sessions keep sessions across a restart but still deliver expired commands (EXP-01)."
 
+[brokers.emqx-registry]
+name = "EMQX + Registry"
+role = "Lab-Prototyp für R06/R11"
+role_en = "lab prototype for R06/R11"
+note = "EMQX 5.8.6 mit derselben Konfiguration wie oben, dazu ein HTTP-Authenticator: Bei jedem Verbindungsaufbau fragt EMQX einen kleinen Registry-Dienst, ob die Client-ID zum Zertifikat gehört und ob sie schon verbunden ist. Damit alle 34 Pflichtfälle. Lab-Prototyp (brokers/registry/), keine Hochverfügbarkeit, nicht für den Betrieb gebaut."
+note_en = "EMQX 5.8.6 with the same configuration as above, plus an HTTP authenticator: on every connect EMQX asks a small registry service whether the client ID belongs to the certificate and whether it is already connected. That passes all 34 mandatory cases. Lab prototype (brokers/registry/), no high availability, not built for production."
+
 [brokers.cedalo]
 name = "Pro Mosquitto (Cedalo)"
 role = "Kandidat"
@@ -84,6 +91,15 @@ kind = "report"
 file = "docs/mqtt-tests/reference/2026-10-13-emqx-5.8.6-v13.md"
 label = "EMQX 5.8.6, Docker-Lab (Linux), Durable Sessions an"
 label_en = "EMQX 5.8.6, Docker lab (Linux), durable sessions on"
+
+[[run]]
+broker = "emqx-registry"
+wire = "v13"
+date = "2026-10-13"
+kind = "report"
+file = "docs/mqtt-tests/reference/2026-10-13-emqx-5.8.6-registry-v13.md"
+label = "EMQX 5.8.6 + Registry-Prototyp, Docker-Lab (Linux)"
+label_en = "EMQX 5.8.6 + registry prototype, Docker lab (Linux)"
 
 [[run]]
 broker = "emqx"

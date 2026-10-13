@@ -253,6 +253,7 @@ Liest `sim/decision.toml` und den letzten Lauf je Broker-Profil. Ergebnis in
 | Broker | Ergebnis | Pflichtfälle | Beratend nicht bestanden | Bericht |
 |---|---|---|---|---|
 | EMQX 5.8.6, `brokers/emqx/emqx.conf` | NOT ACCEPTED | 31/34 PASS, 3 FAIL (ID-01, ID-03, DUP-01) | MTLS-07, MTLS-08, LEG-01, EXP-01 (mit Durable Sessions), REV-01; ACL-14 PARTIAL | [`2026-10-13-emqx-5.8.6-v13.md`](reference/2026-10-13-emqx-5.8.6-v13.md) |
+| EMQX 5.8.6 + Registry-Prototyp (`brokers/emqx-registry/`) | **ACCEPTED** | 34/34 PASS | MTLS-07, MTLS-08, LEG-01, EXP-01, REV-01; ACL-14 PARTIAL | [`2026-10-13-emqx-5.8.6-registry-v13.md`](reference/2026-10-13-emqx-5.8.6-registry-v13.md) |
 | Mosquitto 2.0.18, Lab-Konfiguration | NOT ACCEPTED | 25/34 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL (Subscribe-Ablehnung nicht signalisiert) | MTLS-08, LEG-01, REV-01 | [`2026-10-13-mosquitto-2.0.18-v13.md`](reference/2026-10-13-mosquitto-2.0.18-v13.md) |
 
 Vergleichslauf EMQX ohne Durable Sessions (RST-01 FAIL, EXP-01 PASS):
