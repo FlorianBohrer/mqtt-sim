@@ -146,6 +146,12 @@ Nothing else is needed. On the first run, `make acceptance` builds everything it
 
 The first run takes a few minutes (pulling images, issuing certificates).
 
+**Linux:** works the same way. The broker key is made readable for the container users there
+(Mosquitto 2 reads it as user 1883, EMQX as 1000; Docker Desktop on the Mac handles this itself).
+Without network access in the build container (company proxy), Python runs on the host with
+`SIM_LOCAL=1`: this needs `python3` 3.11 or newer, `pip install paho-mqtt==2.1.0` and OpenSSL 3, e.g.
+`SIM_LOCAL=1 make acceptance BROKER=emqx`.
+
 **Starting over:** `make clean` deletes certificates, broker data and logs. The results under
 `results/` are kept. After `make init` or `make clean`, certificates are re-issued automatically
 when needed.
@@ -164,7 +170,8 @@ when needed.
 | `make decide` | weighted decision matrix from `sim/decision.toml` and the latest runs |
 | `make web` | refresh the data of the Baukasten web page from the repo (fleet, reference runs) |
 | `make fleet` | Regenerate fleet, dataset, ACLs and certificates (after changing `sim/config.toml`); `make fleet WIRE=lab-eicp` for the individual tests 04–10 |
-| `make sim-test` | Unit tests in the container |
+| `make sim-test` | Unit tests in the container (`SIM_LOCAL=1`: locally; with `mosquitto` and `openssl` on the PATH also the end-to-end tests against a real broker) |
+| `make web-check` | Browser test of both web pages: every station, every action, both languages, widths, CSP, no external requests (needs Node.js and Playwright) |
 | `make brokers` | Available profiles |
 | `make clean` | Delete local certificates and broker data |
 
@@ -202,6 +209,17 @@ Result folder `results/acceptance-<time>/`: `report.md` (table), `report.json`, 
 | LEG / ROT | 01–02 / 01–02 | legacy certificate without CN; rotation with overlap and rollback |
 
 Full rules: [`mqtt-tests/acceptance-harness.md`](mqtt-tests/acceptance-harness.md) (German).
+
+### The explainer
+
+Open `web/erklaerung/index.html` in a browser: an interactive explainer of the chain. Twelve stations
+follow a message from the gateway through the ID check, the broker, the permission list, the session store and the audit log to the cloud and back as a command.
+Each station lets you trigger something (connect, with a wrong certificate or a foreign client ID, link
+down, forbidden PUBLISH/SUBSCRIBE, command to an offline gateway, session expiry). The page shows the
+flow with MQTT 5 reason codes and writes the audit log in the format of the lab Mosquitto. It shows the
+**target behaviour** per R01–R15, not a particular broker; what the brokers really do in the lab is in
+the building kit. German and English. Structure and style analysis: [`ERKLAERUNG.md`](ERKLAERUNG.md)
+(German with an English summary).
 
 ### The Baukasten (building kit)
 
@@ -254,15 +272,22 @@ tampered state is discarded.
 Existing profiles and guides: [`brokers/emqx/`](../brokers/emqx/README.md),
 [`brokers/cedalo/`](../brokers/cedalo/README.md) (Pro Mosquitto, with licence notes and vendor information with sources; German).
 
-## 7. Status of the results (2026-10-12)
+## 7. Status of the results (2026-10-13)
 
-**Wire profile v13 (current):**
+**Wire profile v13 (current), Docker lab:**
 
-| Broker | Mandatory cases | Advisory | Where tested |
+| Broker | Mandatory cases | Advisory | Simulation |
 |---|---|---|---|
-| Mosquitto 2.0.18 (lab reference, basis of Pro Mosquitto) | 25 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL | RST-01 FAIL (session gone after restart), REV-01 FAIL, ACL-14 PASS | locally (without Docker) |
-| EMQX 5.8 (candidate, leading) | not run in the v13 profile yet | – | – |
+| EMQX 5.8.6 (candidate, leading) | **31 PASS**, 3 FAIL (ID-01, ID-03, DUP-01) | RST-01 PASS (durable sessions), EXP-01 FAIL, ACL-14 PARTIAL, MTLS-07/-08, REV-01, LEG-01 FAIL | PASS, 10/10 checks |
+| Mosquitto 2.0.18 (lab reference, basis of Pro Mosquitto) | 25 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL | RST-01 PASS, EXP-01 PASS, ACL-14 PASS, MTLS-08, REV-01, LEG-01 FAIL | PASS, 10/10 checks |
 | Pro Mosquitto (Cedalo, candidate) | profile and configuration prepared, no run yet (licence needed) | – | – |
+
+Reports: [`2026-10-13-emqx-5.8.6-v13.md`](mqtt-tests/reference/2026-10-13-emqx-5.8.6-v13.md),
+[`2026-10-13-mosquitto-2.0.18-v13.md`](mqtt-tests/reference/2026-10-13-mosquitto-2.0.18-v13.md). The
+simulation (10 gateways, 24 h in 2 minutes, 57 link losses) delivered all 2,500 state messages and 115
+commands on both brokers, including the 60 commands sent during an outage. EMQX with durable sessions
+showed a much higher latency in the lab container (p50 104 ms, p95 430 ms) than Mosquitto (p50 1 ms);
+this is not a load test, but it shows the cost of storing on disk.
 
 **Profile lab-eicp (until 2026-10-01, historical):** Mosquitto 23 PASS / 2 FAIL / 6 PARTIAL,
 EMQX 29/31 (Client ID binding, duplicate Client ID).
@@ -274,11 +299,11 @@ persistent queueing, audit trail. Nothing found on Client ID binding (R06), take
 and certificates without CN (R16), exactly where open-source Mosquitto fails.
 
 **Key findings**
-- **Client ID binding (v13):** a derived Client ID requires the broker to look up the mapping certificate → authorized Client ID. Mosquitto cannot do this (ID-03 FAIL); for Pro Mosquitto and EMQX a solution (plugin, hook, registry lookup) is open.
-- **Revocation on an active connection** needs more than a CRL at connect time: the broker has to disconnect affected sessions. Mosquitto with the lab configuration reaches neither open nor new connections; the Cedalo profile sets `crlfile`, and Cedalo also offers disconnecting clients from the Management Center.
-- **Broker restart:** Mosquitto 2.0.18 wrote its persistence file, yet the session was gone after the restart (local run, to be repeated with the Docker image).
-- **Mosquitto:** a Client ID that differs from the certificate is accepted and displaces the real session. A duplicate Client ID leads to session takeover. Denied subscriptions are acknowledged (only delivery stays blocked).
-- **EMQX:** deny by default, direction separation and cross-gateway blocks pass completely, with the denial signalled (SUBACK 0x87). Like Mosquitto it fails on CN ≠ Client ID and on duplicate Client ID; in addition, wrong key usage (EKU), revocation (without CRL distribution points) and legacy certificates without CN are not caught (informational only).
+- **Client ID binding (R06) and duplicate Client ID (R11)** are the only open mandatory points for both brokers. Both accept a foreign Client ID and let a second connection take over the session. Solution open: authentication against the registry (e.g. the HTTP authenticator in EMQX, a plugin for Mosquitto).
+- **EMQX** passes deny by default, direction separation and cross-gateway blocks completely, with the denial signalled (SUBACK 0x87). The open-source edition logs accepted connections only through a rule (`audit_client_connected`). Version 5.8.6 does not check the EKU, revocation only works via CRL distribution points.
+- **Trade-off in EMQX:** durable sessions keep the session and commands across a restart, but then still deliver expired commands (Message Expiry). Without them it is the other way round. For a cluster the open-source image lacks the replicated storage.
+- **Mosquitto** does not signal denied subscriptions (SUBACK 0x01, delivery stays blocked). With `persistence true` the session survives a restart; the earlier finding "session gone after restart" was a bug in case RST-01 (session opened with Clean Start = true), fixed on 13 Oct.
+- **Revocation on an active connection** needs more than a CRL at connect time: the broker has to disconnect affected sessions. Neither broker reaches open or new connections in the lab configuration.
 - **Legacy certificates (AWS IoT)** contain no Gateway ID. A broker needs a registry mapping (fingerprint → Gateway ID), or the gateways get new certificates with the ID in the CN.
 - **Duplicate Client ID** has a trade-off: after a silent connection loss the broker rejects reconnects until the keep-alive expires (up to about 180 s).
 
@@ -288,7 +313,7 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 
 | Message | Cause and solution |
 |---|---|
-| `No rule to make target 'acceptance'` | old folder or old ZIP. Check the version (`cat VERSION`, currently `2026-10-12-r3` or newer), unzip the new ZIP over the folder (`unzip -o`) |
+| `No rule to make target 'acceptance'` | old folder or old ZIP. Check the version (`cat VERSION`, currently `2026-10-13-r3` or newer), unzip the new ZIP over the folder (`unzip -o`) |
 | Baukasten says "No lab data embedded" | run `make web` in the lab folder and reload the page |
 | Baukasten stays empty, console reports "Content Security Policy" | the page script was edited without running `make web`: `make web` writes the new script hash |
 | `make fleet` creates a different fleet than expected | a `sim/config.local.toml` from the Baukasten is still there; back with `rm sim/config.local.toml && make fleet` |
@@ -302,6 +327,9 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 | `pull access denied` for `registry.cedalo.com` | `docker login registry.cedalo.com` with the credentials from the Cedalo trial; licence file to `brokers/cedalo/license/license.lic` |
 | all cases INCONCLUSIVE | broker not reachable (port, host, is the container running?) |
 | LOG cases INCONCLUSIVE | no broker log passed, or log patterns in the profile do not match: set `SIM_BROKER_LOG=…` and adjust the patterns |
+| `Unable to load server key file "/mosquitto/certs/broker/broker.key"` (Linux) | lab from an older version: the key was readable for the host user only. `make acceptance` fixes this itself, otherwise `chmod 644 certs/broker/broker.key` (test key) |
+| `429 Too Many Requests` when pulling an image | Docker Hub limit for anonymous pulls: `docker login`, or pull the image from a mirror and rename it, e.g. `docker pull mirror.gcr.io/emqx/emqx:5.8.6 && docker tag mirror.gcr.io/emqx/emqx:5.8.6 emqx/emqx:5.8.6` |
+| `cluster discovery strategy must be 'singleton'` (EMQX does not start) | durable sessions with local storage need a single node: `cluster.discovery_strategy = singleton` in `brokers/emqx/emqx.conf` |
 | Port in use | another broker or container; `docker compose down`. Mosquitto uses 8883, EMQX 8884, Pro Mosquitto 8885 |
 | Two runs interfere | do not start runs in parallel; they use the same Client IDs |
 
@@ -321,7 +349,8 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 - Log checks are pattern searches per profile.
 
 **Next steps:**
-1. Run EMQX (leading candidate) in the v13 profile; for ACL-14 configure a reload of the file ACL via the EMQX API as `acl_reload`.
+1. Solve and measure R06 and R11 for EMQX: authentication against the registry (certificate → serial number → Client ID) that rejects a foreign or duplicate Client ID.
+1. Decide the EMQX trade-off R20 (Message Expiry) versus R22 (restart), or measure again with a newer EMQX version.
 2. Pro Mosquitto: request the 30-day trial, run `make acceptance BROKER=cedalo`, ask Cedalo about the open points (R06, R11, R16, Pub/Sub bridge, on-premises price) ([`brokers/cedalo/README.md`](../brokers/cedalo/README.md)).
 3. Agree the weights in `sim/decision.toml` with SOLHEA/ENETEC and fill in the hand scores with sources.
 4. Load test for the 15,000 connections and Pub/Sub integration, reported separately from functional acceptance.
@@ -331,6 +360,7 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 
 | Document | Contents |
 |---|---|
+| [`ERKLAERUNG.md`](ERKLAERUNG.md) | Interactive explainer: storytelling, imagery, target model, editing stations (German, English summary) |
 | [`STAND-2026-10-12.md`](STAND-2026-10-12.md) | Current status: candidates EMQX and Pro Mosquitto (Cedalo), next steps (German) |
 | [`STAND-2026-10-08.md`](STAND-2026-10-08.md) | Status as of 08 Oct (historical, with HiveMQ and Bevywise; German) |
 | [`../brokers/cedalo/README.md`](../brokers/cedalo/README.md) | Pro Mosquitto: setup, expectations, vendor information with sources (German) |

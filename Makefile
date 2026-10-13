@@ -1,6 +1,6 @@
 .PHONY: check init up down logs valid-publish cross-gateway wrong-clientid inspect verify clean \
 	fleet negative-certs legacy-certs acceptance simulate sim-test brokers compare \
-	decide web version
+	decide web web-check version
 
 # Broker under test for acceptance/simulate: profile sim/targets/$(BROKER).toml
 # e.g. make acceptance BROKER=emqx   (list: make brokers)
@@ -86,6 +86,16 @@ web:
 decide:
 	@./scripts/18_decide.sh
 
+# Unit tests; with mosquitto and openssl on the PATH also the end-to-end tests against a real broker.
+# SIM_LOCAL=1: local python3 instead of the sim container.
 sim-test:
-	docker build -q -t enetec-sim:local sim >/dev/null
-	docker compose run --rm -T --entrypoint python sim -m unittest discover -s sim/tests -t sim -v
+	@if [ "$${SIM_LOCAL:-0}" = 1 ]; then cd sim && python3 -m unittest discover -s tests -t . -v; \
+	else docker build -q -t enetec-sim:local sim >/dev/null && \
+	docker compose run --rm -T --entrypoint python sim -m unittest discover -s sim/tests -t sim -v; fi
+
+# Browser check of both web pages (every station, action, language, width; CSP; no external requests).
+# Needs Node.js and Playwright: npm install -g playwright && npx playwright install chromium
+web-check:
+	@command -v node >/dev/null 2>&1 || { echo 'web-check needs Node.js and Playwright (see Makefile)'; exit 1; }
+	NODE_PATH="$$(npm root -g)" node web/tests/explainer.cjs
+	NODE_PATH="$$(npm root -g)" node web/tests/baukasten.cjs

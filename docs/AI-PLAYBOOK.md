@@ -77,6 +77,7 @@ Ein Labor für die MQTT-Kommunikation **Gateway ↔ Broker** im ENETEC-Umzug von
 | `scripts/13_acceptance.sh` | Abnahme inkl. Hook-Runner | |
 | `brokers/<broker>/` | Broker-Konfiguration und Anleitung | Rezept A |
 | `web/baukasten/index.html` | Webseite (eine Datei, ohne Build) | Rezept D |
+| `web/erklaerung/index.html` | Interaktive Erklärung (Stationen-JSON, Soll-Modell, DE/EN) | Rezept D, [`ERKLAERUNG.md`](ERKLAERUNG.md) |
 | `web/baukasten/sources.toml` | welche Referenzläufe die Seite zeigt, Broker-Texte DE/EN | Rezept C |
 | `web/baukasten/fonts/` | eingebettete Schriften (SIL OFL 1.1) | nur mit Lizenzdatei |
 | `docs/mqtt-tests/reference/` | Referenzberichte (Evidenz) | nur echte Läufe |
@@ -174,10 +175,18 @@ Browser das Skript (die Seite bleibt leer) und `test_csp_allows_only_the_page_sc
 - Neues Feld im Zustand → auch in `cleanState()` prüfen; sonst wird es beim Laden verworfen.
 - Export (`exportToml`) nur aus geprüften Werten; Zeichenketten über `tomlValue()` (JSON-Quoting).
 
+**Erklärung (`web/erklaerung/index.html`):** gleiche Sicherheitsregeln, Stationen im JSON-Block
+`<script id="stations-data">` (immer `de` und `en`). Das Soll-Modell im Skript folgt MQTT 5 und
+R01–R15; jede neue Antwort braucht den Reason Code aus der Spezifikation und die Anforderung, jede
+neue normale Log-Zeile das Format des Lab-Mosquitto (sonst als kursive Soll-Zeile). Stil, Modell und
+Felder: [`ERKLAERUNG.md`](ERKLAERUNG.md). Die Erklärung zeigt keine Messwerte; Ergebnisse gehören in
+den Baukasten.
+
 **Prüfen nach jeder Änderung:**
 1. `make web`, dann `node --check` auf das extrahierte Skript.
-2. Einmal im Browser, **in beiden Sprachen**: Lab-Flotte laden, jede Aktion auslösen, keine Fehler und
-   keine CSP-Meldungen in der Konsole, kein seitliches Scrollen bei 360 und 390 px Breite.
+2. `make web-check` (Node.js und Playwright): klickt beide Seiten in beiden Sprachen durch, jede Aktion
+   bei jedem Broker, prüft Breiten von 360 bis 1680 px, CSP und dass nichts von außen geladen wird.
+   Ohne Node einmal von Hand im Browser, in beiden Sprachen, auch bei 360 und 390 px Breite.
 3. Hat sich `exportToml` geändert:
    - Export für einen selbst gebauten Aufbau erzeugen und mit
      `SIM_CONFIG_OVERLAY=<datei> python -m enetec_sim generate --no-acl --out <tmp>` gegenprüfen;

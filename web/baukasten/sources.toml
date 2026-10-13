@@ -24,8 +24,8 @@ note_en = "Open-source broker the lab is built on. Not a vendor candidate, but t
 name = "EMQX 5.8"
 role = "Kandidat (führend)"
 role_en = "candidate (leading)"
-note = "Laut Current State 08.10. der führende Kandidat für den weiteren PoC. Im v1.3-Profil noch nicht gemessen."
-note_en = "According to the current state of 8 Oct the leading candidate for the further PoC. Not yet measured in the v1.3 profile."
+note = "Laut Current State 08.10. der führende Kandidat für den weiteren PoC. Im v1.3-Profil 31 von 34 Pflichtfällen; es fehlen nur die Bindung der Client-ID an das Zertifikat (R06) und der Schutz vor Übernahme (R11). Durable Sessions halten Sessions über einen Neustart, liefern aber abgelaufene Commands noch aus (EXP-01)."
+note_en = "According to the current state of 8 Oct the leading candidate for the further PoC. In the v1.3 profile 31 of 34 mandatory cases; only binding the client ID to the certificate (R06) and preventing takeover (R11) are missing. Durable sessions keep sessions across a restart but still deliver expired commands (EXP-01)."
 
 [brokers.cedalo]
 name = "Pro Mosquitto (Cedalo)"
@@ -65,14 +65,25 @@ url = "https://www.cedalo.com/pricing"
 de = "Keine Angabe gefunden zu: Client-ID an das Zertifikat binden (R06), Session-Takeover verhindern (R11), Zertifikate ohne CN zuordnen (R16). Bei Cedalo erfragen."
 en = "Nothing found on: binding the client ID to the certificate (R06), preventing session takeover (R11), mapping certificates without CN (R16). Ask Cedalo."
 
+# 2026-10-08-mosquitto-2.0.18-v13.md bleibt als Historie im Repo, steht hier aber nicht mehr:
+# RST-01 öffnete die Session dort noch mit Clean Start = true (seit 13.10. wie ein Gateway).
 [[run]]
 broker = "mosquitto-lab"
 wire = "v13"
-date = "2026-10-08"
+date = "2026-10-13"
 kind = "report"
-file = "docs/mqtt-tests/reference/2026-10-08-mosquitto-2.0.18-v13.md"
-label = "Mosquitto 2.0.18, lokal, Hooks über SIM_HOOK_*"
-label_en = "Mosquitto 2.0.18, local, hooks via SIM_HOOK_*"
+file = "docs/mqtt-tests/reference/2026-10-13-mosquitto-2.0.18-v13.md"
+label = "Mosquitto 2.0.18, Docker-Lab (Linux)"
+label_en = "Mosquitto 2.0.18, Docker lab (Linux)"
+
+[[run]]
+broker = "emqx"
+wire = "v13"
+date = "2026-10-13"
+kind = "report"
+file = "docs/mqtt-tests/reference/2026-10-13-emqx-5.8.6-v13.md"
+label = "EMQX 5.8.6, Docker-Lab (Linux), Durable Sessions an"
+label_en = "EMQX 5.8.6, Docker lab (Linux), durable sessions on"
 
 [[run]]
 broker = "emqx"

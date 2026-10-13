@@ -157,7 +157,8 @@ beantwortet sie:
 | `acl-withdraw` / `acl-restore` | ACL-Dateien ohne / mit Gateway C neu schreiben (`enetec_sim acl`), dann Profil `[hooks] acl_reload` | dasselbe, dann `SIM_HOOK_ACL_RELOAD="<befehl>"` |
 
 `crl_reload` / `acl_reload`: `hup` = SIGHUP an den Container, `none` = Broker liest die Datei
-selbst nach, fehlt = nicht unterstützt → der Fall bleibt INCONCLUSIVE. Ein
+selbst nach, `exec:<befehl>` = Befehl im Broker-Container (EMQX: `exec:emqx ctl conf reload --merge`),
+fehlt = nicht unterstützt → der Fall bleibt INCONCLUSIVE. Ein
 Fall gilt erst als erfüllt, wenn die Änderung innerhalb von `observe_s` wirkt. Nach einem Lauf
 mit REV-01 erzeugt der nächste `make acceptance` die Negativ-Identitäten neu (frische CRL).
 
@@ -247,15 +248,27 @@ Liest `sim/decision.toml` und den letzten Lauf je Broker-Profil. Ergebnis in
 
 ## 5. Referenzergebnisse
 
-### 2026-10-08, Wire-Profil v13 (lokal, Hooks über `SIM_HOOK_*`)
+### 2026-10-13, Wire-Profil v13 (Docker-Lab, Linux)
 
 | Broker | Ergebnis | Pflichtfälle | Beratend nicht bestanden | Bericht |
 |---|---|---|---|---|
-| Mosquitto 2.0.18, Lab-Konfiguration | NOT ACCEPTED | 25/34 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL (Subscribe-Ablehnung nicht signalisiert) | MTLS-08, LEG-01, RST-01 (Session nach Neustart verloren, Persistenzdatei war geschrieben), REV-01 | [`2026-10-08-mosquitto-2.0.18-v13.md`](reference/2026-10-08-mosquitto-2.0.18-v13.md) |
+| EMQX 5.8.6, `brokers/emqx/emqx.conf` | NOT ACCEPTED | 31/34 PASS, 3 FAIL (ID-01, ID-03, DUP-01) | MTLS-07, MTLS-08, LEG-01, EXP-01 (mit Durable Sessions), REV-01; ACL-14 PARTIAL | [`2026-10-13-emqx-5.8.6-v13.md`](reference/2026-10-13-emqx-5.8.6-v13.md) |
+| Mosquitto 2.0.18, Lab-Konfiguration | NOT ACCEPTED | 25/34 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL (Subscribe-Ablehnung nicht signalisiert) | MTLS-08, LEG-01, REV-01 | [`2026-10-13-mosquitto-2.0.18-v13.md`](reference/2026-10-13-mosquitto-2.0.18-v13.md) |
 
-Der Lauf fand lokal ohne Docker statt; Neustart, CRL- und ACL-Reload kamen über
-`SIM_HOOK_*`-Befehle. EMQX und Pro Mosquitto (Cedalo) sind im v13-Profil noch nicht gelaufen.
-HiveMQ und Bevywise wurden am 12.10. gestrichen; ihre Berichte stehen in der Git-Historie.
+Vergleichslauf EMQX ohne Durable Sessions (RST-01 FAIL, EXP-01 PASS):
+[`2026-10-13-emqx-5.8.6-v13-ohne-durable-sessions.md`](reference/2026-10-13-emqx-5.8.6-v13-ohne-durable-sessions.md).
+Pro Mosquitto (Cedalo) ist noch nicht gelaufen. HiveMQ und Bevywise wurden am 12.10. gestrichen; ihre
+Berichte stehen in der Git-Historie.
+
+**RST-01 seit 13.10.:** Der Fall öffnet die Session jetzt wie ein Gateway mit Clean Start = false.
+Vorher mit Clean Start = true; Mosquitto schreibt solche Sessions nicht in die Persistenzdatei, deshalb
+meldete der Lauf vom 08.10. fälschlich „Session nach Neustart verloren“.
+
+### 2026-10-08, Wire-Profil v13 (lokal, historisch)
+
+Mosquitto 2.0.18 ohne Docker, Hooks über `SIM_HOOK_*`: gleiche Pflichtergebnisse wie am 13.10.,
+RST-01 noch mit dem oben beschriebenen Messfehler. Bericht:
+[`2026-10-08-mosquitto-2.0.18-v13.md`](reference/2026-10-08-mosquitto-2.0.18-v13.md).
 
 ### 2026-09-30, Mosquitto 2.0.18, Profil lab-eicp (historisch)
 

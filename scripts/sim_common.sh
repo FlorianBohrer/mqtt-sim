@@ -57,7 +57,8 @@ broker_label() {
 # Broker-Log als Audit-Evidenz neben die Testergebnisse legen.
 capture_broker_log() {
   if broker_running; then
-    docker compose logs --no-color --since "$1" "$BROKER_SERVICE" > "$2" 2>&1 || true
+    # --timestamps: every line gets a time, also output without its own (EMQX rule console, warnings)
+    docker compose logs --no-color --timestamps --since "$1" "$BROKER_SERVICE" > "$2" 2>&1 || true
   else
     printf 'No Compose broker running; attach the broker log manually.\n' > "$2"
   fi

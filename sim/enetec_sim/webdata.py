@@ -7,7 +7,8 @@ markers, so the page works offline (file://) and as one self-contained file.
 
 inject() also embeds the fonts from web/baukasten/fonts as data: URIs (no requests to third
 parties) and writes the SHA-256 of the page script into the Content-Security-Policy, so the
-browser runs only that exact script. Every edit of the script needs `make web` afterwards.
+browser runs only that exact script. finish() does the same for pages without lab data
+(web/erklaerung/index.html). Every edit of a page script needs `make web` afterwards.
 """
 import base64
 import hashlib
@@ -21,6 +22,7 @@ from .acceptance import CASES, LOG_CASES, REQUIREMENTS
 from .config import LAB_ROOT, TARGETS_DIR, load_target
 
 WEB_DIR = LAB_ROOT / 'web' / 'baukasten'
+EXPLAINER = LAB_ROOT / 'web' / 'erklaerung' / 'index.html'   # interaktive Erklärung, ohne Lab-Daten
 DATA_START = '<script id="lab-data" type="application/json">'
 DATA_END = '</script>'
 FONTS_DIR = WEB_DIR / 'fonts'
@@ -177,9 +179,12 @@ def font_faces(fonts_dir=FONTS_DIR):
 
 
 def script_hash(html):
-    """CSP source for the page script: 'sha256-<base64>' of the text between <script> and </script>."""
-    data_end = html.index(DATA_END, html.index(DATA_START) + len(DATA_START)) + len(DATA_END)
-    start = html.index(SCRIPT_START, data_end) + len(SCRIPT_START)
+    """CSP source for the page script: 'sha256-<base64>' of the text between <script> and </script>
+    (the one script tag without attributes; data blocks carry id/type and are not executed)."""
+    start = 0
+    if DATA_START in html:
+        start = html.index(DATA_END, html.index(DATA_START) + len(DATA_START)) + len(DATA_END)
+    start = html.index(SCRIPT_START, start) + len(SCRIPT_START)
     end = html.index('</script>', start)
     digest = hashlib.sha256(html[start:end].encode('utf-8')).digest()
     return "'sha256-" + base64.b64encode(digest).decode('ascii') + "'"
@@ -192,11 +197,22 @@ def inject(data, html_path=WEB_DIR / 'index.html', fonts_dir=FONTS_DIR):
     end = html.index(DATA_END, start)
     payload = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
     html = html[:start] + payload + html[end:]
+    Path(html_path).write_text(finalize(html, html_path, fonts_dir))
+    return html_path
+
+
+def finish(html_path=EXPLAINER, fonts_dir=FONTS_DIR):
+    """Fonts and CSP hash for a page without lab data (idempotent)."""
+    path = Path(html_path)
+    path.write_text(finalize(path.read_text(), path, fonts_dir))
+    return path
+
+
+def finalize(html, html_path, fonts_dir=FONTS_DIR):
+    """Embed the fonts between the fonts markers and write the CSP hash of the page script."""
     fstart = html.index('\n', html.index(FONTS_START)) + 1
     fend = html.index(FONTS_END, fstart)
     html = html[:fstart] + font_faces(fonts_dir) + '\n' + html[fend:]
     if not CSP_SCRIPT_SRC.search(html):
         raise SystemExit(f"{html_path}: Content-Security-Policy with script-src 'sha256-...' not found")
-    html = CSP_SCRIPT_SRC.sub(lambda _: 'script-src ' + script_hash(html), html, count=1)
-    Path(html_path).write_text(html)
-    return html_path
+    return CSP_SCRIPT_SRC.sub(lambda _: 'script-src ' + script_hash(html), html, count=1)

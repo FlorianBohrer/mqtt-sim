@@ -85,6 +85,10 @@ openssl ecparam \
   -out "$BR/broker.key"
 
 chmod 600 "$BR/broker.key"
+# Linux: bind mounts keep host permissions, and the broker containers read the key as their own
+# user (Mosquitto 2 drops to uid 1883 before loading it, EMQX runs as uid 1000). Docker Desktop on
+# the Mac maps permissions itself. Test-only key of the local lab broker; the CA key stays 0600.
+[ "$(uname -s)" != Linux ] || chmod 644 "$BR/broker.key"
 
 openssl req \
   -new \

@@ -148,6 +148,12 @@ Mehr ist nicht nötig. `make acceptance` baut beim ersten Lauf alles selbst:
 
 Der erste Lauf dauert einige Minuten (Images laden, Zertifikate ausstellen).
 
+**Linux:** läuft genauso. Der Broker-Schlüssel wird dort für die Container-Benutzer lesbar gemacht
+(Mosquitto 2 liest ihn als Benutzer 1883, EMQX als 1000; Docker Desktop auf dem Mac regelt das selbst).
+Ohne Netz im Build-Container (Firmen-Proxy) läuft Python mit `SIM_LOCAL=1` auf dem Host: dafür
+`python3` ab 3.11, `pip install paho-mqtt==2.1.0` und OpenSSL 3, also z. B.
+`SIM_LOCAL=1 make acceptance BROKER=emqx`.
+
 **Neu beginnen:** `make clean` löscht Zertifikate, Broker-Daten und Logs. Die Ergebnisse unter
 `results/` bleiben erhalten. Nach einem `make init` oder `make clean` werden Zertifikate bei Bedarf
 automatisch neu ausgestellt.
@@ -166,7 +172,8 @@ automatisch neu ausgestellt.
 | `make decide` | gewichtete Entscheidungsmatrix aus `sim/decision.toml` und den letzten Läufen |
 | `make web` | Daten der Baukasten-Webseite aus dem Repo neu erzeugen (Flotte, Referenzläufe) |
 | `make fleet` | Flotte, Datensatz, ACLs und Zertifikate neu erzeugen (nach Änderung von `sim/config.toml`); `make fleet WIRE=lab-eicp` für die Einzeltests 04–10 |
-| `make sim-test` | Unit-Tests im Container |
+| `make sim-test` | Unit-Tests im Container (`SIM_LOCAL=1`: lokal; mit `mosquitto` und `openssl` auf dem PATH auch die End-to-End-Tests gegen einen echten Broker) |
+| `make web-check` | Browser-Test beider Webseiten: jede Station, jede Aktion, beide Sprachen, Breiten, CSP, keine externen Anfragen (braucht Node.js und Playwright) |
 | `make brokers` | verfügbare Profile |
 | `make clean` | lokale Zertifikate und Broker-Daten löschen |
 
@@ -204,6 +211,17 @@ Ergebnisordner `results/acceptance-<zeit>/`: `report.md` (Tabelle), `report.json
 | LEG / ROT | 01–02 / 01–02 | Legacy-Zertifikat ohne CN; Rotation mit Überlappung und Rückfall |
 
 Vollständige Regeln: [`mqtt-tests/acceptance-harness.md`](mqtt-tests/acceptance-harness.md).
+
+### Die Erklärung
+
+`web/erklaerung/index.html` im Browser öffnen: eine interaktive Erklärung der Strecke. Zwölf
+Stationen folgen einer Nachricht vom Gateway über Ausweiskontrolle,
+Broker, Rechteliste, Session-Speicher und Audit-Log in die Cloud und als Command zurück. An jeder
+Station lässt sich etwas auslösen (verbinden, mit falschem Zertifikat oder fremder Client-ID, Netz
+weg, verbotenes PUBLISH/SUBSCRIBE, Command an ein Offline-Gateway, Session läuft ab). Die Seite zeigt
+den Ablauf mit MQTT-5-Reason-Codes und schreibt das Audit-Log im Format des Lab-Mosquitto mit.
+Gezeigt wird das **Soll** nach R01–R15, nicht ein bestimmter Broker; was die Broker im Lab wirklich
+tun, zeigt der Baukasten. Deutsch und Englisch. Aufbau und Stilanalyse: [`ERKLAERUNG.md`](ERKLAERUNG.md).
 
 ### Der Baukasten
 
@@ -256,15 +274,23 @@ Laden geprüft; ein manipulierter Stand wird verworfen.
 Vorhandene Profile und Anleitungen: [`brokers/emqx/`](../brokers/emqx/README.md),
 [`brokers/cedalo/`](../brokers/cedalo/README.md) (Pro Mosquitto, mit Lizenz und Herstellerangaben samt Quellen).
 
-## 7. Stand der Ergebnisse (2026-10-12)
+## 7. Stand der Ergebnisse (2026-10-13)
 
-**Wire-Profil v13 (aktuell):**
+**Wire-Profil v13 (aktuell), Docker-Lab:**
 
-| Broker | Pflichtfälle | Beratend | Wo getestet |
+| Broker | Pflichtfälle | Beratend | Simulation |
 |---|---|---|---|
-| Mosquitto 2.0.18 (Lab-Referenz, Basis von Pro Mosquitto) | 25 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL | RST-01 FAIL (Session nach Neustart weg), REV-01 FAIL, ACL-14 PASS | lokal (ohne Docker) |
-| EMQX 5.8 (Kandidat, führend) | noch nicht im v13-Profil gelaufen | – | – |
+| EMQX 5.8.6 (Kandidat, führend) | **31 PASS**, 3 FAIL (ID-01, ID-03, DUP-01) | RST-01 PASS (Durable Sessions), EXP-01 FAIL, ACL-14 PARTIAL, MTLS-07/-08, REV-01, LEG-01 FAIL | PASS, 10/10 Prüfungen |
+| Mosquitto 2.0.18 (Lab-Referenz, Basis von Pro Mosquitto) | 25 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL | RST-01 PASS, EXP-01 PASS, ACL-14 PASS, MTLS-08, REV-01, LEG-01 FAIL | PASS, 10/10 Prüfungen |
 | Pro Mosquitto (Cedalo, Kandidat) | Profil und Konfiguration vorbereitet, noch kein Lauf (Lizenz nötig) | – | – |
+
+Berichte: [`2026-10-13-emqx-5.8.6-v13.md`](mqtt-tests/reference/2026-10-13-emqx-5.8.6-v13.md),
+[`2026-10-13-mosquitto-2.0.18-v13.md`](mqtt-tests/reference/2026-10-13-mosquitto-2.0.18-v13.md). Die
+Simulation (10 Gateways, 24 h in 2 Minuten, 57 Netzabbrüche) hat bei beiden Brokern alle 2.500
+Zustandsmeldungen und 115 Commands zugestellt, auch die 60 Commands, die während eines Abbruchs
+gesendet wurden. EMQX mit Durable Sessions hatte im Lab-Container eine deutlich höhere Latenz
+(p50 104 ms, p95 430 ms) als Mosquitto (p50 1 ms); das ist kein Lasttest, zeigt aber die Kosten der
+Plattenspeicherung.
 
 **Profil lab-eicp (bis 2026-10-01, historisch):** Mosquitto 23 PASS / 2 FAIL / 6 PARTIAL,
 EMQX 29/31 (Client-ID-Bindung, doppelte Client-ID).
@@ -276,11 +302,11 @@ Queueing, Audit Trail. Keine Angabe gefunden zu Client-ID-Bindung (R06), Takeove
 Zertifikaten ohne CN (R16), genau den Punkten, an denen Open-Source-Mosquitto scheitert.
 
 **Wichtigste Befunde**
-- **Client-ID-Bindung (v13):** Eine abgeleitete Client-ID verlangt, dass der Broker die Zuordnung Zertifikat → erlaubte Client-ID nachschlägt. Mosquitto kann das nicht (ID-03 FAIL); für Pro Mosquitto und EMQX ist eine Lösung (Plugin, Hook, Registry-Anbindung) offen.
-- **Widerruf bei aktiver Verbindung** braucht mehr als eine CRL beim Verbindungsaufbau: Der Broker muss betroffene Sessions trennen. Mosquitto in der Lab-Konfiguration erreicht weder offene noch neue Verbindungen; das Cedalo-Profil setzt `crlfile`, Cedalo nennt zusätzlich das Trennen über das Management Center.
-- **Broker-Neustart:** Mosquitto 2.0.18 schrieb die Persistenzdatei, nach dem Neustart war die Session trotzdem weg (lokal, mit dem Docker-Image zu wiederholen).
-- **Mosquitto:** Client-ID ≠ Zertifikat wird akzeptiert und verdrängt die echte Session. Doppelte Client-ID führt zur Session-Übernahme. Verweigerte Subscriptions werden bestätigt (nur die Zustellung bleibt aus).
-- **EMQX:** Deny-by-default, Richtungstrennung und Cross-Gateway-Sperren bestehen vollständig, auch mit signalisierter Ablehnung (SUBACK 0x87). Wie Mosquitto scheitert es an CN ≠ Client-ID und an der doppelten Client-ID; zusätzlich werden falsche Zertifikatsverwendung (EKU), Widerruf (ohne CRL-Verteilpunkte) und Legacy-Zertifikate ohne CN nicht abgefangen (nur beobachtend).
+- **Client-ID-Bindung (R06) und doppelte Client-ID (R11)** sind bei beiden Brokern die einzigen offenen Pflichtpunkte. Beide lassen eine fremde Client-ID zu und lassen eine zweite Verbindung die Session übernehmen. Lösung offen: Authentifizierung gegen die Registry (z. B. HTTP-Authenticator bei EMQX, Plugin bei Mosquitto).
+- **EMQX** besteht Deny-by-default, Richtungstrennung und Cross-Gateway-Sperren vollständig, mit signalisierter Ablehnung (SUBACK 0x87). Angenommene Verbindungen loggt die Open-Source-Ausgabe nur über eine Regel (`audit_client_connected`). EKU wird in 5.8.6 nicht geprüft, Widerruf nur über CRL-Verteilpunkte.
+- **Zielkonflikt bei EMQX:** Durable Sessions halten Session und Commands über einen Neustart, liefern dann aber abgelaufene Commands (Message Expiry) noch aus. Ohne sie ist es umgekehrt. Für einen Cluster fehlt dem Open-Source-Image der replizierte Speicher.
+- **Mosquitto** meldet verweigerte Subscriptions nicht als Ablehnung (SUBACK 0x01, Zustellung bleibt aus). Mit `persistence true` übersteht die Session einen Neustart; der frühere Befund „Session nach Neustart weg“ war ein Fehler im Fall RST-01 (Session mit Clean Start = true eröffnet), seit 13.10. behoben.
+- **Widerruf bei aktiver Verbindung** braucht mehr als eine CRL beim Verbindungsaufbau: Der Broker muss betroffene Sessions trennen. Keiner der beiden Broker erreicht in der Lab-Konfiguration offene oder neue Verbindungen.
 - **Legacy-Zertifikate (AWS IoT)** enthalten keine Gateway-ID. Ein Broker braucht eine Registry-Zuordnung (Fingerprint → Gateway-ID), oder die Gateways bekommen neue Zertifikate mit der ID im CN.
 - **Doppelte Client-ID** hat einen Zielkonflikt: Nach einem stillen Verbindungsabbruch lehnt der Broker Reconnects ab, bis der Keep-alive abläuft (bis ca. 180 s).
 
@@ -290,7 +316,7 @@ Berichte: `docs/mqtt-tests/reference/`. Legacy-Analyse: [`mqtt-tests/legacy-cert
 
 | Meldung | Ursache und Lösung |
 |---|---|
-| `No rule to make target 'acceptance'` | alter Ordner oder alte ZIP. Version prüfen (`cat VERSION`, aktuell `2026-10-12-r3` oder neuer), neue ZIP über den Ordner entpacken (`unzip -o`) |
+| `No rule to make target 'acceptance'` | alter Ordner oder alte ZIP. Version prüfen (`cat VERSION`, aktuell `2026-10-13-r3` oder neuer), neue ZIP über den Ordner entpacken (`unzip -o`) |
 | Baukasten zeigt „Keine Lab-Daten eingebaut“ | `make web` im Lab-Ordner ausführen und die Seite neu laden |
 | Baukasten bleibt leer, Konsole meldet „Content Security Policy“ | Skript der Seite wurde geändert, ohne `make web` auszuführen: `make web` schreibt den neuen Skript-Hash |
 | `make fleet` erzeugt eine andere Flotte als erwartet | `sim/config.local.toml` aus dem Baukasten liegt noch im Ordner; zurück mit `rm sim/config.local.toml && make fleet` |
@@ -304,6 +330,9 @@ Berichte: `docs/mqtt-tests/reference/`. Legacy-Analyse: [`mqtt-tests/legacy-cert
 | `pull access denied` für `registry.cedalo.com` | `docker login registry.cedalo.com` mit den Zugangsdaten aus der Cedalo-Testanmeldung; Lizenzdatei nach `brokers/cedalo/license/license.lic` |
 | alle Fälle INCONCLUSIVE | Broker nicht erreichbar (Port, Host, Container läuft?) |
 | LOG-Fälle INCONCLUSIVE | kein Broker-Log übergeben oder Log-Muster im Profil passen nicht: `SIM_BROKER_LOG=…` setzen und Muster anpassen |
+| `Unable to load server key file "/mosquitto/certs/broker/broker.key"` (Linux) | Lab aus einer älteren Version: Schlüssel war nur für den Host-Benutzer lesbar. `make acceptance` korrigiert das selbst, sonst `chmod 644 certs/broker/broker.key` (Test-Schlüssel) |
+| `429 Too Many Requests` beim Laden eines Images | Docker-Hub-Limit für anonyme Abrufe: `docker login` oder das Image über einen Spiegel laden und umbenennen, z. B. `docker pull mirror.gcr.io/emqx/emqx:5.8.6 && docker tag mirror.gcr.io/emqx/emqx:5.8.6 emqx/emqx:5.8.6` |
+| `cluster discovery strategy must be 'singleton'` (EMQX startet nicht) | Durable Sessions mit lokalem Speicher gehen nur mit einem Knoten: `cluster.discovery_strategy = singleton` in `brokers/emqx/emqx.conf` |
 | Port belegt | anderer Broker oder Container; `docker compose down`. Mosquitto nutzt 8883, EMQX 8884, Pro Mosquitto 8885 |
 | Zwei Läufe stören sich | Läufe nicht parallel starten; sie verwenden dieselben Client-IDs |
 
@@ -323,7 +352,8 @@ Berichte: `docs/mqtt-tests/reference/`. Legacy-Analyse: [`mqtt-tests/legacy-cert
 - Log-Prüfungen sind Mustersuchen je Profil.
 
 **Nächste Schritte:**
-1. EMQX (führender Kandidat) im v13-Profil laufen lassen; für ACL-14 einen Reload der Datei-ACL über die EMQX-API als `acl_reload` hinterlegen.
+1. R06 und R11 für EMQX lösen und messen: Authentifizierung gegen die Registry (Zertifikat → Seriennummer → Client-ID), die eine fremde oder doppelte Client-ID ablehnt.
+1. Den EMQX-Zielkonflikt R20 (Message Expiry) gegen R22 (Neustart) entscheiden oder mit einer neueren EMQX-Version erneut messen.
 2. Pro Mosquitto: 30-Tage-Test anfordern, `make acceptance BROKER=cedalo`, offene Punkte (R06, R11, R16, Pub/Sub-Bridge, Preis On-Premises) bei Cedalo erfragen ([`brokers/cedalo/README.md`](../brokers/cedalo/README.md)).
 3. Gewichte in `sim/decision.toml` mit SOLHEA/ENETEC abstimmen und die Handbewertungen mit Quellen füllen.
 4. Lasttest für die 15.000 Verbindungen und Pub/Sub-Anbindung, getrennt von der funktionalen Abnahme.
@@ -333,6 +363,7 @@ Berichte: `docs/mqtt-tests/reference/`. Legacy-Analyse: [`mqtt-tests/legacy-cert
 
 | Dokument | Inhalt |
 |---|---|
+| [`ERKLAERUNG.md`](ERKLAERUNG.md) | Interaktive Erklärung: Erzählweise, Bildsprache, Soll-Modell, Stationen bearbeiten |
 | [`STAND-2026-10-12.md`](STAND-2026-10-12.md) | Aktueller Stand: Kandidaten EMQX und Pro Mosquitto (Cedalo), nächste Schritte |
 | [`STAND-2026-10-08.md`](STAND-2026-10-08.md) | Stand vom 08.10. (historisch, mit HiveMQ und Bevywise) |
 | [`../brokers/cedalo/README.md`](../brokers/cedalo/README.md) | Pro Mosquitto: Einrichtung, Erwartung, Herstellerangaben mit Quellen |

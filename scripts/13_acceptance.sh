@@ -86,6 +86,8 @@ if grep -q '^lab_managed = true' "$TARGET" && [ -n "$COMPOSE_HOST" ]; then
   openssl x509 -in certs/broker/broker.crt -noout -text 2>/dev/null | grep -q "DNS:$COMPOSE_HOST" ||
     die "Broker certificate has no SAN \"$COMPOSE_HOST\" (older lab). Run: make clean && make acceptance BROKER=..."
 fi
+# Labs created before the Linux fix in 01_create_ca_and_broker.sh: same permission for the broker key.
+[ "$(uname -s)" != Linux ] || chmod 644 certs/broker/broker.key
 if [ -n "$PREPARE" ]; then
   OUT=$(run_script "$PREPARE" 2>&1) || { printf '%s\n' "$OUT" >&2; die "$PREPARE failed."; }
 fi
@@ -132,6 +134,7 @@ reload_broker() {   # $1: crl | acl
   case "$MODE" in
     hup) docker compose exec -T "$BROKER_SERVICE" kill -HUP 1 ;;
     none) : ;;   # the broker picks up the changed file itself
+    exec:*) docker compose exec -T "$BROKER_SERVICE" sh -c "${MODE#exec:}" ;;   # command in the broker container
     *) echo "unsupported: no $1_reload in $TARGET [hooks]"; return 3 ;;
   esac
 }

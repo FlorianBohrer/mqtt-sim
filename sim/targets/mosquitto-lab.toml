@@ -21,7 +21,8 @@ reconnect_window_s = 5.0      # full-jitter window for their first reconnect att
 
 [hooks]
 # How the broker picks up a CRL / ACL changed during the run (REV-01, ACL-14):
-# "hup" = SIGHUP to the container, "none" = the broker watches the file itself, missing = not supported.
+# "hup" = SIGHUP to the container, "none" = the broker watches the file itself,
+# "exec:<command>" = run <command> in the broker container, missing = not supported.
 crl_reload = "hup"   # no crlfile in the lab config: the reload works, revocation is still not enforced
 acl_reload = "hup"
 
@@ -58,6 +59,6 @@ R18 = "NATIVE | binary payloads byte-exact (PAY-01)"
 R19 = "NATIVE | Last Will on link loss (LWT-01); foreign Will not delivered (LWT-02)"
 R20 = "NATIVE | Message Expiry honoured (EXP-01)"
 R21 = "NATIVE | 128 B and 12 KB delivered; no message_size_limit set in the lab"
-R22 = "TBD | Mosquitto 2.0.18 (local test): persistence file written, session lost after restart (RST-01 FAIL); repeat with the Docker image"
+R22 = "CONFIGURATION | persistence true: session and queued command survive the restart (RST-01 PASS, Docker 2026-10-13); only sessions opened with Clean Start = false are written to the persistence file"
 R23 = "UNSUPPORTED | lab config: revocation reaches neither open nor new connections (REV-01 FAIL); crlfile would cover new connections only (untested)"
 R24 = "NATIVE | ACL reload via SIGHUP applies to open connections (ACL-14 PASS)"

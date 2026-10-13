@@ -11,7 +11,7 @@ from unittest import mock
 
 from enetec_sim.config import LAB_ROOT, load_config
 from enetec_sim.fleet import build_fleet
-from enetec_sim.webdata import (DATA_END, DATA_START, FONTS, WEB_DIR, build, inject, parse_report,
+from enetec_sim.webdata import (DATA_END, DATA_START, EXPLAINER, FONTS, WEB_DIR, build, finish, inject, parse_report,
                                 parse_summary, script_hash)
 
 REFERENCE = LAB_ROOT / 'docs' / 'mqtt-tests' / 'reference'
@@ -49,6 +49,12 @@ class PageDataTest(unittest.TestCase):
         self.assertEqual({b['key'] for b in data['brokers']}, {'mosquitto-lab', 'emqx', 'cedalo'})
         self.assertFalse(any(r['broker'] == 'cedalo' for r in data['runs']), 'Cedalo has no lab run yet')
         self.assertEqual(runs[('emqx', 'lab-eicp')]['counts']['PASS'], 29)
+        # v1.3 runs of 2026-10-13 (Docker lab): RST-01 opens the session like a gateway (Clean Start = false)
+        self.assertEqual(runs[('emqx', 'v13')]['counts'], {'PASS': 31, 'FAIL': 3, 'PARTIAL': 0, 'INCONCLUSIVE': 0})
+        for key in (('mosquitto-lab', 'v13'), ('emqx', 'v13')):
+            self.assertEqual(runs[key]['date'], '2026-10-13', key)
+            self.assertEqual(runs[key]['cases']['RST-01']['v'], 'PASS', key)
+        self.assertEqual(runs[('emqx', 'v13')]['cases']['EXP-01']['v'], 'FAIL', 'durable sessions deliver expired commands')
         self.assertEqual(sum(c['mandatory'] for c in data['cases']), 34)
 
     def test_committed_page_carries_current_data(self):
@@ -72,46 +78,145 @@ class PageDataTest(unittest.TestCase):
             self.assertNotIn('contains </script>', once)
 
 
-class PageSecurityTest(unittest.TestCase):
-    """The page runs offline, loads nothing from third parties and runs only its own script."""
+PAGES = (WEB_DIR / 'index.html', EXPLAINER)
 
-    def setUp(self):
-        self.html = (WEB_DIR / 'index.html').read_text()
-        self.head = self.html[:self.html.index('<style>')]
+
+class PageSecurityTest(unittest.TestCase):
+    """Both pages (Baukasten, Erklärung) run offline, load nothing from third parties and run
+    only their own script."""
 
     def test_csp_allows_only_the_page_script(self):
-        csp = re.search(r'<meta http-equiv="Content-Security-Policy" content="([^"]+)">', self.head)
-        self.assertIsNotNone(csp, 'CSP meta tag missing in <head>')
-        policy = csp.group(1)
-        for directive in ("default-src 'none'", "base-uri 'none'", "form-action 'none'", "object-src 'none'"):
-            self.assertIn(directive, policy)
-        self.assertIn('script-src ' + script_hash(self.html), policy,
-                      'CSP script hash is stale: run make web after editing the page script')
-        self.assertNotIn('unsafe-eval', policy)
-        self.assertNotRegex(policy, r"script-src[^;]*'unsafe-inline'")
+        for page in PAGES:
+            with self.subTest(page.parent.name):
+                html = page.read_text()
+                head = html[:html.index('<style>')]
+                csp = re.search(r'<meta http-equiv="Content-Security-Policy" content="([^"]+)">', head)
+                self.assertIsNotNone(csp, 'CSP meta tag missing in <head>')
+                policy = csp.group(1)
+                for directive in ("default-src 'none'", "base-uri 'none'", "form-action 'none'", "object-src 'none'"):
+                    self.assertIn(directive, policy)
+                self.assertIn('script-src ' + script_hash(html), policy,
+                              'CSP script hash is stale: run make web after editing the page script')
+                self.assertNotIn('unsafe-eval', policy)
+                self.assertNotRegex(policy, r"script-src[^;]*'unsafe-inline'")
+                self.assertEqual(html.count('<script>'), 1, 'exactly one executable inline script')
+                self.assertIn('<meta name="referrer" content="no-referrer">', head)
 
     def test_no_third_party_resources_or_inline_handlers(self):
-        markup = re.sub(r'<script\b.*?</script>', '', self.html, flags=re.S)
-        self.assertNotRegex(markup, r'<(link|iframe|object|embed|img|form)\b')
-        self.assertNotRegex(markup, r'\s(src|href)\s*=\s*["\']?(https?:)?//')
-        self.assertNotRegex(markup, r'<[^>]+\son[a-z]+\s*=', 'inline event handler found')
-        self.assertNotRegex(self.html, r'url\((["\']?)(https?:)?//')
-        self.assertIn('<meta name="referrer" content="no-referrer">', self.head)
+        for page in PAGES:
+            with self.subTest(page.parent.name):
+                html = page.read_text()
+                markup = re.sub(r'<script\b.*?</script>', '', html, flags=re.S)
+                self.assertNotRegex(markup, r'<(link|iframe|object|embed|img|form)\b')
+                self.assertNotRegex(markup, r'\s(src|href)\s*=\s*["\']?(https?:)?//')
+                self.assertNotRegex(markup, r'<[^>]+\son[a-z]+\s*=', 'inline event handler found')
+                self.assertNotRegex(html, r'url\((["\']?)(https?:)?//')
 
     def test_fonts_are_embedded(self):
-        faces = re.findall(r'@font-face \{ font-family: "([^"]+)";[^}]*url\(data:font/woff2;base64,', self.html)
-        self.assertEqual(len(faces), len(FONTS))
+        for page in PAGES:
+            with self.subTest(page.parent.name):
+                faces = re.findall(r'@font-face \{ font-family: "([^"]+)";[^}]*url\(data:font/woff2;base64,', page.read_text())
+                self.assertEqual(len(faces), len(FONTS))
         self.assertTrue((WEB_DIR / 'fonts' / 'OFL-IBM-Plex.txt').is_file())
         self.assertTrue((WEB_DIR / 'fonts' / 'OFL-Barlow.txt').is_file())
 
     def test_inject_writes_the_hash_of_the_edited_script(self):
+        html_before = (WEB_DIR / 'index.html').read_text()
         with tempfile.TemporaryDirectory() as tmp:
             page = Path(tmp) / 'index.html'
-            page.write_text(self.html.replace('"use strict";', '"use strict"; /* edited */', 1))
+            page.write_text(html_before.replace('"use strict";', '"use strict"; /* edited */', 1))
             inject({'x': 1}, page)
             html = page.read_text()
             self.assertIn('script-src ' + script_hash(html), html)
-            self.assertNotIn('script-src ' + script_hash(self.html), html)
+            self.assertNotIn('script-src ' + script_hash(html_before), html)
+
+    def test_finish_is_idempotent_for_the_explainer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            page = Path(tmp) / 'index.html'
+            shutil.copy(EXPLAINER, page)
+            finish(page)
+            once = page.read_text()
+            finish(page)
+            self.assertEqual(once, page.read_text())
+            self.assertEqual(once, EXPLAINER.read_text(), 'web/erklaerung/index.html is stale: run make web')
+
+    def test_pages_link_to_each_other(self):
+        self.assertIn('href="../erklaerung/index.html"', (WEB_DIR / 'index.html').read_text())
+        self.assertIn('href="../baukasten/index.html"', EXPLAINER.read_text())
+
+
+def explainer():
+    html = EXPLAINER.read_text()
+    tag = '<script id="stations-data" type="application/json">'
+    start = html.index(tag) + len(tag)
+    script = html[html.index('<script>'):]
+    return json.loads(html[start:html.index('</script>', start)]), html, script
+
+
+def js_const(script, name):
+    """Literal of `const NAME = ...;` from the page script (numbers only, enough for these checks)."""
+    return re.search(rf'\b{name} = (\d+)\b', script).group(1)
+
+
+class ExplainerTest(unittest.TestCase):
+    """Interaktive Erklärung: Stationen vollständig in Deutsch und Englisch, echte Lab-Werte,
+    Log-Zeilen im Format des Lab-Mosquitto."""
+
+    def test_stations_are_bilingual_and_complete(self):
+        stations, _, script = explainer()
+        self.assertGreaterEqual(len(stations), 10)
+        self.assertEqual(len({s['id'] for s in stations}), len(stations), 'station ids must be unique')
+        parts = set(re.findall(r'data-id="(\w+)"', script)) | {f'gw{n}' for n in range(1, 5)}
+        only = set(re.findall(r'data-only="(\w+)"', script))
+        for s in stations:
+            with self.subTest(s['id']):
+                for key in ('chapter', 'text'):
+                    self.assertTrue(s[key]['de'].strip() and s[key]['en'].strip(), key)
+                self.assertIn(s['view'], ('lineup', 'plant'))
+                self.assertLessEqual(set(s['focus']), parts, 'focus names a part that is not drawn')
+                self.assertLessEqual(set(s.get('only', [])), only)
+                self.assertIn(f'case "{s["id"]}":', script, 'station has no "Probiert es aus" block')
+        for go in set(re.findall(r'data-go="(\w+)"', script)) | set(re.findall(r'go: "(\w+)"', script)):
+            self.assertIn(go, {s['id'] for s in stations}, f'data-go "{go}" names no station')
+
+    def test_real_lab_values(self):
+        """Gateways, Client-IDs and ACL lines are those of the committed fleet; timers come from sim/config.toml."""
+        stations, _, script = explainer()
+        fleet = {g['gateway_id']: g for g in json.loads((LAB_ROOT / 'synthetic' / 'fleet.json').read_text())['gateways']}
+        drawn = re.findall(r'\{ id: "([\w-]+)", y: \d+, serial: "(\d+)", cid: "(\w+)" \}', script)
+        self.assertEqual(len(drawn), 4)
+        for gid, serial, cid in drawn:
+            self.assertEqual((fleet[gid]['serial_number'], fleet[gid]['client_id']), (serial, cid), gid)
+            self.assertEqual(fleet[gid]['certificate_cn'], gid, 'the page says the certificate carries the gateway ID')
+        text = next(s for s in stations if s['id'] == 'clientid')['text']
+        for lang in ('de', 'en'):
+            self.assertIn(drawn[0][1], text[lang])
+            self.assertIn(drawn[0][2], text[lang])
+        acl = (LAB_ROOT / 'mosquitto' / 'config' / 'acl').read_text()
+        gid, _, cid = drawn[0]
+        for line in (f'user {gid}', f'topic write enetec/v1/{cid}/state', f'topic read  enetec/v1/{cid}/cmd',
+                     'user svc-sim-cloud-ingest\ntopic read  enetec/v1/+/state',
+                     'user svc-sim-cloud-command\ntopic write enetec/v1/+/cmd'):
+            self.assertIn(line, acl)
+        self.assertIn('topic read  ${topicOf(i, "cmd")}', script, 'ACL lines are rendered like mosquitto/config/acl')
+        mqtt = load_config()['mqtt']
+        self.assertEqual(int(js_const(script, 'KEEPALIVE_S')), mqtt['keepalive_s'])
+        self.assertEqual(int(js_const(script, 'SESSION_EXPIRY_S')), mqtt['session_expiry_s'])
+
+    def test_log_lines_use_the_lab_broker_formats(self):
+        """Every non-italic log line is a Mosquitto 2.0.18 line: matched by the lab profile's log patterns,
+        or one of the two lines the profile does not need (keep alive timeout, session expiry)."""
+        _, _, script = explainer()
+        with open(LAB_ROOT / 'sim' / 'targets' / 'mosquitto-lab.toml', 'rb') as fh:
+            log = tomllib.load(fh)['log']
+        patterns = [log[k] for k in ('connect_accepted', 'auth_failure', 'acl_denied', 'disconnect')]
+        patterns += [r'^Client \S+ has exceeded timeout, disconnecting\.$', r'^Expiring client \S+ due to timeout\.$']
+        lines = re.findall(r'logReal\(`([^`]+)`\)', script)
+        self.assertGreaterEqual(len(lines), 4)
+        for template in lines:
+            sample = re.sub(r'\$\{[^}]+\}', 'x1', template)
+            with self.subTest(template):
+                self.assertTrue(any(re.search(p, sample) for p in patterns), sample)
 
 
 class BilingualTest(unittest.TestCase):

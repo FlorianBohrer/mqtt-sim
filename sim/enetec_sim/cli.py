@@ -92,11 +92,13 @@ def cmd_decide(args, cfg):
 
 
 def cmd_web_data(args, cfg):
-    from .webdata import build, inject
+    from .webdata import EXPLAINER, build, finish, inject
     data = build(cfg)
     path = inject(data)
     print(f"{path.relative_to(LAB_ROOT)}: {len(data['runs'])} reference runs, {len(data['fleet']['gateways'])} gateways, "
           f"{len(data['cases'])} cases. Open the file in a browser.")
+    if EXPLAINER.exists():
+        print(f"{finish(EXPLAINER).relative_to(LAB_ROOT)}: fonts and script hash updated (explainer).")
     return 0
 
 
@@ -179,7 +181,7 @@ def main(argv=None):
     p.add_argument('--out-dir')
     p.set_defaults(func=cmd_decide)
 
-    p = sub.add_parser('web-data', help='write fleet, cases and reference runs into web/baukasten/index.html')
+    p = sub.add_parser('web-data', help='write fleet, cases and reference runs into web/baukasten/index.html; fonts and script hash for web/erklaerung')
     p.set_defaults(func=cmd_web_data)
 
     p = sub.add_parser('brokers', help='list the broker profiles in sim/targets/')

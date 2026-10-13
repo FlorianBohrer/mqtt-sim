@@ -1,9 +1,9 @@
 # Broker profile: EMQX 5.8 (candidate, ENTC-59), started by make acceptance BROKER=emqx
 # as docker compose service "emqx" with brokers/emqx/emqx.conf and the generated
-# brokers/emqx/acl.conf. STATUS: template until the first run confirms the log patterns.
+# brokers/emqx/acl.conf. Log patterns confirmed in the v13 run of 2026-10-13.
 
 name = "EMQX 5.8 (lab container)"
-status = "template"
+status = "verified"
 lab_managed = true
 compose_service = "emqx"
 ready_log = 'is running now'
@@ -23,41 +23,50 @@ max_packet_bytes = 1048576
 [hooks]
 # EMQX checks CRLs only from the certificates' CRL Distribution Point (HTTP); the lab certificates
 # carry none, so a revocation never reaches EMQX here (REV-01 shows it). The file ACL is not
-# re-read on its own; a reload via the EMQX REST API/CLI is not configured, so ACL-14 stays
-# INCONCLUSIVE until acl_reload is defined (or SIM_HOOK_ACL_RELOAD is set).
+# re-read on its own; "emqx ctl conf reload" re-reads it (checked 2026-10-13: withdrawal gives
+# PUBACK 0x87 at once, restore 0x10).
 crl_reload = "none"
+acl_reload = "exec:emqx ctl conf reload --merge"
 
 [log]
 # Observed in the Docker run of 2026-10-01 (docker compose logs, lines start with an ISO timestamp):
 #   [info] clientid: gw-sim-000001, msg: terminate, peername: ...          (disconnect)
 #   [notice] TLS server: In state wait_cert at tls_handshake_1_3.erl:...    (TLS failure)
 #   [info] tag: AUTHZ, clientid: ..., msg: authorization_permission_denied  (ACL denial)
-# Accepted connections are NOT visible at info level in that run; LOG-01 stays strict and may FAIL
-# until a connect line is confirmed (then add its message to connect_accepted).
+# Accepted connections are not logged at info level by EMQX itself; the rule audit_client_connected
+# in brokers/emqx/emqx.conf writes one line per connection (rule console output, no own timestamp:
+# the harness captures docker compose logs with --timestamps):
+#   [rule action] ... <<"client_connected clientid=c4b0... username=gw-sim-000001 peer=...">>
 timestamp = '(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)'
-connect_accepted = 'msg: (client_connected|connected|authenticated)'
+connect_accepted = 'client_connected clientid=\S+ username=\S+'
 auth_failure = 'TLS server: In state|tls_alert|ssl_error'
 acl_denied = 'authorization_permission_denied'
 disconnect = 'msg: (terminate|disconnected|socket_closed|takeover|discarded)'
 
 [effort]
-# Lab assessment per requirement: CLASS | note. Based on the acceptance run of 2026-10-01
-# (EMQX 5.8.6 container, Docker lab). "TBD" = not tested.
+# Lab assessment per requirement: CLASS | note. Based on the v1.3 acceptance run of 2026-10-13
+# (EMQX 5.8.6 container, Docker lab, brokers/emqx/emqx.conf with durable sessions).
 R01 = "CONFIGURATION | listeners.ssl verify_peer, cacertfile"
 R02 = "CONFIGURATION | fail_if_no_peer_cert"
 R03 = "CONFIGURATION | cacertfile"
-R04 = "CONFIGURATION | validity checked; EKU not enforced (MTLS-07 FAIL); CRL needs enable_crl_check and CRL distribution points in the certificates (MTLS-08 FAIL, TBD)"
+R04 = "CONFIGURATION | validity checked; no EKU option on the 5.8.6 listener (MTLS-07 FAIL, profile OPEN ENTC-31); CRL only from the certificates' CRL distribution point (enable_crl_check), the lab certificates carry none (MTLS-08 FAIL)"
 R05 = "CONFIGURATION | peer_cert_as_username = cn + file authorization"
-R06 = "UNSUPPORTED | Client ID not bound to the certificate (ID-01 FAIL, 2026-10-01, lab-eicp); peer_cert_as_clientid = cn replaces the Client ID instead of rejecting (TBD)"
-R07 = "CONFIGURATION | authorization no_match = deny, deny_action = ignore (SUBACK 0x87)"
+R06 = "UNSUPPORTED | Client ID not bound to the certificate (ID-01, ID-03 FAIL); peer_cert_as_clientid = cn replaces the Client ID instead of rejecting; an HTTP authenticator checking CN and Client ID against a registry is untested"
+R07 = "CONFIGURATION | authorization no_match = deny, deny_action = ignore (PUBACK/SUBACK 0x87)"
 R08 = "CONFIGURATION | file authorization"
-R09 = "CONFIGURATION | file authorization"
-R10 = "CONFIGURATION | file authorization"
-R11 = "UNSUPPORTED | session takeover (DUP-01 FAIL); hook or plugin needed (TBD)"
+R09 = "CONFIGURATION | file authorization, denied SUBSCRIBE signalled (SUBACK 0x87)"
+R10 = "CONFIGURATION | file authorization, denied SUBSCRIBE signalled (SUBACK 0x87)"
+R11 = "UNSUPPORTED | session takeover (DUP-01 FAIL); hook or plugin needed (untested)"
 R12 = "NATIVE | MQTT 5 QoS 1"
 R13 = "NATIVE | persistent sessions"
 R14 = "NATIVE | sessions survive; backoff is a client matter"
-R15 = "CONFIGURATION | console log (patterns still to be tightened)"
-R16 = "UNSUPPORTED | certificate without CN has no username (LEG-01 FAIL); external authentication service (TBD)"
+R15 = "CONFIGURATION | console log; accepted connections only via the rule audit_client_connected (open source has no audit log); production: rule to a log sink"
+R16 = "UNSUPPORTED | certificate without CN has no username (LEG-01 FAIL); external authentication service (untested)"
 R17 = "CONFIGURATION | two certificates for one CN work"
-# R18-R24 (cases added 2026-10-08) not run against EMQX yet: make acceptance BROKER=emqx
+R18 = "NATIVE | binary payloads byte-exact (PAY-01)"
+R19 = "NATIVE | Last Will on link loss (LWT-01); foreign Will not delivered (LWT-02)"
+R20 = "UNSUPPORTED | with durable sessions an expired queued command is still delivered (EXP-01 FAIL); without them EXP-01 PASS but RST-01 FAIL"
+R21 = "CONFIGURATION | mqtt.max_packet_size = 1MB, larger packet disconnects (PAY-03 PASS)"
+R22 = "CONFIGURATION | durable_sessions.enable = true, single node (discovery_strategy = singleton); a cluster needs builtin_raft, not in the open-source image"
+R23 = "UNSUPPORTED | revocation reaches neither open nor new connections (REV-01 FAIL); CRL only via distribution point, no forced disconnect tested"
+R24 = "CONFIGURATION | emqx ctl conf reload re-reads the file ACL: publish blocked at once, an existing subscription keeps delivering (ACL-14 PARTIAL)"

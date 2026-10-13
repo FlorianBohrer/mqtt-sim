@@ -140,11 +140,11 @@ class BrokerIntegrationTest(unittest.TestCase):
             self.assertEqual(verdicts[case], 'FAIL', case)
         # No crlfile in the lab config: the revocation reaches neither the open nor a new connection.
         self.assertEqual(verdicts['REV-01'], 'FAIL')
-        # The restart hook ran and the gateway came back; whether the session survives is broker behaviour
-        # (Mosquitto 2.0.18 here: persistence file written, session_present false after the restart).
+        # Persistence is on and the session is opened like a gateway's (Clean Start = false): it and the
+        # queued command survive the restart (SIGTERM writes the persistence file).
         restart = next(r for r in summary['results'] if r['id'] == 'RST-01')
-        self.assertIn(restart['verdict'], ('PASS', 'FAIL'))
-        self.assertIn('reconnected after', restart['observed'])
+        self.assertEqual(restart['verdict'], 'PASS', restart)
+        self.assertIn('session_present True', restart['observed'])
         self.assertEqual(summary['not_applicable'], {'PAY-03': 'profile sets no max_packet_bytes '
                                                                 '(packet limit OPEN, ENTC-61)'})
         # Rotation works with plain mTLS; a CN-less legacy certificate cannot be mapped by Mosquitto.

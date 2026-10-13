@@ -1052,7 +1052,11 @@ def acl_withdraw_active(h):
       mandatory=False)
 def broker_restart(h):
     gid = h.id('A')
-    first = h.connect('RST-01:first', gid, clean_start=True, session_expiry=h.session_expiry)
+    # Open the session the way a gateway does (Clean Start = false, R13), after removing any old one.
+    # Mosquitto 2.0 writes only such sessions to its persistence file; one started with Clean Start =
+    # true survives a disconnect but not a restart, which says nothing about the gateway's session.
+    h.purge_session(gid)
+    first = h.connect('RST-01:first', gid, clean_start=False, session_expiry=h.session_expiry)
     if not granted(first.subscribe(h.filter('A', 'c2d'))):
         raise Inconclusive('subscription to own Cloud->Device topic failed')
     first.close()   # DISCONNECT with Session Expiry > 0: the session stays on the broker
