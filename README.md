@@ -327,8 +327,13 @@ report per requirement to `results/acceptance-<run>/report.md`. The cases cover:
 **It exits 0 only if every mandatory case passes.** The same harness runs against other
 broker candidates via a target profile (`sim/targets/*.toml`).
 
-Details, requirement mapping and the Mosquitto reference result:
-[docs/mqtt-tests/acceptance-harness.md](docs/mqtt-tests/acceptance-harness.md).
+Details and requirement mapping: [docs/mqtt-tests/acceptance-harness.md](docs/mqtt-tests/acceptance-harness.md).
+
+**Results in the v1.3 profile (2026-10-13, Docker lab):** Mosquitto 2.0.18 25/34 mandatory cases,
+EMQX 5.8.6 31/34, EMQX with the lab registry prototype (`make acceptance BROKER=emqx-registry`)
+34/34, accepted. Both brokers on their own fail on binding the Client ID to the certificate (R06) and
+on duplicate Client IDs (R11); the registry prototype closes both for EMQX. Status and reports:
+[docs/STAND-2026-10-13.md](docs/STAND-2026-10-13.md) (German).
 
 ## 13. Synthetic fleet and architecture simulation
 

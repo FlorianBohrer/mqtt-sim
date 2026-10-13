@@ -77,7 +77,9 @@ def serve(allowed, is_connected, grace_s, port):
             except Exception as e:   # fail closed
                 cn, client_id, result, reason = '?', '?', 'deny', f'registry error: {type(e).__name__}: {e}'
             stamp = datetime.now(timezone.utc).isoformat(timespec='milliseconds')
-            print(f'{stamp} registry {result} cn={cn} clientid={client_id} reason="{reason}"', flush=True)
+            # Client ID and CN come from the client: JSON-quoted, so a line break cannot forge a log line
+            print(f'{stamp} registry {result} cn={json.dumps(cn)} clientid={json.dumps(client_id)} '
+                  f'reason={json.dumps(reason)}', flush=True)
             data = json.dumps({'result': result, 'is_superuser': False}).encode()
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
