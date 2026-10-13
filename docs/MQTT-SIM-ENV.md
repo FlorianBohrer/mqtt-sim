@@ -282,11 +282,12 @@ Vorhandene Profile und Anleitungen: [`brokers/emqx/`](../brokers/emqx/README.md)
 |---|---|---|---|
 | EMQX 5.8.6 + Registry (Lab-Prototyp, [`brokers/emqx-registry/`](../brokers/emqx-registry/README.md)) | **34 PASS, abgenommen** | wie EMQX | PASS in 2 von 3 Läufen (einmal letzter Schwung zu spät) |
 | EMQX 5.8.6 (Kandidat, führend) | **31 PASS**, 3 FAIL (ID-01, ID-03, DUP-01) | RST-01 PASS (Durable Sessions), EXP-01 FAIL, ACL-14 PARTIAL, MTLS-07/-08, REV-01, LEG-01 FAIL | PASS, 10/10 Prüfungen |
-| Mosquitto 2.0.18 (Lab-Referenz, Basis von Pro Mosquitto) | 25 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL | RST-01 PASS, EXP-01 PASS, ACL-14 PASS, MTLS-08, REV-01, LEG-01 FAIL | PASS, 10/10 Prüfungen |
+| Mosquitto 2.1.2 (Lab-Referenz, Basis von Pro Mosquitto) | 25 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL | RST-01 PASS, EXP-01 PASS, ACL-14 PASS, MTLS-08, REV-01, LEG-01 FAIL | PASS, 10/10 Prüfungen |
 | Pro Mosquitto (Cedalo, Kandidat) | Profil und Konfiguration vorbereitet, noch kein Lauf (Lizenz nötig) | – | – |
 
 Berichte: [`2026-10-13-emqx-5.8.6-v13.md`](mqtt-tests/reference/2026-10-13-emqx-5.8.6-v13.md),
-[`2026-10-13-mosquitto-2.0.18-v13.md`](mqtt-tests/reference/2026-10-13-mosquitto-2.0.18-v13.md). Die
+[`2026-10-13-mosquitto-2.1.2-v13.md`](mqtt-tests/reference/2026-10-13-mosquitto-2.1.2-v13.md); Mosquitto 2.0.18 lieferte in allen Fällen
+dieselben Ergebnisse ([`2026-10-13-mosquitto-2.0.18-v13.md`](mqtt-tests/reference/2026-10-13-mosquitto-2.0.18-v13.md)). Die
 Simulation (10 Gateways, 24 h in 2 Minuten, 57 Netzabbrüche) hat bei beiden Brokern alle 2.500
 Zustandsmeldungen und 115 Commands zugestellt, auch die 60 Commands, die während eines Abbruchs
 gesendet wurden. EMQX mit Durable Sessions hatte im Lab-Container eine deutlich höhere Latenz
@@ -317,7 +318,7 @@ Berichte: `docs/mqtt-tests/reference/`. Legacy-Analyse: [`mqtt-tests/legacy-cert
 
 | Meldung | Ursache und Lösung |
 |---|---|
-| `No rule to make target 'acceptance'` | alter Ordner oder alte ZIP. Version prüfen (`cat VERSION`, aktuell `2026-10-13-r3` oder neuer), neue ZIP über den Ordner entpacken (`unzip -o`) |
+| `No rule to make target 'acceptance'` | alter Ordner oder alte ZIP. Version prüfen (`cat VERSION`, aktuell `2026-10-13-r4` oder neuer), neue ZIP über den Ordner entpacken (`unzip -o`) |
 | Baukasten zeigt „Keine Lab-Daten eingebaut“ | `make web` im Lab-Ordner ausführen und die Seite neu laden |
 | Baukasten bleibt leer, Konsole meldet „Content Security Policy“ | Skript der Seite wurde geändert, ohne `make web` auszuführen: `make web` schreibt den neuen Skript-Hash |
 | `make fleet` erzeugt eine andere Flotte als erwartet | `sim/config.local.toml` aus dem Baukasten liegt noch im Ordner; zurück mit `rm sim/config.local.toml && make fleet` |
@@ -334,7 +335,10 @@ Berichte: `docs/mqtt-tests/reference/`. Legacy-Analyse: [`mqtt-tests/legacy-cert
 | `Unable to load server key file "/mosquitto/certs/broker/broker.key"` (Linux) | Lab aus einer älteren Version: Schlüssel war nur für den Host-Benutzer lesbar. `make acceptance` korrigiert das selbst, sonst `chmod 644 certs/broker/broker.key` (Test-Schlüssel) |
 | `429 Too Many Requests` beim Laden eines Images | Docker-Hub-Limit für anonyme Abrufe: `docker login` oder das Image über einen Spiegel laden und umbenennen, z. B. `docker pull mirror.gcr.io/emqx/emqx:5.8.6 && docker tag mirror.gcr.io/emqx/emqx:5.8.6 emqx/emqx:5.8.6` |
 | `cluster discovery strategy must be 'singleton'` (EMQX startet nicht) | Durable Sessions mit lokalem Speicher gehen nur mit einem Knoten: `cluster.discovery_strategy = singleton` in `brokers/emqx/emqx.conf` |
-| Port belegt | anderer Broker oder Container; `docker compose down`. Mosquitto nutzt 8883, EMQX 8884, Pro Mosquitto 8885, EMQX + Registry 8886 |
+| Port belegt | anderer Broker oder Container; `docker compose down`, Container aus alten Lab-Ordnern mit `docker ps` suchen (z. B. `docker rm -f enetec-hivemq`). Mosquitto nutzt 8883, EMQX 8884, Pro Mosquitto 8885, EMQX + Registry 8886 |
+| `container name "/enetec-…" is already in use` | Container aus einem älteren Lab-Ordner; `make acceptance` nennt den Namen. Entfernen mit `docker rm -f <Name>` |
+| `Target profile not found: sim/targets/emqx-registry.toml` | Stand vor dem 13.10.; Repo aktualisieren (`git pull --rebase`) oder neue ZIP |
+| LOG-04 FAIL mit `0 matching lines` (Mosquitto 2.1) | Lab vor `2026-10-13-r4`: Das Image kam über den wandernden Tag `eclipse-mosquitto:2`, und das Profil kannte das neue Disconnect-Format von 2.1 nicht. Aktuelle Version pinnt 2.1.2 und erkennt beide Formate |
 | Zwei Läufe stören sich | Läufe nicht parallel starten; sie verwenden dieselben Client-IDs |
 
 ## 9. Grenzen und nächste Schritte

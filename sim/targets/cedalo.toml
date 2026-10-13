@@ -33,7 +33,7 @@ timestamp = '(\d{10}):'
 connect_accepted = '''New client connected from \S+ as \S+ \(.*u'[^']+'\)'''
 auth_failure = 'OpenSSL Error|certificate verify failed|peer did not return a certificate'
 acl_denied = 'Denied (PUBLISH|SUBSCRIBE)'
-disconnect = 'Client \S+ (disconnected|closed its connection)|already connected, closing old connection'
+disconnect = 'Client \S+ (\[\S+\] )?(disconnected|closed its connection)|already connected, closing old connection'   # 2.0: Client <id> disconnected. 2.1: Client <id> [<ip>:<port>] disconnected: <reason>.
 
 [effort]
 # Not measured yet: every entry is "TBD", so make decide leaves development_effort OPEN.
@@ -60,6 +60,6 @@ R18 = "TBD | binary payloads"
 R19 = "TBD | Last Will"
 R20 = "TBD | Message Expiry"
 R21 = "TBD | message_size_limit not set (packet limit OPEN, ENTC-61)"
-R22 = "TBD | open-source Mosquitto 2.0.18 lost the session after a restart (RST-01 FAIL); Cedalo: persistent queueing survives restarts"
+R22 = "TBD | open-source Mosquitto 2.0.18 and 2.1.2 keep the session over a restart with persistence true (RST-01 PASS); Cedalo: persistent queueing survives restarts"
 R23 = "TBD | crlfile covers new connections; Cedalo: disconnect clients from the Management Center (open sessions)"
 R24 = "TBD | ACL reload via SIGHUP worked in open-source Mosquitto (ACL-14 PASS)"

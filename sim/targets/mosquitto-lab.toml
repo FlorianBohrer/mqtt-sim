@@ -33,7 +33,7 @@ timestamp = '(\d{10}):'
 connect_accepted = '''New client connected from \S+ as \S+ \(.*u'[^']+'\)'''
 auth_failure = 'OpenSSL Error|certificate verify failed|peer did not return a certificate'
 acl_denied = 'Denied (PUBLISH|SUBSCRIBE)'
-disconnect = 'Client \S+ (disconnected|closed its connection)|already connected, closing old connection'
+disconnect = 'Client \S+ (\[\S+\] )?(disconnected|closed its connection)|already connected, closing old connection'   # 2.0: Client <id> disconnected. 2.1: Client <id> [<ip>:<port>] disconnected: <reason>.
 
 [effort]
 # Lab assessment per requirement: CLASS | note. Classes: NATIVE, CONFIGURATION, PLUGIN,

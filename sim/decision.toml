@@ -50,6 +50,6 @@ profile = "emqx-registry"
 shortlist = false  # Loesungsansatz fuer R06/R11 zu EMQX, kein eigener Anbieter: zeigt, was die Registry-Anbindung bringt
 
 [candidates.mosquitto-lab]
-name = "Mosquitto 2.0 (lab baseline)"
+name = "Mosquitto 2.1 (lab baseline)"
 profile = "mosquitto-lab"
 shortlist = false  # Referenz des Labs, kein Anbieter-Kandidat

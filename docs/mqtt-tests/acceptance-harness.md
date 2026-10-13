@@ -254,7 +254,8 @@ Liest `sim/decision.toml` und den letzten Lauf je Broker-Profil. Ergebnis in
 |---|---|---|---|---|
 | EMQX 5.8.6, `brokers/emqx/emqx.conf` | NOT ACCEPTED | 31/34 PASS, 3 FAIL (ID-01, ID-03, DUP-01) | MTLS-07, MTLS-08, LEG-01, EXP-01 (mit Durable Sessions), REV-01; ACL-14 PARTIAL | [`2026-10-13-emqx-5.8.6-v13.md`](reference/2026-10-13-emqx-5.8.6-v13.md) |
 | EMQX 5.8.6 + Registry-Prototyp (`brokers/emqx-registry/`) | **ACCEPTED** | 34/34 PASS | MTLS-07, MTLS-08, LEG-01, EXP-01, REV-01; ACL-14 PARTIAL | [`2026-10-13-emqx-5.8.6-registry-v13.md`](reference/2026-10-13-emqx-5.8.6-registry-v13.md) |
-| Mosquitto 2.0.18, Lab-Konfiguration | NOT ACCEPTED | 25/34 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL (Subscribe-Ablehnung nicht signalisiert) | MTLS-08, LEG-01, REV-01 | [`2026-10-13-mosquitto-2.0.18-v13.md`](reference/2026-10-13-mosquitto-2.0.18-v13.md) |
+| Mosquitto 2.1.2 (`eclipse-mosquitto:2.1.2-alpine`), Lab-Konfiguration | NOT ACCEPTED | 25/34 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL (Subscribe-Ablehnung nicht signalisiert) | MTLS-08, LEG-01, REV-01 | [`2026-10-13-mosquitto-2.1.2-v13.md`](reference/2026-10-13-mosquitto-2.1.2-v13.md) |
+| Mosquitto 2.0.18, Lab-Konfiguration | NOT ACCEPTED | wie 2.1.2, in allen 34 Fällen dasselbe Ergebnis | MTLS-08, LEG-01, REV-01 | [`2026-10-13-mosquitto-2.0.18-v13.md`](reference/2026-10-13-mosquitto-2.0.18-v13.md) |
 
 Vergleichslauf EMQX ohne Durable Sessions (RST-01 FAIL, EXP-01 PASS):
 [`2026-10-13-emqx-5.8.6-v13-ohne-durable-sessions.md`](reference/2026-10-13-emqx-5.8.6-v13-ohne-durable-sessions.md).
@@ -292,8 +293,8 @@ im Arbeitsverzeichnis ergab dieselben Ergebnisse.
 | R14 | PASS | 10/10 Sessions wieder aufgenommen, 10 Versuche über 4,2 s, Spitze 3/s |
 | R15 | PASS | Connect (mit `u'<CN>'`), TLS-Fehler, `Denied PUBLISH` und Disconnect werden protokolliert; keine Secrets gefunden. Hinweis: TLS-Fehler erscheinen ohne Subject und ohne konkreten Grund |
 
-Das Docker-Lab nutzt `eclipse-mosquitto:2` (beim letzten Lauf 2.1.2). `make acceptance` sollte
-dort wiederholt werden; insbesondere das SUBACK-Verhalten ist versionsabhängig zu bestätigen.
+Das Docker-Lab nutzt seit 13.10. fest `eclipse-mosquitto:2.1.2-alpine`. Das SUBACK-Verhalten ist dort
+unverändert (SUBACK 1 für verweigerte Abos, Lauf 13.10.).
 
 ## 6. Grenzen
 

@@ -45,7 +45,7 @@ und den Herstellerangaben. Der Lauf liefert die Belege.
 | MTLS-08 | eher PASS | `crlfile` ist hier gesetzt (beim Lab-Mosquitto nicht) |
 | ACL-08…12 | PARTIAL wie bei Mosquitto, falls Pro verweigerte SUBSCRIBE weiter mit SUBACK 1 bestätigt | Open-Source-Verhalten; keine Pro-Angabe gefunden |
 | ID-01, ID-03, DUP-01, LEG-01 | FAIL wie bei Mosquitto | Keine Pro-Funktion gefunden, die Client-ID an das Zertifikat bindet, Takeover verhindert oder Zertifikate ohne CN zuordnet |
-| RST-01 | eher PASS | Open-Source-Mosquitto 2.0.18 besteht mit `persistence true` (Lauf 13.10.); Pro bewirbt zusätzlich Persistent Queueing auf Platte |
+| RST-01 | eher PASS | Open-Source-Mosquitto 2.0.18 und 2.1.2 bestehen mit `persistence true` (Läufe 13.10.); Pro bewirbt zusätzlich Persistent Queueing auf Platte |
 | REV-01 | eher PARTIAL | `crlfile` sperrt neue Verbindungen; ob SIGHUP offene trennt, ist offen. Cedalo nennt dafür das Trennen im Management Center |
 | ACL-14 | PASS | SIGHUP wirkte beim Open-Source-Mosquitto auf offene Verbindungen |
 
@@ -71,7 +71,7 @@ Lab-Umgebung nicht abrufbar (Netzwerkrichtlinie). Vor einer Entscheidung auf doc
 | R01–R04 mTLS, CA, Widerruf | mTLS wie Open Source (`require_certificate`, `cafile`, `crlfile`); Pro: Zertifikatsverwaltung mit eigenen CAs, „Import, deploy, and revoke CAs and client certificates“ im Management Center; Management Center kann sich seit Pro Mosquitto 2.5 selbst per Client-Zertifikat verbinden | offen |
 | R05, R07–R10 Rechte | Dynamic Security (Rollen, Gruppen, ACLs) und RBAC, per Management Center und REST-API; im Lab bewusst `acl_file`. Bekanntes Open-Source-Problem bei Dynamic Security mit Zertifikats-Clients: [Issue #2999](https://github.com/eclipse-mosquitto/mosquitto/issues/2999) | offen |
 | R06, R11, R16 Client-ID, Takeover, Legacy | keine Angabe gefunden | offen, Open Source: FAIL |
-| R13, R22 Session, Neustart | Persistent Queueing auf Platte, übersteht Neustarts; Persistenz über SQLite-Plugin, seit Pro 2.5 auch LMDB | offen, Open Source 2.0.18 mit `persistence true`: RST-01 PASS |
+| R13, R22 Session, Neustart | Persistent Queueing auf Platte, übersteht Neustarts; Persistenz über SQLite-Plugin, seit Pro 2.5 auch LMDB | offen, Open Source 2.0.18 und 2.1.2 mit `persistence true`: RST-01 PASS |
 | R15 Audit | Audit-Trail-Plugin (Verbindungen, Abos, ACL-Änderungen; Ausgabe auch an syslog) | offen |
 | R23 Widerruf offener Sessions | Clients im Management Center trennen; ob eine neue CRL offene Verbindungen beendet, ist nicht belegt. Open-Source-Fallstricke: [Issue #2916](https://github.com/eclipse/mosquitto/issues/2916) (Fehler nach Reload mit `crlfile`) | offen |
 | Betrieb, HA | HA-Cluster ab 3 Knoten: „Full Sync“ (aktiv/passiv, Leader per RAFT) und „Dynamic-Security Sync“ (aktiv/aktiv); Umschalten „in several seconds“; seit 3.2 zusätzlich High Performance Clustering (Enterprise) | [HA-Seite](https://www.cedalo.com/pro-mosquitto/high-availability), [Kubernetes-Tutorial](https://www.cedalo.com/blog/mosquitto-mqtt-on-kubernetes) |

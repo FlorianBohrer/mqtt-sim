@@ -329,7 +329,7 @@ broker candidates via a target profile (`sim/targets/*.toml`).
 
 Details and requirement mapping: [docs/mqtt-tests/acceptance-harness.md](docs/mqtt-tests/acceptance-harness.md).
 
-**Results in the v1.3 profile (2026-10-13, Docker lab):** Mosquitto 2.0.18 25/34 mandatory cases,
+**Results in the v1.3 profile (2026-10-13, Docker lab):** Mosquitto 2.1.2 25/34 mandatory cases (2.0.18 identical),
 EMQX 5.8.6 31/34, EMQX with the lab registry prototype (`make acceptance BROKER=emqx-registry`)
 34/34, accepted. Both brokers on their own fail on binding the Client ID to the certificate (R06) and
 on duplicate Client IDs (R11); the registry prototype closes both for EMQX. Status and reports:

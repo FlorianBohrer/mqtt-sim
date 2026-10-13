@@ -14,7 +14,7 @@
 # (fehlt die englische Fassung, zeigt die Seite die deutsche).
 
 [brokers.mosquitto-lab]
-name = "Mosquitto 2.0"
+name = "Mosquitto 2.1"
 role = "Lab-Referenz"
 role_en = "lab reference"
 note = "Open-Source-Broker der Lab-Basis. Kein Anbieter-Kandidat, aber die Grundlage von Pro Mosquitto (Cedalo): Was hier fehlt, muss Pro Mosquitto liefern."
@@ -74,14 +74,15 @@ en = "Nothing found on: binding the client ID to the certificate (R06), preventi
 
 # 2026-10-08-mosquitto-2.0.18-v13.md bleibt als Historie im Repo, steht hier aber nicht mehr:
 # RST-01 öffnete die Session dort noch mit Clean Start = true (seit 13.10. wie ein Gateway).
+# 2026-10-13-mosquitto-2.0.18-v13.md ebenfalls Historie: gleiche Ergebnisse in allen Fällen wie 2.1.2.
 [[run]]
 broker = "mosquitto-lab"
 wire = "v13"
 date = "2026-10-13"
 kind = "report"
-file = "docs/mqtt-tests/reference/2026-10-13-mosquitto-2.0.18-v13.md"
-label = "Mosquitto 2.0.18, Docker-Lab (Linux)"
-label_en = "Mosquitto 2.0.18, Docker lab (Linux)"
+file = "docs/mqtt-tests/reference/2026-10-13-mosquitto-2.1.2-v13.md"
+label = "Mosquitto 2.1.2, Docker-Lab (Linux)"
+label_en = "Mosquitto 2.1.2, Docker lab (Linux)"
 
 [[run]]
 broker = "emqx"

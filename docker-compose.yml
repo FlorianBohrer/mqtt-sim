@@ -1,6 +1,8 @@
 services:
+  # Fixed version: the floating tag "2" moved from 2.0.x to 2.1 and changed the log format.
+  # 2.1.2-alpine is the version of the reference run 2026-10-13 (docs/mqtt-tests/reference/).
   broker:
-    image: eclipse-mosquitto:2
+    image: eclipse-mosquitto:2.1.2-alpine
     container_name: enetec-mqtt-broker
     restart: unless-stopped
     ports:
@@ -12,7 +14,7 @@ services:
       - ./logs:/mosquitto/log
 
   client:
-    image: eclipse-mosquitto:2
+    image: eclipse-mosquitto:2.1.2-alpine
     profiles: ["tools"]
     entrypoint: ["/bin/sh", "-c"]
     volumes:
