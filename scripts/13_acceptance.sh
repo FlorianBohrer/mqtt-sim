@@ -99,8 +99,17 @@ if grep -q '^lab_managed = true' "$TARGET" && [ -z "${SIM_BROKER_HOST:-}" ] &&
   fi
   # Always (re)create: the broker must load the certificates, registry and CRL of this run.
   STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  docker compose --profile "$BROKER_SERVICE" up -d --force-recreate "$BROKER_SERVICE" >/dev/null 2>&1 ||
-    die "docker compose up $BROKER_SERVICE failed"
+  if ! OUT=$(docker compose --profile "$BROKER_SERVICE" up -d --force-recreate "$BROKER_SERVICE" 2>&1); then
+    printf '%s\n' "$OUT" >&2
+    # The broker containers have fixed names; a container of the same name from another folder
+    # (e.g. the older ZIP lab enetec_mtls_lab) blocks them.
+    NAME=$(printf '%s\n' "$OUT" | sed -n 's/.*container name "\/\([^"]*\)" is already in use.*/\1/p' | head -n 1)
+    [ -z "$NAME" ] || die "Container name $NAME is taken by another container (often an older lab folder). Remove it: docker rm -f $NAME"
+    if printf '%s\n' "$OUT" | grep -qi 'port is already allocated\|address already in use'; then
+      die "A port of $BROKER_SERVICE is in use by another container or program: docker ps, then stop it"
+    fi
+    die "docker compose up $BROKER_SERVICE failed (Docker output above)"
+  fi
   sleep 2
   wait_ready "$STARTED" || die "Broker did not start; see docker compose logs $BROKER_SERVICE"
   MANAGED=1
