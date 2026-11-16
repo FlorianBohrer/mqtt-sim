@@ -38,6 +38,9 @@ SCRIPT_START = '<script>'
 CSP_SCRIPT_SRC = re.compile(r"script-src 'sha256-[A-Za-z0-9+/=_-]+'")
 VERDICTS = ('PASS', 'FAIL', 'PARTIAL', 'INCONCLUSIVE')
 CASE_ID = re.compile(r'^[A-Z]{2,4}-\d{2}$')
+# v1.3 command scenarios of the ENTC-138 system simulator (sources.toml [system_sim])
+SYSTEM_SIM_OUTCOMES = {'APPLIED', 'REJECTED', 'TIMEOUT', 'PUBLISH_FAILED'}
+SYSTEM_SIM_NODES = {'fs', 'command', 'broker', 'gw', 'tgt', 'ingest'}
 
 
 def _cells(line):
@@ -144,6 +147,15 @@ def build(cfg, sources_path=WEB_DIR / 'sources.toml', fleet_path=LAB_ROOT / 'syn
     legacy = [{'gateway_id': g['gateway_id'], 'plant_id': g['plant_id'], 'serial': g['serial_number'],
                'client_id': g['client_id']} for g in fleet.get('legacy_gateways', [])]
     version = (LAB_ROOT / 'VERSION').read_text().strip() if (LAB_ROOT / 'VERSION').exists() else ''
+    system_sim = sources.get('system_sim', {})
+    for scn in [{'id': 'dispatch', 'steps': system_sim.get('dispatch', [])}] + system_sim.get('scenario', []):
+        if scn['id'] != 'dispatch' and not (scn.get('label_en') and scn.get('test')
+                                            and scn.get('outcome') in SYSTEM_SIM_OUTCOMES):
+            raise SystemExit(f"sources.toml: system_sim scenario {scn['id']} needs label_en, test and an outcome "
+                             f"from {sorted(SYSTEM_SIM_OUTCOMES)}")
+        for st in scn['steps']:
+            if not (5 <= len(st) <= 6 and st[0] in SYSTEM_SIM_NODES and (st[0] == 'fs' or st[1] in SYSTEM_SIM_NODES)):
+                raise SystemExit(f"sources.toml: system_sim {scn['id']} has a malformed step: {st}")
     return {
         'generated_utc': datetime.now(timezone.utc).isoformat(timespec='seconds'),
         'lab_version': version,
@@ -165,6 +177,7 @@ def build(cfg, sources_path=WEB_DIR / 'sources.toml', fleet_path=LAB_ROOT / 'syn
         'cases': catalogue,
         'brokers': brokers,
         'runs': runs,
+        'system_sim': system_sim,
     }
 
 

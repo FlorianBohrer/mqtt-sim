@@ -115,6 +115,28 @@ async function clean(page, label) {
     await clean(page, `width ${w}`);
     await ctx.close();
   }
+  // v1.3-Temperatur-Command aus dem System-Simulator: Ausgang und Worker-Log je Szenario
+  for (const lang of ["de", "en"]) {
+    const { ctx, page } = await newPage(browser);
+    await page.goto(`${PAGE}?lang=${lang}`);
+    await page.click("#btn-lab");
+    const scns = await page.evaluate(() => DATA.system_sim.scenario.map(s => [s.id, s.outcome, s.disposition]));
+    check(scns.length === 7, `${lang}/system_sim: 7 scenarios (${scns.length})`);
+    await page.click('[data-gw="gw-sim-000001"]');
+    for (const [id, outcome, disposition] of scns) {
+      await page.click(`#inspect [data-action="${id}"]`); await idle(page);
+      const proto = await page.$eval("#protocol", e => e.innerText);
+      check(proto.includes(outcome) && proto.includes(disposition), `${lang}/${id}: shows ${outcome} and ${disposition}`);
+      const routes = await page.$$eval("#monitor .route", e => e.map(x => x.innerText));
+      if (id === "cmd_expired") check(routes.length === 0, `${lang}/${id}: nothing sent (${routes.length} routes)`);
+      else check(routes.some(r => r.includes("gw-sim-000001")), `${lang}/${id}: command reaches gw-sim-000001`);
+    }
+    await page.click('[data-wire="lab-eicp"]');
+    await page.click('[data-gw="gw-sim-000001"]');
+    check(await page.$('#inspect [data-action="cmd_applied"][disabled]') !== null, `${lang}: v1.3 command disabled in lab-eicp`);
+    await clean(page, `${lang}/system_sim`);
+    await ctx.close();
+  }
   // Animation: Pakete liegen über den Bausteinen
   {
     const { ctx, page } = await newPage(browser, { reducedMotion: "no-preference" });

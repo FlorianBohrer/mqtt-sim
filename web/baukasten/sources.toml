@@ -126,3 +126,125 @@ kind = "report"
 file = "docs/mqtt-tests/reference/2026-09-30-mosquitto-2.0.18.md"
 label = "Mosquitto 2.0.18, lokal"
 label_en = "Mosquitto 2.0.18, local"
+
+# ---------------------------------------------------------------------------------------------
+# Temperatur-Command nach MQTT v1.3, wie ihn der ENTC-138-System-Simulator abwickelt
+# (Firestore -> Worker -> Broker -> Gateway -> State -> Firestore). Kein Broker-Messergebnis:
+# Jedes Szenario beschreibt das Verhalten, das der genannte Test im ENTC-138-Repo prüft
+# (tools/local/entc-138-system-sim). Ändert sich dort etwas, hier nachziehen und `make web`.
+#
+# steps: [von, nach, deutsch, englisch, Ton, optional "stop"]. Knoten: command, broker, gw, tgt
+# (anderes Gateway), ingest; "fs" ist eine Statuszeile in Firestore. Platzhalter: {cmd}, {state}
+# (Topics des gewählten Gateways), {tgt_state} (state-Topic eines anderen Gateways), {gw}.
+
+[system_sim]
+source = "ENTC-138 System-Simulator, WIP-Stand 10.11.2026"
+source_en = "ENTC-138 system simulator, WIP status 10 Nov 2026"
+boundary = "Belegt durch Unit-Tests und lokale E2E-Tests (Firestore Emulator, lokaler Broker ohne mTLS, synthetisches Gateway). Nicht belegt: Managed Broker, mTLS und ACL im Betrieb, echte Geräte-Firmware."
+boundary_en = "Backed by unit tests and local E2E tests (Firestore Emulator, local broker without mTLS, synthetic gateway). Not backed: managed broker, mTLS and ACL in production, real device firmware."
+vector = "20 01 02 03 04 04 01 00 E1"
+dispatch = [
+  ["fs", "", "CREATED · commandId 0x01020304, gespeicherte 9 Bytes 20 01 02 03 04 04 01 00 E1 (Raum 4, manual, 22,5 °C)", "CREATED · commandId 0x01020304, stored 9 bytes 20 01 02 03 04 04 01 00 E1 (room 4, manual, 22.5 °C)", "neutral"],
+  ["command", "broker", "PUBLISH {cmd} · QoS 1 · ohne Retain · die 9 Bytes unverändert", "PUBLISH {cmd} · QoS 1 · no retain · the 9 bytes unchanged", "neutral"],
+  ["broker", "command", "PUBACK", "PUBACK", "neutral"],
+  ["fs", "", "PUBLISHED · publishedAt gesetzt, ab jetzt läuft die Antwortfrist von 30 s", "PUBLISHED · publishedAt set, the 30 s response deadline starts now", "neutral"],
+  ["broker", "gw", "Command zugestellt", "command delivered", "neutral"],
+]
+
+[[system_sim.scenario]]
+id = "cmd_applied"
+label = "Temperatur setzen"
+label_en = "Set temperature"
+outcome = "APPLIED"
+disposition = "APPLIED"
+test = "test_applied_round_trip_preserves_bytes_and_device_state"
+steps = [
+  ["gw", "broker", "PUBLISH {state} · 0x20 Modality State: origin 0x01020304, Raum 4, manual, 22,5 °C", "PUBLISH {state} · 0x20 Modality State: origin 0x01020304, room 4, manual, 22.5 °C", "neutral"],
+  ["broker", "ingest", "State zugestellt · Worker prüft Client-ID-Zuordnung, Gateway, Raum und Modus", "state delivered · worker checks client ID mapping, gateway, room and mode", "neutral"],
+  ["fs", "", "APPLIED · Runtime = vom Gerät gemeldete 22,5 °C, Zeit = Empfang beim Broker", "APPLIED · runtime = 22.5 °C as reported by the device, time = receipt at the broker", "good"],
+]
+
+[[system_sim.scenario]]
+id = "cmd_rejected"
+label = "Gerät lehnt ab"
+label_en = "Device rejects"
+outcome = "REJECTED"
+disposition = "REJECTED"
+test = "test_rejected_round_trip_preserves_correlated_result_code"
+steps = [
+  ["gw", "broker", "PUBLISH {state} · 0x04 CommandResult: origin 0x01020304, für 0x20, resultCode 1", "PUBLISH {state} · 0x04 CommandResult: origin 0x01020304, for 0x20, resultCode 1", "neutral"],
+  ["broker", "ingest", "zugestellt · Worker ordnet über origin_command_id zu", "delivered · worker correlates via origin_command_id", "neutral"],
+  ["fs", "", "REJECTED · resultCode 1 bleibt erhalten, kein Runtime-Eintrag", "REJECTED · resultCode 1 is kept, no runtime entry", "good"],
+]
+
+[[system_sim.scenario]]
+id = "cmd_setpoints_reply"
+label = "Antwort im alten Format (0x21)"
+label_en = "Reply in the old format (0x21)"
+outcome = "TIMEOUT"
+disposition = "IGNORED:NON_V13_SETPOINTS_STATE"
+test = "test_non_v13_setpoints_reply_is_not_applied_and_times_out"
+steps = [
+  ["gw", "broker", "PUBLISH {state} · 0x21 Setpoints State statt 0x20", "PUBLISH {state} · 0x21 Setpoints State instead of 0x20", "neutral"],
+  ["broker", "ingest", "zugestellt · Worker: IGNORED:NON_V13_SETPOINTS_STATE, kein v1.3-Beleg für einen 0x20-Command", "delivered · worker: IGNORED:NON_V13_SETPOINTS_STATE, no v1.3 evidence for a 0x20 command", "good"],
+  ["fs", "", "nach publishedAt + 30 s: TIMEOUT", "after publishedAt + 30 s: TIMEOUT", "warn"],
+]
+
+[[system_sim.scenario]]
+id = "cmd_foreign"
+label = "Antwort von fremdem Gateway"
+label_en = "Reply from another gateway"
+outcome = "APPLIED"
+disposition = "IGNORED:GATEWAY_MISMATCH"
+test = "test_identity_room_and_unknown_command_checks_before_applied"
+steps = [
+  ["tgt", "broker", "PUBLISH {tgt_state} · 0x20 State mit der commandId von {gw}", "PUBLISH {tgt_state} · 0x20 state carrying {gw}'s commandId", "neutral"],
+  ["broker", "ingest", "zugestellt · Worker: IGNORED:GATEWAY_MISMATCH, die Client-ID im Topic gehört zu einem anderen Gateway", "delivered · worker: IGNORED:GATEWAY_MISMATCH, the client ID in the topic belongs to another gateway", "good"],
+  ["fs", "", "bleibt PUBLISHED. Genauso abgewiesen: falscher Raum (ROOM_IDX_MISMATCH), unbekannte ID (UNKNOWN_COMMAND_ID), nicht zugeordnete Client-ID", "stays PUBLISHED. Rejected the same way: wrong room (ROOM_IDX_MISMATCH), unknown ID (UNKNOWN_COMMAND_ID), unmapped client ID", "good"],
+  ["gw", "broker", "PUBLISH {state} · die echte Antwort: 0x20 Modality State, 22,5 °C", "PUBLISH {state} · the real reply: 0x20 Modality State, 22.5 °C", "neutral"],
+  ["broker", "ingest", "zugestellt · passt zu Gateway, Raum und Modus", "delivered · matches gateway, room and mode", "neutral"],
+  ["fs", "", "APPLIED, erst mit der Antwort des richtigen Gateways", "APPLIED, only with the reply of the right gateway", "good"],
+]
+
+[[system_sim.scenario]]
+id = "cmd_duplicate"
+label = "Antwort kommt doppelt"
+label_en = "Reply arrives twice"
+outcome = "APPLIED"
+disposition = "IGNORED:ALREADY_APPLIED"
+test = "test_duplicate_replies_do_not_change_the_applied_outcome"
+steps = [
+  ["gw", "broker", "PUBLISH {state} · 0x20 Modality State, 22,5 °C", "PUBLISH {state} · 0x20 Modality State, 22.5 °C", "neutral"],
+  ["broker", "ingest", "zugestellt", "delivered", "neutral"],
+  ["fs", "", "APPLIED", "APPLIED", "good"],
+  ["gw", "broker", "derselbe State noch einmal (QoS 1 darf doppelt zustellen)", "the same state again (QoS 1 may deliver twice)", "neutral"],
+  ["broker", "ingest", "zugestellt · Worker: IGNORED:ALREADY_APPLIED", "delivered · worker: IGNORED:ALREADY_APPLIED", "good"],
+  ["fs", "", "bleibt APPLIED, der erste Runtime-Wert bleibt", "stays APPLIED, the first runtime value is kept", "good"],
+]
+
+[[system_sim.scenario]]
+id = "cmd_late"
+label = "Antwort zu spät"
+label_en = "Reply too late"
+outcome = "TIMEOUT"
+disposition = "IGNORED:LATE"
+test = "test_late_reply_after_response_deadline_is_not_applied"
+steps = [
+  ["fs", "", "Das Gateway antwortet erst nach publishedAt + 30 s.", "The gateway only replies after publishedAt + 30 s.", "neutral"],
+  ["gw", "broker", "PUBLISH {state} · 0x20 Modality State", "PUBLISH {state} · 0x20 Modality State", "neutral"],
+  ["broker", "ingest", "zugestellt · Worker: IGNORED:LATE, Empfang nach der Frist", "delivered · worker: IGNORED:LATE, received after the deadline", "good"],
+  ["fs", "", "TIMEOUT, kein APPLIED", "TIMEOUT, no APPLIED", "warn"],
+]
+
+[[system_sim.scenario]]
+id = "cmd_expired"
+label = "Frist vor dem Senden verpasst"
+label_en = "Deadline missed before sending"
+outcome = "PUBLISH_FAILED"
+disposition = "DISPATCH_EXPIRED"
+test = "test_expired_created_command_never_calls_the_synthetic_device"
+dispatch = false
+steps = [
+  ["fs", "", "CREATED · expiresAt ist schon vorbei, als der Worker das Command holt", "CREATED · expiresAt has already passed when the worker picks up the command", "neutral"],
+  ["fs", "", "PUBLISH_FAILED · DISPATCH_EXPIRED · nichts an den Broker gesendet, das Gerät sieht nichts", "PUBLISH_FAILED · DISPATCH_EXPIRED · nothing sent to the broker, the device sees nothing", "warn"],
+]

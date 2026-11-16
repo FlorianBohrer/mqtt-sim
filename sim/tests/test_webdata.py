@@ -69,6 +69,31 @@ class PageDataTest(unittest.TestCase):
             data.pop('generated_utc')
         self.assertEqual(page, fresh, 'web/baukasten/index.html is stale: run make web and commit the result')
 
+    def test_system_sim_command_scenarios(self):
+        """v1.3 temperature command of the ENTC-138 system simulator: contract vector and scenarios."""
+        sim = build(load_config())['system_sim']
+        # 0x20 Modality: commandId 0x01020304, room 4, modality 1 (manual), 225 = 22.5 °C
+        wire = bytes.fromhex(sim['vector'])
+        self.assertEqual((len(wire), wire[0], int.from_bytes(wire[1:5], 'big'), wire[5], wire[6],
+                          int.from_bytes(wire[7:9], 'big')), (9, 0x20, 0x01020304, 4, 1, 225))
+        scenarios = {s['id']: s for s in sim['scenario']}
+        self.assertEqual({k: (s['outcome'], s['disposition']) for k, s in scenarios.items()}, {
+            'cmd_applied': ('APPLIED', 'APPLIED'),
+            'cmd_rejected': ('REJECTED', 'REJECTED'),
+            'cmd_setpoints_reply': ('TIMEOUT', 'IGNORED:NON_V13_SETPOINTS_STATE'),
+            'cmd_foreign': ('APPLIED', 'IGNORED:GATEWAY_MISMATCH'),
+            'cmd_duplicate': ('APPLIED', 'IGNORED:ALREADY_APPLIED'),
+            'cmd_late': ('TIMEOUT', 'IGNORED:LATE'),
+            'cmd_expired': ('PUBLISH_FAILED', 'DISPATCH_EXPIRED'),
+        })
+        for s in scenarios.values():
+            with self.subTest(s['id']):
+                self.assertTrue(s['label'] and s['label_en'] and s['test'].startswith('test_'))
+                self.assertTrue(all(st[2] and st[3] for st in s['steps']))
+        # A missed dispatch deadline never reaches the broker.
+        self.assertFalse(scenarios['cmd_expired']['dispatch'])
+        self.assertTrue(all(st[0] == 'fs' for st in scenarios['cmd_expired']['steps']))
+
     def test_inject_is_idempotent_and_escapes_script_end(self):
         with tempfile.TemporaryDirectory() as tmp:
             page = Path(tmp) / 'index.html'
