@@ -2,7 +2,7 @@
 <html lang="de">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-yp+uYjLwd04fpNn5wGXj9JvCn/98kMnUdWfkeAn/CTs='; style-src 'unsafe-inline'; font-src data:; img-src data:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Va92F+AiZtT6lJXZ6xwrSr2fvP/cUqF0CoSmUYKSGx8='; style-src 'unsafe-inline'; font-src data:; img-src data:; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="referrer" content="no-referrer">
 <title>ENETEC MQTT-Kreislauf</title>
 <meta name="description" content="Interaktive Erklärung der ENETEC MQTT-Strecke: Stationen anklicken, selbst Nachrichten durch die Anlage schicken, Deutsch und Englisch.">
@@ -418,16 +418,16 @@ footer { font-size: 14px; color: var(--muted); max-width: 90ch; }
     "id": "return", "view": "plant", "focus": ["command"],
     "chapter": { "de": "Der Rückweg", "en": "The way back" },
     "text": {
-      "de": "Den Rückweg nehmen die Commands: Cloud-Command schreibt in das cmd-Topic eines Gateways, die Weiche prüft, und der Broker stellt genau diesem einen Gateway zu, oder parkt das Command in dessen Session, wenn es offline ist. Und der Kreislauf beginnt von vorn.",
-      "en": "The commands take the way back: Cloud Command writes to one gateway's cmd topic, the switch checks it, and the broker delivers it to exactly that one gateway, or parks the command in its session if it is offline. And the circuit starts all over again."
+      "de": "Den Rückweg nehmen die Commands: Cloud-Command schreibt in das cmd-Topic eines Gateways, die Weiche prüft, und der Broker stellt genau diesem einen Gateway zu, oder parkt das Command in dessen Session, wenn es offline ist. Das Gateway antwortet über sein state mit derselben Command-Nummer, quasi der Quittung. Erst damit ist das Command in der Cloud angewendet, der PUBACK hieß nur: übernommen. Und der Kreislauf beginnt von vorn.",
+      "en": "The commands take the way back: Cloud Command writes to one gateway's cmd topic, the switch checks it, and the broker delivers it to exactly that one gateway, or parks the command in its session if it is offline. The gateway replies on its state with the same command number, a receipt so to speak. Only then is the command applied in the cloud; the PUBACK only meant: taken over. And the circuit starts all over again."
     }
   },
   {
     "id": "who", "view": "plant", "focus": [],
     "chapter": { "de": "Wer schafft das?", "en": "Who can do it?" },
     "text": {
-      "de": "Was ihr hier seht, ist das Soll: So verlangen es die ENETEC-Anforderungen. Welcher Broker welchen Teil davon wirklich schafft, misst das Lab. Mosquitto und EMQX könnt ihr im Baukasten mit den echten Ergebnissen ausprobieren, Pro Mosquitto kommt nach dem ersten Lauf dazu.",
-      "en": "What you see here is the target: this is what the ENETEC requirements demand. Which broker actually manages which part is what the lab measures. You can try Mosquitto and EMQX with the real results in the building kit; Pro Mosquitto joins after its first run."
+      "de": "Was ihr hier seht, ist das Soll: So verlangen es die ENETEC-Anforderungen. Welcher Broker welchen Teil davon wirklich schafft, misst das Lab. Mosquitto und EMQX könnt ihr im Baukasten mit den echten Ergebnissen ausprobieren, Pro Mosquitto kommt nach dem ersten Lauf dazu. Dort läuft auch der ganze Temperatur-Command, von Firestore bis APPLIED, so wie ihn der System-Simulator abwickelt.",
+      "en": "What you see here is the target: this is what the ENETEC requirements demand. Which broker actually manages which part is what the lab measures. You can try Mosquitto and EMQX with the real results in the building kit; Pro Mosquitto joins after its first run. The kit also plays the whole temperature command, from Firestore to APPLIED, the way the system simulator handles it."
     }
   }
 ]
@@ -946,6 +946,13 @@ async function sendCmd(i) {
   }
   await fly(rev(ROUTE.commandToValve), "PUBACK 0x00", "ok");
   step("ok", "PUBACK 0x00 an Cloud-Command: Der Broker hat das Command übernommen.", "PUBACK 0x00 to Cloud Command: the broker has taken over the command.", "R12");
+  if (!gw.online) return;   // geparkt: die Antwort kommt erst nach dem Reconnect
+  // Quittung des Geräts (MQTT v1.3): derselbe state-Weg wie publish(), mit der Command-Nummer
+  await fly(gwToValve(i), "PUBLISH state", "state");
+  await fly(ROUTE.valveToIngest, "origin_command_id", "state");
+  sim.ingest++; renderState();
+  step("ok", `Das Gateway antwortet auf ${topicOf(i, "state")} mit origin_command_id = Nummer des Commands. Cloud-Ingest ordnet die Antwort zu: APPLIED.`,
+    `The gateway replies on ${topicOf(i, "state")} with origin_command_id = the command's number. Cloud Ingest matches the reply: APPLIED.`);
 }
 function expire(i) {
   const gw = sim.gws[i], g = GW[i];
@@ -1085,12 +1092,13 @@ function tryHtml(id) {
     case "return":
       return `<div class="field"><label for="f-target">${esc(L("Command an", "Command to"))}</label><select id="f-target">${gwOptions(form.target)}</select></div>
         <div class="row"><button type="button" class="btn primary" data-act="cmdsel">${esc(L("Command senden", "Send command"))}</button></div>
-        <div class="gwtable">${GW.map((g, i) => `<div class="gwrow"><div class="who"><b>${g.id}</b><span>${esc(L("wartend", "waiting"))}: ${sim.gws[i].queue}</span></div>${statusPill(i)}</div>`).join("")}</div>`;
+        <div class="gwtable">${GW.map((g, i) => `<div class="gwrow"><div class="who"><b>${g.id}</b><span>${esc(L("wartend", "waiting"))}: ${sim.gws[i].queue}</span></div>${statusPill(i)}</div>`).join("")}</div>
+        <p class="note">${esc(L("Kommt keine Antwort, wird das Command nach 30 s TIMEOUT. Lehnt das Gerät ab (0x04 CommandResult), REJECTED.", "If no reply arrives, the command becomes TIMEOUT after 30 s. If the device rejects it (0x04 CommandResult), REJECTED."))}</p>`;
     case "who": {
       // Ziel und target vom Kopf-Link übernehmen (die Artefakt-Kopie ersetzt nur diesen einen Link).
       const kit = $("#to-kit");
       return `<div class="row"><a class="btn primary" id="to-kit-2" href="${esc(kit.getAttribute("href"))}"${kit.target === "_blank" ? ` target="_blank" rel="noopener noreferrer"` : ""}>${esc(L("Zum Baukasten", "To the building kit"))}</a></div>
-        <p class="note">${esc(L("Im Baukasten zeigt jede Aktion, was Mosquitto und EMQX im Lab tatsächlich gemacht haben, mit Testfall und Beobachtung. Pro Mosquitto steht dort als Kandidat, gemessen ist es noch nicht.", "In the building kit every action shows what Mosquitto and EMQX actually did in the lab, with test case and observation. Pro Mosquitto is listed there as a candidate, it has not been measured yet."))}</p>`;
+        <p class="note">${esc(L("Im Baukasten zeigt jede Aktion, was Mosquitto und EMQX im Lab tatsächlich gemacht haben, mit Testfall und Beobachtung. Pro Mosquitto steht dort als Kandidat, gemessen ist es noch nicht. Unter „Temperatur-Command (v1.3)“ am Gateway spielt ihr den Command mit Antwort, Ablehnung, Zeitüberschreitung und fremden Antworten durch.", "In the building kit every action shows what Mosquitto and EMQX actually did in the lab, with test case and observation. Pro Mosquitto is listed there as a candidate, it has not been measured yet. Under \"Temperature command (v1.3)\" at the gateway you can play the command with reply, rejection, timeout and foreign replies."))}</p>`;
     }
   }
   return "";

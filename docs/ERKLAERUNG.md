@@ -53,7 +53,7 @@ Lab-Gateways verbunden, persistente Session, eigenes `cmd` abonniert.
 | PUBLISH in eigenes `cmd` / fremdes `state` / Topic außerhalb | PUBACK 0x87 (Not authorized), nichts wird zugestellt | R08 / R10 / R07 |
 | SUBSCRIBE eigenes `cmd` | SUBACK 0x01 (QoS 1 gewährt) | R09 |
 | SUBSCRIBE eigenes `state` / fremdes `cmd` / `enetec/v1/#` | SUBACK 0x87. Mosquitto bestätigt im Lab mit 0x01 und liefert nur nichts aus (PARTIAL) | R09 / R10 |
-| Command an verbundenes Gateway | Zustellung an genau dieses Gateway, PUBACK 0x00 an Cloud-Command | R09, R12 |
+| Command an verbundenes Gateway | Zustellung an genau dieses Gateway, PUBACK 0x00 an Cloud-Command. Danach antwortet das Gateway auf seinem `state` mit `origin_command_id` = Nummer des Commands; erst damit ist es `APPLIED` (MQTT v1.3, ENTC-138). Ohne Antwort nach 30 s `TIMEOUT`, bei `0x04 CommandResult` `REJECTED` | R09, R12 |
 | Command an Offline-Gateway mit Session | Broker parkt es in der Session, PUBACK 0x00 | R13 |
 | Command nach abgelaufener Session | PUBACK 0x10 (No matching subscribers): angenommen, aber niemand bekommt es | R13 |
 

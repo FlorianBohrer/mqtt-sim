@@ -57,6 +57,7 @@ async function act(page, sel) {
     await station(page, "idea");
     R.round = await act(page, '[data-act="round"]');
     check(/PUBACK 0x00/.test(R.round) && /R13|R09/.test(R.round), "round: " + R.round);
+    check(/origin_command_id/.test(R.round) && /APPLIED/.test(R.round), "round: device receipt makes it APPLIED");
 
     await station(page, "idcheck");
     for (const cert of ["none", "rogue", "expired", "revoked"]) {
@@ -120,8 +121,11 @@ async function act(page, sel) {
 
     await station(page, "return");
     await page.selectOption("#f-target", "2");
+    const gw3online = await page.evaluate(() => sim.gws[2].online);
     R.cmd = await act(page, '[data-act="cmdsel"]');
     check(/gw-sim-000003/.test(R.cmd), "command to gw3: " + R.cmd);
+    // Quittung nur, wenn das Gateway verbunden ist; ein geparktes Command ist noch nicht APPLIED
+    check(/APPLIED/.test(R.cmd) === gw3online, `command to gw3: APPLIED only when connected (online ${gw3online})`);
 
     await station(page, "clientid");
     await page.fill("#f-serial", "280218189");
