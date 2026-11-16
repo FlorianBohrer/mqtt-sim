@@ -237,6 +237,13 @@ Open `web/baukasten/index.html` directly in a browser (no server, no Docker). Th
 - **Swap broker:** the bar above the cabinet shows every broker with its mandatory pass rate. A click
   swaps the broker and replays the last action there; the test log offers the same via "Same case on
   the other brokers".
+- **Temperature command (v1.3):** its own action group at the gateway. It plays through the loop of the
+  ENTC-138 system simulator: Firestore `CREATED`, the stored 9 bytes `20 01 02 03 04 04 01 00 E1` via
+  QoS 1 to `cmd`, the device's reply, outcome `APPLIED`, `REJECTED`, `TIMEOUT` or `PUBLISH_FAILED`.
+  Seven scenarios, each with the test that backs it in the system simulator. This is not a broker
+  measurement: backed by unit and local E2E tests (Firestore Emulator, local broker, synthetic gateway),
+  not against a managed broker or real devices. Below it the page shows what the selected broker
+  achieved for the transport in the lab (ACL-07, ACL-01).
 - **Packet monitor:** below the cabinet the MQTT packets of the flow run along (simulated; the verdict
   comes from the lab run).
 - **Learning path:** seven guided steps with progress.
@@ -246,7 +253,9 @@ Open `web/baukasten/index.html` directly in a browser (no server, no Docker). Th
   `sim/config.toml` and is not checked in; back to the lab fleet with
   `rm sim/config.local.toml && make fleet`.
 
-New reference runs reach the page through `web/baukasten/sources.toml` and `make web`.
+New reference runs reach the page through `web/baukasten/sources.toml` and `make web`. The command
+scenarios live in the same file under `[system_sim]`. If the behaviour in the ENTC-138 system simulator
+changes, update them there and run `make web`.
 
 **Page security:** it loads nothing from third parties (fonts are embedded, SIL OFL 1.1), sends
 nothing anywhere and only runs its own script (Content Security Policy with a script hash written by

@@ -239,6 +239,13 @@ zweisprachig: **DE | EN** oben rechts (oder `index.html?lang=en`).
 - **Broker tauschen:** Die Leiste über dem Schaltschrank zeigt alle Broker mit ihrer Pflichtquote. Ein Klick
   tauscht den Broker und spielt die letzte Aktion dort noch einmal ab; im Prüfprotokoll gibt es dafür
   „Gleicher Fall bei den anderen Brokern“.
+- **Temperatur-Command (v1.3):** eigene Aktionsgruppe am Gateway. Sie spielt den Kreislauf des
+  ENTC-138-System-Simulators durch: Firestore `CREATED`, die gespeicherten 9 Bytes
+  `20 01 02 03 04 04 01 00 E1` per QoS 1 an `cmd`, Antwort des Geräts, Ergebnis `APPLIED`, `REJECTED`,
+  `TIMEOUT` oder `PUBLISH_FAILED`. Sieben Szenarien, je mit dem Test, der sie im System-Simulator belegt.
+  Das ist kein Broker-Messergebnis: belegt durch Unit- und lokale E2E-Tests (Firestore Emulator, lokaler
+  Broker, synthetisches Gateway), nicht gegen Managed Broker oder echte Geräte. Darunter steht, was der
+  gewählte Broker beim Transport im Lab geschafft hat (ACL-07, ACL-01).
 - **Paket-Monitor:** Unter dem Schaltschrank laufen die MQTT-Pakete des Ablaufs mit (simuliert, das
   Ergebnis stammt aus dem Lab-Lauf).
 - **Lernpfad:** sieben geführte Schritte mit Fortschritt.
@@ -248,7 +255,9 @@ zweisprachig: **DE | EN** oben rechts (oder `index.html?lang=en`).
   `sim/config.toml` und wird nicht eingecheckt; zurück zur Lab-Flotte mit
   `rm sim/config.local.toml && make fleet`.
 
-Neue Referenzläufe kommen über `web/baukasten/sources.toml` und `make web` auf die Seite.
+Neue Referenzläufe kommen über `web/baukasten/sources.toml` und `make web` auf die Seite. Die
+Command-Szenarien stehen im selben File unter `[system_sim]`. Ändert sich das Verhalten im
+ENTC-138-System-Simulator, dort nachziehen und `make web` ausführen.
 
 **Sicherheit der Seite:** Sie lädt nichts von Dritten (Schriften sind eingebettet, SIL OFL 1.1),
 schickt nichts weg und führt nur ihr eigenes Skript aus (Content-Security-Policy mit Skript-Hash,
