@@ -123,6 +123,8 @@ async function clean(page, label) {
     const scns = await page.evaluate(() => DATA.system_sim.scenario.map(s => [s.id, s.outcome, s.disposition]));
     check(scns.length === 7, `${lang}/system_sim: 7 scenarios (${scns.length})`);
     await page.click('[data-gw="gw-sim-000001"]');
+    check(await page.$$eval("#inspect .agroup .new-tag", e => e.length) === 1, `${lang}: only the v1.3 command group is tagged new`);
+    check(await page.evaluate(() => (renderGlossary().match(/class="new-tag"/g) || []).length) === 3, `${lang}: three glossary entries tagged new`);
     for (const [id, outcome, disposition] of scns) {
       await page.click(`#inspect [data-action="${id}"]`); await idle(page);
       const proto = await page.$eval("#protocol", e => e.innerText);

@@ -2,7 +2,7 @@
 <html lang="de">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Va92F+AiZtT6lJXZ6xwrSr2fvP/cUqF0CoSmUYKSGx8='; style-src 'unsafe-inline'; font-src data:; img-src data:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-JexVKc7xLNR1UU4k0qlb8pz823kB6O0uSoCKrJwBnwE='; style-src 'unsafe-inline'; font-src data:; img-src data:; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="referrer" content="no-referrer">
 <title>ENETEC MQTT-Kreislauf</title>
 <meta name="description" content="Interaktive Erklärung der ENETEC MQTT-Strecke: Stationen anklicken, selbst Nachrichten durch die Anlage schicken, Deutsch und Englisch.">
@@ -138,6 +138,9 @@ h1 { margin: 0; font: 700 clamp(30px, 4vw, 44px)/1 var(--font-display); letter-s
 /* Station */
 .panel { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 16px 18px; display: grid; gap: 12px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow: auto; }
 @media (max-width: 1100px) { .panel { position: static; max-height: none; } }
+/* "neu"-Etikett und markierter neuer Text (Stand 16.11.2026) */
+.new-tag { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1px solid var(--accent); border-radius: 3px; color: var(--accent); font: 600 10px/1.5 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; vertical-align: middle; }
+mark.new { background: color-mix(in srgb, var(--accent) 16%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
 .panel h2 { margin: 0; font: 700 30px/1.05 var(--font-display); letter-spacing: 0.01em; text-wrap: balance; }
 .panel .narr { margin: 0; font-size: 16.5px; line-height: 1.6; }
 .where { font-size: 13.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -417,6 +420,10 @@ footer { font-size: 14px; color: var(--muted); max-width: 90ch; }
   {
     "id": "return", "view": "plant", "focus": ["command"],
     "chapter": { "de": "Der Rückweg", "en": "The way back" },
+    "new": {
+      "de": "Das Gateway antwortet über sein state mit derselben Command-Nummer, quasi der Quittung. Erst damit ist das Command in der Cloud angewendet, der PUBACK hieß nur: übernommen.",
+      "en": "The gateway replies on its state with the same command number, a receipt so to speak. Only then is the command applied in the cloud; the PUBACK only meant: taken over."
+    },
     "text": {
       "de": "Den Rückweg nehmen die Commands: Cloud-Command schreibt in das cmd-Topic eines Gateways, die Weiche prüft, und der Broker stellt genau diesem einen Gateway zu, oder parkt das Command in dessen Session, wenn es offline ist. Das Gateway antwortet über sein state mit derselben Command-Nummer, quasi der Quittung. Erst damit ist das Command in der Cloud angewendet, der PUBACK hieß nur: übernommen. Und der Kreislauf beginnt von vorn.",
       "en": "The commands take the way back: Cloud Command writes to one gateway's cmd topic, the switch checks it, and the broker delivers it to exactly that one gateway, or parks the command in its session if it is offline. The gateway replies on its state with the same command number, a receipt so to speak. Only then is the command applied in the cloud; the PUBACK only meant: taken over. And the circuit starts all over again."
@@ -425,6 +432,10 @@ footer { font-size: 14px; color: var(--muted); max-width: 90ch; }
   {
     "id": "who", "view": "plant", "focus": [],
     "chapter": { "de": "Wer schafft das?", "en": "Who can do it?" },
+    "new": {
+      "de": "Dort läuft auch der ganze Temperatur-Command, von Firestore bis APPLIED, so wie ihn der System-Simulator abwickelt.",
+      "en": "The kit also plays the whole temperature command, from Firestore to APPLIED, the way the system simulator handles it."
+    },
     "text": {
       "de": "Was ihr hier seht, ist das Soll: So verlangen es die ENETEC-Anforderungen. Welcher Broker welchen Teil davon wirklich schafft, misst das Lab. Mosquitto und EMQX könnt ihr im Baukasten mit den echten Ergebnissen ausprobieren, Pro Mosquitto kommt nach dem ersten Lauf dazu. Dort läuft auch der ganze Temperatur-Command, von Firestore bis APPLIED, so wie ihn der System-Simulator abwickelt.",
       "en": "What you see here is the target: this is what the ENETEC requirements demand. Which broker actually manages which part is what the lab measures. You can try Mosquitto and EMQX with the real results in the building kit; Pro Mosquitto joins after its first run. The kit also plays the whole temperature command, from Firestore to APPLIED, the way the system simulator handles it."
@@ -438,6 +449,10 @@ footer { font-size: 14px; color: var(--muted); max-width: 90ch; }
    hier Zeichnung, Soll-Modell (MQTT 5, ENETEC-Anforderungen) und Bedienung.
    Nach jeder Änderung an diesem Skript: make web (CSP-Hash). */
 const STATIONS = JSON.parse(document.getElementById("stations-data").textContent);
+/* Neu seit 16.11.2026: kleines Etikett an neuen Stellen */
+const newTag = () => `<span class="new-tag" title="${esc(L("neu seit 16.11.2026", "new since 16 Nov 2026"))}">${esc(L("neu", "new"))}</span>`;
+/* Stationstext, der Satz aus s.new (neu seit 16.11.) ist markiert */
+const textHtml = s => { const t = esc(T(s.text)); return s.new ? t.replace(esc(T(s.new)), m => `<mark class="new">${m}</mark>`) : t; };
 const LANG_KEY = "mqtt-baukasten-lang";
 const REDUCED = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 const NS = "http://www.w3.org/2000/svg";
@@ -1112,7 +1127,7 @@ function renderPanel(keepFocus) {
       <span class="row"><button type="button" class="btn small" data-step="-1"${current === 0 ? " disabled" : ""} aria-label="${esc(L("Vorherige Station", "Previous station"))}">←</button><button type="button" class="btn small" data-step="1"${current === STATIONS.length - 1 ? " disabled" : ""} aria-label="${esc(L("Nächste Station", "Next station"))}">→</button></span>
     </div>
     <h2>${esc(T(s.chapter))}</h2>
-    <p class="narr">${esc(T(s.text))}</p>
+    <p class="narr">${textHtml(s)}</p>
     <div class="try"><h3>${esc(L("Probiert es aus", "Try it"))} <span class="busy" id="busy" hidden>(${esc(L("läuft …", "running …"))})</span></h3>${tryHtml(s.id)}</div>
     <div class="result"><h3>${esc(L("Ablauf", "Flow"))}</h3><ol id="result-list"></ol></div>
     <div class="row"><button type="button" class="btn small" data-act="reset">${esc(L("Anlage zurücksetzen", "Reset the system"))}</button></div>`;
@@ -1126,7 +1141,7 @@ function renderCard() {
   if (cEl) cEl.textContent = cid || "–";
 }
 function renderStations() {
-  $("#stations").innerHTML = STATIONS.map((s, i) => `<button type="button" data-station="${i}" aria-current="${i === current}"${i < current ? ` class="passed"` : ""}><span class="pipe"></span><span><span class="n">${i + 1}</span>${esc(T(s.chapter))}</span></button>`).join("");
+  $("#stations").innerHTML = STATIONS.map((s, i) => `<button type="button" data-station="${i}" aria-current="${i === current}"${i < current ? ` class="passed"` : ""}><span class="pipe"></span><span><span class="n">${i + 1}</span>${esc(T(s.chapter))}${s.new ? newTag() : ""}</span></button>`).join("");
 }
 function showStation(i, keepSteps) {
   current = Math.max(0, Math.min(STATIONS.length - 1, i));
@@ -1147,7 +1162,7 @@ function renderBelow() {
   const head = [L("Im Bild", "In the picture"), L("Bei uns", "In our system"), L("Aufgabe", "Job"), L("Wo das Bild hinkt", "Where it falls short")];
   $("#mapping").innerHTML = `<thead><tr>${head.map(h => `<th scope="col">${esc(h)}</th>`).join("")}</tr></thead><tbody>${MAPPING.map(r =>
     `<tr><td class="pic">${esc(tx(r[0]))}</td><td>${esc(tx(r[1]))}</td><td>${esc(tx(r[2]))}</td><td class="limp">${r[3] ? esc(tx(r[3])) : "–"}</td></tr>`).join("")}</tbody>`;
-  $("#script").innerHTML = STATIONS.map((s, i) => `<h3><span class="n">${i + 1}</span>${esc(T(s.chapter))}</h3><p>${esc(T(s.text))}</p>`).join("");
+  $("#script").innerHTML = STATIONS.map((s, i) => `<h3><span class="n">${i + 1}</span>${esc(T(s.chapter))}${s.new ? newTag() : ""}</h3><p>${textHtml(s)}</p>`).join("");
 }
 function applyStatic() {
   document.documentElement.lang = LANG;

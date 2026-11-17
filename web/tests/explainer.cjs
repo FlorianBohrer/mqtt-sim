@@ -48,6 +48,10 @@ async function act(page, sel) {
       check(ov <= 0, `station ${i} horizontal overflow ${ov}`);
       if (lang === "de") await shot(page, `${lang}-s${i + 1}.png`);
     }
+    // Neues seit 16.11. ist markiert: Etikett an zwei Stationen, Satz im Text
+    check(await page.$$eval("#stations .new-tag", e => e.length) === 2, `${lang}: two stations tagged new`);
+    await page.evaluate(() => showStation(STATIONS.findIndex(s => s.id === "return")));
+    check(/origin|Command-Nummer|command number/.test(await page.$eval("#panel mark.new", e => e.textContent)), `${lang}: receipt sentence highlighted`);
     // Bauteil im Bild anklicken
     await page.evaluate(() => showStation(1));
     await page.click('#plant [data-id="valve"] circle.plastic-ring');
