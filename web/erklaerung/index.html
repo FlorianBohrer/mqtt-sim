@@ -2,7 +2,7 @@
 <html lang="de">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-JexVKc7xLNR1UU4k0qlb8pz823kB6O0uSoCKrJwBnwE='; style-src 'unsafe-inline'; font-src data:; img-src data:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-nywcLgcoqTUSy4iUpzO2FsBnLIcnrY+QKFKqb02Eo8g='; style-src 'unsafe-inline'; font-src data:; img-src data:; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="referrer" content="no-referrer">
 <title>ENETEC MQTT-Kreislauf</title>
 <meta name="description" content="Interaktive Erklärung der ENETEC MQTT-Strecke: Stationen anklicken, selbst Nachrichten durch die Anlage schicken, Deutsch und Englisch.">
@@ -1108,12 +1108,12 @@ function tryHtml(id) {
       return `<div class="field"><label for="f-target">${esc(L("Command an", "Command to"))}</label><select id="f-target">${gwOptions(form.target)}</select></div>
         <div class="row"><button type="button" class="btn primary" data-act="cmdsel">${esc(L("Command senden", "Send command"))}</button></div>
         <div class="gwtable">${GW.map((g, i) => `<div class="gwrow"><div class="who"><b>${g.id}</b><span>${esc(L("wartend", "waiting"))}: ${sim.gws[i].queue}</span></div>${statusPill(i)}</div>`).join("")}</div>
-        <p class="note">${esc(L("Kommt keine Antwort, wird das Command nach 30 s TIMEOUT. Lehnt das Gerät ab (0x04 CommandResult), REJECTED.", "If no reply arrives, the command becomes TIMEOUT after 30 s. If the device rejects it (0x04 CommandResult), REJECTED."))}</p>`;
+        <p class="note">${esc(L("Kommt keine Antwort, wird das Command nach 30 s TIMEOUT. Lehnt das Gerät ab (0x04 CommandResult), REJECTED. Die Cloud prüft jede Antwort: Gateway, Command-Nummer, Raum und Modus müssen passen. Doppelte, verspätete und alte (retained) Antworten zählen nicht.", "If no reply arrives, the command becomes TIMEOUT after 30 s. If the device rejects it (0x04 CommandResult), REJECTED. The cloud checks every reply: gateway, command number, room and mode must match. Duplicate, late and old (retained) replies do not count."))}</p>`;
     case "who": {
       // Ziel und target vom Kopf-Link übernehmen (die Artefakt-Kopie ersetzt nur diesen einen Link).
       const kit = $("#to-kit");
       return `<div class="row"><a class="btn primary" id="to-kit-2" href="${esc(kit.getAttribute("href"))}"${kit.target === "_blank" ? ` target="_blank" rel="noopener noreferrer"` : ""}>${esc(L("Zum Baukasten", "To the building kit"))}</a></div>
-        <p class="note">${esc(L("Im Baukasten zeigt jede Aktion, was Mosquitto und EMQX im Lab tatsächlich gemacht haben, mit Testfall und Beobachtung. Pro Mosquitto steht dort als Kandidat, gemessen ist es noch nicht. Unter „Temperatur-Command (v1.3)“ am Gateway spielt ihr den Command mit Antwort, Ablehnung, Zeitüberschreitung und fremden Antworten durch.", "In the building kit every action shows what Mosquitto and EMQX actually did in the lab, with test case and observation. Pro Mosquitto is listed there as a candidate, it has not been measured yet. Under \"Temperature command (v1.3)\" at the gateway you can play the command with reply, rejection, timeout and foreign replies."))}</p>`;
+        <p class="note">${esc(L("Im Baukasten zeigt jede Aktion, was Mosquitto und EMQX im Lab tatsächlich gemacht haben, mit Testfall und Beobachtung. Pro Mosquitto steht dort als Kandidat, gemessen ist es noch nicht. Unter „Temperatur-Command (v1.3)“ am Gateway spielt ihr den Command mit Antwort, Ablehnung, Zeitüberschreitung und fremden oder unpassenden Antworten durch. Das ist ein lokaler Nachweis mit Firestore-Emulator und lokalem Broker; EMQX Dedicated Flex, mTLS, ACLs und echte Geräte sind damit noch nicht geprüft.", "In the building kit every action shows what Mosquitto and EMQX actually did in the lab, with test case and observation. Pro Mosquitto is listed there as a candidate, it has not been measured yet. Under \"Temperature command (v1.3)\" at the gateway you can play the command with reply, rejection, timeout and foreign or mismatched replies. That is local evidence with the Firestore emulator and a local broker; EMQX Dedicated Flex, mTLS, ACLs and real devices are not yet tested by it."))}</p>`;
     }
   }
   return "";

@@ -140,8 +140,8 @@ label_en = "Mosquitto 2.0.18, local"
 [system_sim]
 source = "ENTC-138 System-Simulator, WIP-Stand 10.11.2026"
 source_en = "ENTC-138 system simulator, WIP status 10 Nov 2026"
-boundary = "Belegt durch Unit-Tests und lokale E2E-Tests (Firestore Emulator, lokaler Broker ohne mTLS, synthetisches Gateway). Nicht belegt: Managed Broker, mTLS und ACL im Betrieb, echte Geräte-Firmware."
-boundary_en = "Backed by unit tests and local E2E tests (Firestore Emulator, local broker without mTLS, synthetic gateway). Not backed: managed broker, mTLS and ACL in production, real device firmware."
+boundary = "Belegt durch Unit-Tests und lokale E2E-Tests (Firestore Emulator, lokaler Broker ohne mTLS, synthetisches Gateway). Nicht belegt: EMQX Dedicated Flex, mTLS und ACL im Betrieb, echte Geräte."
+boundary_en = "Backed by unit tests and local E2E tests (Firestore Emulator, local broker without mTLS, synthetic gateway). Not backed: EMQX Dedicated Flex, mTLS and ACL in production, real devices."
 vector = "20 01 02 03 04 04 01 00 E1"
 dispatch = [
   ["fs", "", "CREATED · commandId 0x01020304, gespeicherte 9 Bytes 20 01 02 03 04 04 01 00 E1 (Raum 4, manual, 22,5 °C)", "CREATED · commandId 0x01020304, stored 9 bytes 20 01 02 03 04 04 01 00 E1 (room 4, manual, 22.5 °C)", "neutral"],
@@ -200,10 +200,28 @@ test = "test_identity_room_and_unknown_command_checks_before_applied"
 steps = [
   ["tgt", "broker", "PUBLISH {tgt_state} · 0x20 State mit der commandId von {gw}", "PUBLISH {tgt_state} · 0x20 state carrying {gw}'s commandId", "neutral"],
   ["broker", "ingest", "zugestellt · Worker: IGNORED:GATEWAY_MISMATCH, die Client-ID im Topic gehört zu einem anderen Gateway", "delivered · worker: IGNORED:GATEWAY_MISMATCH, the client ID in the topic belongs to another gateway", "good"],
-  ["fs", "", "bleibt PUBLISHED. Genauso abgewiesen: falscher Raum (ROOM_IDX_MISMATCH), unbekannte ID (UNKNOWN_COMMAND_ID), nicht zugeordnete Client-ID", "stays PUBLISHED. Rejected the same way: wrong room (ROOM_IDX_MISMATCH), unknown ID (UNKNOWN_COMMAND_ID), unmapped client ID", "good"],
+  ["fs", "", "bleibt PUBLISHED. Genauso abgewiesen: unbekannte ID (UNKNOWN_COMMAND_ID), nicht zugeordnete Client-ID (GATEWAY_NOT_RESOLVED)", "stays PUBLISHED. Rejected the same way: unknown ID (UNKNOWN_COMMAND_ID), unmapped client ID (GATEWAY_NOT_RESOLVED)", "good"],
   ["gw", "broker", "PUBLISH {state} · die echte Antwort: 0x20 Modality State, 22,5 °C", "PUBLISH {state} · the real reply: 0x20 Modality State, 22.5 °C", "neutral"],
   ["broker", "ingest", "zugestellt · passt zu Gateway, Raum und Modus", "delivered · matches gateway, room and mode", "neutral"],
   ["fs", "", "APPLIED, erst mit der Antwort des richtigen Gateways", "APPLIED, only with the reply of the right gateway", "good"],
+]
+
+[[system_sim.scenario]]
+id = "cmd_mismatch"
+label = "Antwort für falschen Raum oder Modus"
+label_en = "Reply for the wrong room or mode"
+outcome = "APPLIED"
+disposition = "IGNORED:ROOM_IDX_MISMATCH, IGNORED:MODALITY_MISMATCH"
+test = "test_identity_room_and_unknown_command_checks_before_applied"
+steps = [
+  ["gw", "broker", "PUBLISH {state} · 0x20 State mit der richtigen commandId, aber Raum 5 statt 4", "PUBLISH {state} · 0x20 state with the right commandId, but room 5 instead of 4", "neutral"],
+  ["broker", "ingest", "zugestellt · Worker: IGNORED:ROOM_IDX_MISMATCH", "delivered · worker: IGNORED:ROOM_IDX_MISMATCH", "good"],
+  ["gw", "broker", "PUBLISH {state} · 0x20 State, Raum 4, aber Modus 2 statt manual (1)", "PUBLISH {state} · 0x20 state, room 4, but mode 2 instead of manual (1)", "neutral"],
+  ["broker", "ingest", "zugestellt · Worker: IGNORED:MODALITY_MISMATCH", "delivered · worker: IGNORED:MODALITY_MISMATCH", "good"],
+  ["fs", "", "bleibt PUBLISHED, kein Runtime-Eintrag", "stays PUBLISHED, no runtime entry", "good"],
+  ["gw", "broker", "PUBLISH {state} · passende Antwort: Raum 4, manual, das Gerät meldet 23,0 °C", "PUBLISH {state} · matching reply: room 4, manual, the device reports 23.0 °C", "neutral"],
+  ["broker", "ingest", "zugestellt · passt zu Command, Gateway, Raum und Modus", "delivered · matches command, gateway, room and mode", "neutral"],
+  ["fs", "", "APPLIED · Runtime = 23,0 °C, wie vom Gerät gemeldet, nicht die angefragten 22,5 °C", "APPLIED · runtime = 23.0 °C as reported by the device, not the requested 22.5 °C", "good"],
 ]
 
 [[system_sim.scenario]]
@@ -234,6 +252,21 @@ steps = [
   ["gw", "broker", "PUBLISH {state} · 0x20 Modality State", "PUBLISH {state} · 0x20 Modality State", "neutral"],
   ["broker", "ingest", "zugestellt · Worker: IGNORED:LATE, Empfang nach der Frist", "delivered · worker: IGNORED:LATE, received after the deadline", "good"],
   ["fs", "", "TIMEOUT, kein APPLIED", "TIMEOUT, no APPLIED", "warn"],
+]
+
+[[system_sim.scenario]]
+id = "cmd_retained"
+label = "Alter State vom Broker (retained)"
+label_en = "Old state from the broker (retained)"
+outcome = "CREATED"
+disposition = "IGNORED:RETAINED_STATE"
+test = "test_retained_state_from_earlier_session_is_ignored"
+dispatch = false
+steps = [
+  ["gw", "broker", "früher: PUBLISH {state} mit Retain-Flag, der Broker hebt den State auf", "earlier: PUBLISH {state} with the retain flag, the broker keeps the state", "neutral"],
+  ["fs", "", "CREATED · der Worker startet und abonniert die state-Topics", "CREATED · the worker starts and subscribes to the state topics", "neutral"],
+  ["broker", "ingest", "der Broker liefert sofort den aufgehobenen State (retain = 1) · Worker: IGNORED:RETAINED_STATE", "the broker immediately delivers the kept state (retain = 1) · worker: IGNORED:RETAINED_STATE", "good"],
+  ["fs", "", "bleibt CREATED, kein Runtime-Eintrag. Zählen kann nur eine frische Antwort nach dem PUBLISH", "stays CREATED, no runtime entry. Only a fresh reply after the PUBLISH can count", "good"],
 ]
 
 [[system_sim.scenario]]

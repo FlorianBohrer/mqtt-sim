@@ -242,9 +242,9 @@ zweisprachig: **DE | EN** oben rechts (oder `index.html?lang=en`).
 - **Temperatur-Command (v1.3):** eigene Aktionsgruppe am Gateway. Sie spielt den Kreislauf des
   ENTC-138-System-Simulators durch: Firestore `CREATED`, die gespeicherten 9 Bytes
   `20 01 02 03 04 04 01 00 E1` per QoS 1 an `cmd`, Antwort des Geräts, Ergebnis `APPLIED`, `REJECTED`,
-  `TIMEOUT` oder `PUBLISH_FAILED`. Sieben Szenarien, je mit dem Test, der sie im System-Simulator belegt.
+  `TIMEOUT` oder `PUBLISH_FAILED`. Neun Szenarien, darunter Antworten für falschen Raum oder Modus und ein alter retained State, je mit dem Test, der sie im System-Simulator belegt.
   Das ist kein Broker-Messergebnis: belegt durch Unit- und lokale E2E-Tests (Firestore Emulator, lokaler
-  Broker, synthetisches Gateway), nicht gegen Managed Broker oder echte Geräte. Darunter steht, was der
+  Broker, synthetisches Gateway), nicht gegen EMQX Dedicated Flex, mTLS/ACL im Betrieb oder echte Geräte. Darunter steht, was der
   gewählte Broker beim Transport im Lab geschafft hat (ACL-07, ACL-01).
 - **Paket-Monitor:** Unter dem Schaltschrank laufen die MQTT-Pakete des Ablaufs mit (simuliert, das
   Ergebnis stammt aus dem Lab-Lauf).

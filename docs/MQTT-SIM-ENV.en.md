@@ -240,9 +240,9 @@ Open `web/baukasten/index.html` directly in a browser (no server, no Docker). Th
 - **Temperature command (v1.3):** its own action group at the gateway. It plays through the loop of the
   ENTC-138 system simulator: Firestore `CREATED`, the stored 9 bytes `20 01 02 03 04 04 01 00 E1` via
   QoS 1 to `cmd`, the device's reply, outcome `APPLIED`, `REJECTED`, `TIMEOUT` or `PUBLISH_FAILED`.
-  Seven scenarios, each with the test that backs it in the system simulator. This is not a broker
+  Nine scenarios, among them replies for the wrong room or mode and an old retained state, each with the test that backs it in the system simulator. This is not a broker
   measurement: backed by unit and local E2E tests (Firestore Emulator, local broker, synthetic gateway),
-  not against a managed broker or real devices. Below it the page shows what the selected broker
+  not against EMQX Dedicated Flex, mTLS/ACL in production or real devices. Below it the page shows what the selected broker
   achieved for the transport in the lab (ACL-07, ACL-01).
 - **Packet monitor:** below the cabinet the MQTT packets of the flow run along (simulated; the verdict
   comes from the lab run).

@@ -39,7 +39,7 @@ CSP_SCRIPT_SRC = re.compile(r"script-src 'sha256-[A-Za-z0-9+/=_-]+'")
 VERDICTS = ('PASS', 'FAIL', 'PARTIAL', 'INCONCLUSIVE')
 CASE_ID = re.compile(r'^[A-Z]{2,4}-\d{2}$')
 # v1.3 command scenarios of the ENTC-138 system simulator (sources.toml [system_sim])
-SYSTEM_SIM_OUTCOMES = {'APPLIED', 'REJECTED', 'TIMEOUT', 'PUBLISH_FAILED'}
+SYSTEM_SIM_OUTCOMES = {'APPLIED', 'REJECTED', 'TIMEOUT', 'PUBLISH_FAILED', 'CREATED'}
 SYSTEM_SIM_NODES = {'fs', 'command', 'broker', 'gw', 'tgt', 'ingest'}
 
 

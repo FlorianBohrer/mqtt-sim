@@ -82,8 +82,10 @@ class PageDataTest(unittest.TestCase):
             'cmd_rejected': ('REJECTED', 'REJECTED'),
             'cmd_setpoints_reply': ('TIMEOUT', 'IGNORED:NON_V13_SETPOINTS_STATE'),
             'cmd_foreign': ('APPLIED', 'IGNORED:GATEWAY_MISMATCH'),
+            'cmd_mismatch': ('APPLIED', 'IGNORED:ROOM_IDX_MISMATCH, IGNORED:MODALITY_MISMATCH'),
             'cmd_duplicate': ('APPLIED', 'IGNORED:ALREADY_APPLIED'),
             'cmd_late': ('TIMEOUT', 'IGNORED:LATE'),
+            'cmd_retained': ('CREATED', 'IGNORED:RETAINED_STATE'),
             'cmd_expired': ('PUBLISH_FAILED', 'DISPATCH_EXPIRED'),
         })
         for s in scenarios.values():

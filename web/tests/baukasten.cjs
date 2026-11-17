@@ -121,7 +121,7 @@ async function clean(page, label) {
     await page.goto(`${PAGE}?lang=${lang}`);
     await page.click("#btn-lab");
     const scns = await page.evaluate(() => DATA.system_sim.scenario.map(s => [s.id, s.outcome, s.disposition]));
-    check(scns.length === 7, `${lang}/system_sim: 7 scenarios (${scns.length})`);
+    check(scns.length === 9, `${lang}/system_sim: 9 scenarios (${scns.length})`);
     await page.click('[data-gw="gw-sim-000001"]');
     check(await page.$$eval("#inspect .agroup .new-tag", e => e.length) === 1, `${lang}: only the v1.3 command group is tagged new`);
     check(await page.evaluate(() => (renderGlossary().match(/class="new-tag"/g) || []).length) === 3, `${lang}: three glossary entries tagged new`);
