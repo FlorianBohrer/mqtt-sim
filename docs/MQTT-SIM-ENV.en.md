@@ -43,7 +43,7 @@ Client ID derived from the serial number. The earlier layout stays available as 
 | **4. Acceptance harness (ENTC-63)** | 31 mandatory cases for 15 requirements (R01–R15), PASS/FAIL per requirement, exit 0 only if everything passes. What is measured is actual delivery, not just the return code. | `make acceptance` with reports and evidence |
 | **5. Broker profiles** | The broker is replaceable: a profile (`sim/targets/*.toml`) describes address, certificate trust and log patterns. The tests stay the same. | `make acceptance BROKER=<profile>` |
 | **6. Legacy and rotation** | The real AWS IoT certificate of test gateway `0000000000000005` had no CN (only `C=UK, ST=United`, RSA 2048). This led to the LEG and ROT cases. | R16/R17 (informational at first) |
-| **7. More brokers** | Configuration for EMQX; until 08 Oct also HiveMQ (with lab extension) and Bevywise, dropped on 12 Oct (git history). New: Pro Mosquitto by Cedalo. | `make acceptance BROKER=emqx` or `BROKER=cedalo` |
+| **7. More brokers** | Configuration for EMQX; until 08 Oct also HiveMQ (with lab extension) and Bevywise, dropped on 12 Oct (git history). Pro Mosquitto by Cedalo prepared, on hold since 17 Nov (no longer on the web pages). | `make acceptance BROKER=emqx` or `BROKER=cedalo` |
 | **8. Comparison** | Select two profiles, results side by side, effort classes per requirement. | `make compare A=… B=…` |
 | **9. Wire contract v1.3** (08 Oct) | Topics `enetec/v1/{clientId}/state\|cmd`, Client ID as a pseudonym of the serial (ENTC-47; algorithm still open, a placeholder in the lab), registry certificate → serial → Client ID. The earlier layout remains as a compatibility profile. | `make acceptance` (v13), `WIRE=lab-eicp` |
 | **10. Open cases from the Current State** (08 Oct) | Binary transport, Last Will (also to foreign topics), Message Expiry, payload sizes, broker restart, revocation and ACL withdrawal on an active connection. The last three need an action on the broker in the middle of the run (hooks). Plus the weighted decision matrix. | R18–R24, `make decide` |
@@ -247,7 +247,8 @@ Open `web/baukasten/index.html` directly in a browser (no server, no Docker). Th
 - **Packet monitor:** below the cabinet the MQTT packets of the flow run along (simulated; the verdict
   comes from the lab run).
 - **Learning path:** seven guided steps with progress.
-- **Desk:** broker comparison per requirement, generated ACLs, glossary.
+- **Desk:** broker comparison per requirement, generated ACLs.
+- **Glossary:** its own menu item at the top (also via `#glossar`). Grouped by topic, with search and topic filter; every term with the technical term in brackets, e.g. "Switch (ACL check)".
 - **Export:** the layout becomes `sim/config.local.toml`. `make fleet` then creates exactly these
   gateways, with serial numbers, Client IDs and links as in the Baukasten. The file supplements
   `sim/config.toml` and is not checked in; back to the lab fleet with
@@ -290,7 +291,7 @@ Existing profiles and guides: [`brokers/emqx/`](../brokers/emqx/README.md),
 | EMQX 5.8.6 + registry (lab prototype, [`brokers/emqx-registry/`](../brokers/emqx-registry/README.md)) | **34 PASS, accepted** | as EMQX | PASS in 2 of 3 runs (once the last batch arrived late) |
 | EMQX 5.8.6 (candidate, leading) | **31 PASS**, 3 FAIL (ID-01, ID-03, DUP-01) | RST-01 PASS (durable sessions), EXP-01 FAIL, ACL-14 PARTIAL, MTLS-07/-08, REV-01, LEG-01 FAIL | PASS, 10/10 checks |
 | Mosquitto 2.1.2 (lab reference, basis of Pro Mosquitto) | 25 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL | RST-01 PASS, EXP-01 PASS, ACL-14 PASS, MTLS-08, REV-01, LEG-01 FAIL | PASS, 10/10 checks |
-| Pro Mosquitto (Cedalo, candidate) | profile and configuration prepared, no run yet (licence needed) | – | – |
+| Pro Mosquitto (Cedalo) | on hold since 17 Nov, currently not relevant; profile stays prepared, no run | – | – |
 
 Reports: [`2026-10-13-emqx-5.8.6-v13.md`](mqtt-tests/reference/2026-10-13-emqx-5.8.6-v13.md),
 [`2026-10-13-mosquitto-2.1.2-v13.md`](mqtt-tests/reference/2026-10-13-mosquitto-2.1.2-v13.md); Mosquitto 2.0.18 gave the same result in every
@@ -303,7 +304,7 @@ this is not a load test, but it shows the cost of storing on disk.
 **Profile lab-eicp (until 2026-10-01, historical):** Mosquitto 23 PASS / 2 FAIL / 6 PARTIAL,
 EMQX 29/31 (Client ID binding, duplicate Client ID).
 
-**Cedalo according to the vendor** (researched on 12 Oct, not checked in the lab; sources in
+**Cedalo according to the vendor** (on hold since 17 Nov; researched on 12 Oct, not checked in the lab; sources in
 [`brokers/cedalo/README.md`](../brokers/cedalo/README.md)): native Google Pub/Sub bridge, HA cluster from
 3 nodes, certificate management with revocation and disconnecting clients in the Management Center,
 persistent queueing, audit trail. Nothing found on Client ID binding (R06), takeover protection (R11)
@@ -365,7 +366,7 @@ Reports: `docs/mqtt-tests/reference/`. Legacy analysis: [`mqtt-tests/legacy-cert
 **Next steps:**
 1. Turn the registry prototype for EMQX ([`brokers/emqx-registry/`](../brokers/emqx-registry/README.md)) into a real, redundant component (registry from ENTC-47) and agree with ENETEC on the behaviour after a silent link loss (R11 blocks reconnects until the keep-alive expires).
 1. Decide the EMQX trade-off R20 (Message Expiry) versus R22 (restart), or measure again with a newer EMQX version.
-2. Pro Mosquitto: request the 30-day trial, run `make acceptance BROKER=cedalo`, ask Cedalo about the open points (R06, R11, R16, Pub/Sub bridge, on-premises price) ([`brokers/cedalo/README.md`](../brokers/cedalo/README.md)).
+2. ~~Pro Mosquitto: request the 30-day trial, run `make acceptance BROKER=cedalo`, ask Cedalo about the open points (R06, R11, R16, Pub/Sub bridge, on-premises price)~~ (on hold since 17 Nov, [`brokers/cedalo/README.md`](../brokers/cedalo/README.md)).
 3. Agree the weights in `sim/decision.toml` with SOLHEA/ENETEC and fill in the hand scores with sources.
 4. Load test for the 15,000 connections and Pub/Sub integration, reported separately from functional acceptance.
 5. Adopt the Client ID derivation algorithm (ENTC-47) and the packet limit (ENTC-61) once decided.

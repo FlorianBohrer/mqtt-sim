@@ -77,7 +77,8 @@ die bei Keep Alive und Session Expiry vorspringt. Die IP-Adressen sind Beispielw
   keine Nachrichteninhalte.
 - PUBACK bedeutet „übernommen“, nicht „zugestellt“; Zeuge ist der Empfänger.
 - Doppelte Client-ID (R11) und Keep-Alive-Erkennung bei Netzverlust sind neu dabei.
-- Pro Mosquitto wird nicht als gemessen dargestellt; es gibt noch keinen Lauf.
+- Pro Mosquitto (Cedalo) ist seit 17.11. zurückgestellt und kommt auf den Seiten nicht mehr vor.
+- Bildbegriffe tragen den Fachbegriff in Klammern, z. B. „Die Weiche (ACL)“, „Ausweiskontrolle (mTLS)“, „Rechteliste (ACL)“.
 
 ## 4. Aufbau der Seite
 

@@ -38,7 +38,7 @@ async function clean(page, label) {
     check(gws === 12, `${lang}: lab fleet has 12 gateways (got ${gws})`);
 
     // Jede Aktion eines normalen Gateways bei jedem Broker
-    for (const broker of ["mosquitto-lab", "emqx", "emqx-registry", "cedalo"]) {
+    for (const broker of ["mosquitto-lab", "emqx", "emqx-registry"]) {
       await page.click(`#broker-switch [data-switch-broker="${broker}"]`); await idle(page);
       await page.click('[data-gw="gw-sim-000001"]');
       const ids = await page.$$eval('#inspect [data-action]:not([disabled])', e => e.map(b => b.dataset.action));
@@ -48,8 +48,7 @@ async function clean(page, label) {
         const proto = await page.$eval("#protocol", e => e.innerText);
         const rows = await page.$$eval("#monitor li .lvl", e => e.length);
         check(rows >= 1 && /\S/.test(proto), `${lang}/${broker}/${id}: flow shown`);
-        if (broker === "cedalo") check(/nicht gemessen|not measured|kein Lauf|no run/i.test(proto), `${lang}/cedalo/${id}: shown as not measured`);
-        else check(await page.$(".stamp") !== null, `${lang}/${broker}/${id}: verdict stamp`);
+        check(await page.$(".stamp") !== null, `${lang}/${broker}/${id}: verdict stamp`);
         // Kein Symbolzeichen-Rest im Ablauf
         check(!/[✓✕]/.test(proto + await page.$eval("#monitor", e => e.innerText)), `${lang}/${broker}/${id}: no ✓/✕ glyphs`);
       }
@@ -71,13 +70,35 @@ async function clean(page, label) {
     const prog = await page.$eval("#lesson-progress", e => e.innerText);
     check(/7 (von|of) 7/.test(prog), `${lang}: all lessons done (${prog.trim()})`);
     // Pult-Reiter
-    for (const tab of ["vergleich", "konfiguration", "export", "glossar"]) {
+    for (const tab of ["vergleich", "konfiguration", "export"]) {
       await page.click(`#tabs [data-tab="${tab}"]`);
       check((await page.$eval("#tabpanel", e => e.innerText.length)) > 200, `${lang}: tab ${tab} has content`);
     }
     await page.click('#tabs [data-tab="vergleich"]');
     await page.click('table.cmp [data-cmp^="R06|"]');
     check(/ID-01/.test(await page.$eval("#tabpanel", e => e.innerText)), `${lang}: compare detail lists ID-01`);
+    // Glossar: eigener Menüpunkt, Gruppen, Suche, Themen-Filter
+    check(await page.$('#tabs [data-tab="glossar"]') === null, `${lang}: glossary is no longer a desk tab`);
+    await page.click("#btn-gloss");
+    check(await page.$eval("#gloss-dlg", d => d.open), `${lang}: glossary opens from the menu`);
+    const total = await page.evaluate(() => GLOSS.length);
+    check(await page.$$eval("#gloss-body dt", e => e.length) === total, `${lang}: all ${total} terms listed`);
+    check(await page.$$eval("#gloss-chips .chip", e => e.length) === 1 + await page.evaluate(() => Object.keys(GLOSS_GROUPS).length), `${lang}: one chip per group plus "all"`);
+    check(await page.$$eval("#gloss-body dt", e => e.every(d => /\(.+\)/.test(d.textContent))), `${lang}: every term carries its technical term in brackets`);
+    check(await page.$$eval("#gloss-body .new-tag", e => e.length) === 4, `${lang}: four glossary entries tagged new`);
+    await page.fill("#gloss-q", "ACL");
+    const acl = await page.$$eval("#gloss-body dt", e => e.map(d => d.textContent));
+    check(acl.length >= 2 && acl.length < total && await page.$$eval("#gloss-body mark", e => e.length) >= 2, `${lang}: search ACL narrows and highlights (${acl.length})`);
+    await page.fill("#gloss-q", "");
+    await page.click('#gloss-chips [data-gloss-group="pages"]');
+    const pages = await page.$$eval("#gloss-body .gloss-group", e => e.length);
+    check(pages === 1 && /Weiche|Switch/.test(await page.$eval("#gloss-body", e => e.innerText)), `${lang}: group filter shows only pictures and controls`);
+    await page.keyboard.press("Escape");
+    check(!(await page.$eval("#gloss-dlg", d => d.open)), `${lang}: Escape closes the glossary`);
+    await page.goto(`${PAGE}?lang=${lang}#glossar`);
+    check(await page.$eval("#gloss-dlg", d => d.open), `${lang}: #glossar opens the glossary`);
+    await page.keyboard.press("Escape");
+    check(!/cedalo|Pro Mosquitto/i.test(await page.evaluate(() => document.body.innerText + JSON.stringify(DATA.brokers))), `${lang}: Cedalo is not on the page`);
     // Topic-Schema umschalten
     await page.click('[data-wire="lab-eicp"]');
     check(/lab-eicp/.test(await page.$eval("#plate", e => e.innerText)), `${lang}: wire profile switches`);
@@ -124,7 +145,6 @@ async function clean(page, label) {
     check(scns.length === 9, `${lang}/system_sim: 9 scenarios (${scns.length})`);
     await page.click('[data-gw="gw-sim-000001"]');
     check(await page.$$eval("#inspect .agroup .new-tag", e => e.length) === 1, `${lang}: only the v1.3 command group is tagged new`);
-    check(await page.evaluate(() => (renderGlossary().match(/class="new-tag"/g) || []).length) === 3, `${lang}: three glossary entries tagged new`);
     for (const [id, outcome, disposition] of scns) {
       await page.click(`#inspect [data-action="${id}"]`); await idle(page);
       const proto = await page.$eval("#protocol", e => e.innerText);

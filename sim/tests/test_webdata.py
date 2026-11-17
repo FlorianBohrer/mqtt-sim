@@ -46,8 +46,8 @@ class PageDataTest(unittest.TestCase):
         runs = {(r['broker'], r['wire']): r for r in data['runs']}
         self.assertEqual(runs[('mosquitto-lab', 'v13')]['counts'], {'PASS': 25, 'FAIL': 3, 'PARTIAL': 6, 'INCONCLUSIVE': 0})
         self.assertFalse(runs[('mosquitto-lab', 'v13')]['accepted'])
-        self.assertEqual({b['key'] for b in data['brokers']}, {'mosquitto-lab', 'emqx', 'emqx-registry', 'cedalo'})
-        self.assertFalse(any(r['broker'] == 'cedalo' for r in data['runs']), 'Cedalo has no lab run yet')
+        # Pro Mosquitto (Cedalo) is on hold since 2026-11-17 and not on the page.
+        self.assertEqual({b['key'] for b in data['brokers']}, {'mosquitto-lab', 'emqx', 'emqx-registry'})
         self.assertEqual(runs[('emqx', 'lab-eicp')]['counts']['PASS'], 29)
         # v1.3 runs of 2026-10-13 (Docker lab): RST-01 opens the session like a gateway (Clean Start = false)
         self.assertEqual(runs[('emqx', 'v13')]['counts'], {'PASS': 31, 'FAIL': 3, 'PARTIAL': 0, 'INCONCLUSIVE': 0})

@@ -2,7 +2,7 @@
 <html lang="de">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-nywcLgcoqTUSy4iUpzO2FsBnLIcnrY+QKFKqb02Eo8g='; style-src 'unsafe-inline'; font-src data:; img-src data:; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-WFIiKgIyvi6I3j7rYEw7YZNrJ0WPsKFG8Yym0RxDkmY='; style-src 'unsafe-inline'; font-src data:; img-src data:; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="referrer" content="no-referrer">
 <title>ENETEC MQTT-Kreislauf</title>
 <meta name="description" content="Interaktive Erklärung der ENETEC MQTT-Strecke: Stationen anklicken, selbst Nachrichten durch die Anlage schicken, Deutsch und Englisch.">
@@ -341,8 +341,8 @@ footer { font-size: 14px; color: var(--muted); max-width: 90ch; }
     "id": "parts", "view": "lineup", "focus": [],
     "chapter": { "de": "Die Bauteile", "en": "The parts" },
     "text": {
-      "de": "Hier einmal die Technik erklärt. Für unser System brauchen wir Gateways in den Anlagen, jedes mit eigenem Zertifikat, einen Eingang mit Ausweiskontrolle, einen Broker, eine Rechteliste, einen Session-Speicher, ein Audit-Log und am Ende die Cloud mit Ingest und Command.",
-      "en": "Here's the technology explained. For our system we need gateways in the installations, each with its own certificate, an entrance with an ID check, a broker, a permission list, a session store, an audit log and, at the end, the cloud with Ingest and Command."
+      "de": "Hier einmal die Technik erklärt. Für unser System brauchen wir Gateways in den Anlagen, jedes mit eigenem Zertifikat, einen Eingang (Port 8883) mit Ausweiskontrolle (mTLS), einen Broker, eine Rechteliste (ACL), einen Session-Speicher (persistente Session), ein Audit-Log und am Ende die Cloud mit Ingest und Command.",
+      "en": "Here's the technology explained. For our system we need gateways in the installations, each with its own certificate, an entrance (port 8883) with an ID check (mTLS), a broker, a permission list (ACL), a session store (persistent session), an audit log and, at the end, the cloud with Ingest and Command."
     }
   },
   {
@@ -355,7 +355,7 @@ footer { font-size: 14px; color: var(--muted); max-width: 90ch; }
   },
   {
     "id": "heart", "view": "plant", "focus": ["broker"],
-    "chapter": { "de": "Das Herz", "en": "The heart" },
+    "chapter": { "de": "Das Herz (Broker)", "en": "The heart (broker)" },
     "text": {
       "de": "Im Mittelpunkt steht der Broker, quasi das Herz der Anlage. Jede Nachricht läuft durch ihn hindurch, vom Gerät in die Cloud und von der Cloud zurück zum Gerät. Anders als eine Pumpe treibt er aber nichts an: Senden tun die Gateways und die Cloud, der Broker nimmt an, prüft und verteilt.",
       "en": "At the centre of it all is the broker, the heart of the system, so to speak. Every message passes through it, from the device to the cloud and from the cloud back to the device. Unlike a pump, though, it drives nothing: the gateways and the cloud do the sending, the broker accepts, checks and distributes."
@@ -365,8 +365,8 @@ footer { font-size: 14px; color: var(--muted); max-width: 90ch; }
     "id": "gateways", "view": "plant", "focus": ["gw1", "gw2", "gw3", "gw4", "manifold"],
     "chapter": { "de": "Die Gateways", "en": "The gateways" },
     "text": {
-      "de": "Auf der einen Seite sitzen die Gateways in den Anlagen. Jedes hält eine verschlüsselte Verbindung zum Broker, auf Port 8883. Darüber schickt es die Zustände seiner Geräte los, im Lab rund 250 Nachrichten am Tag, mit QoS 1. Über dieselbe Verbindung kommen auch die Commands zurück.",
-      "en": "On one side sit the gateways in the installations. Each one keeps an encrypted connection to the broker, on port 8883. Over it, it sends off the state of its devices, about 250 messages a day in the lab, with QoS 1. The commands come back over the same connection."
+      "de": "Auf der einen Seite sitzen die Gateways in den Anlagen. Jedes hält eine verschlüsselte Verbindung zum Broker, auf Port 8883. Darüber schickt es die Zustände seiner Geräte (state) los, im Lab rund 250 Nachrichten am Tag, mit QoS 1. Über dieselbe Verbindung kommen auch die Commands (cmd) zurück.",
+      "en": "On one side sit the gateways in the installations. Each one keeps an encrypted connection to the broker, on port 8883. Over it, it sends off the state of its devices (state), about 250 messages a day in the lab, with QoS 1. The commands (cmd) come back over the same connection."
     }
   },
   {
@@ -379,54 +379,54 @@ footer { font-size: 14px; color: var(--muted); max-width: 90ch; }
   },
   {
     "id": "idcheck", "view": "plant", "focus": ["filter"],
-    "chapter": { "de": "Die Ausweiskontrolle", "en": "The ID check" },
+    "chapter": { "de": "Die Ausweiskontrolle (mTLS)", "en": "The ID check (mTLS)" },
     "text": {
-      "de": "Als Erstes zeigen sich beide Seiten ihren Ausweis: Der Broker prüft das Zertifikat des Gateways gegen die eigene Zertifizierungsstelle, das Gateway umgekehrt das des Brokers. Wie ein Filter hält diese Kontrolle alles zurück, was nicht dazugehört: kein Zertifikat, eine fremde CA, abgelaufen oder, mit Sperrliste, widerrufen. Das passiert einmal beim Verbindungsaufbau, danach läuft alles verschlüsselt durch denselben Eingang. Im zweiten Schritt prüft der Broker, ob die Client-ID zum Zertifikat gehört.",
-      "en": "First, both sides show their ID: the broker checks the gateway's certificate against its own certificate authority, and the gateway checks the broker's. Like a filter, this check holds back everything that doesn't belong: no certificate, a foreign CA, expired or, with a revocation list, revoked. This happens once, when the connection is set up; after that everything flows encrypted through the same entrance. In a second step the broker checks whether the client ID belongs to the certificate."
+      "de": "Als Erstes zeigen sich beide Seiten ihren Ausweis (X.509-Zertifikat): Der Broker prüft das Zertifikat des Gateways gegen die eigene Zertifizierungsstelle (CA), das Gateway umgekehrt das des Brokers. Wie ein Filter hält diese Kontrolle alles zurück, was nicht dazugehört: kein Zertifikat, eine fremde CA, abgelaufen oder, mit Sperrliste (CRL), widerrufen. Das passiert einmal beim Verbindungsaufbau (TLS-Handshake), danach läuft alles verschlüsselt durch denselben Eingang. Im zweiten Schritt prüft der Broker, ob die Client-ID zum Zertifikat gehört.",
+      "en": "First, both sides show their ID (X.509 certificate): the broker checks the gateway's certificate against its own certificate authority (CA), and the gateway checks the broker's. Like a filter, this check holds back everything that doesn't belong: no certificate, a foreign CA, expired or, with a revocation list (CRL), revoked. This happens once, when the connection is set up (TLS handshake); after that everything flows encrypted through the same entrance. In a second step the broker checks whether the client ID belongs to the certificate."
     }
   },
   {
     "id": "switch", "view": "plant", "focus": ["valve"],
-    "chapter": { "de": "Die Weiche", "en": "The switch" },
+    "chapter": { "de": "Die Weiche (ACL)", "en": "The switch (ACL)" },
     "text": {
-      "de": "Danach kommt die Rechteliste. Die könnt ihr euch wie eine Weiche vorstellen: Bei jedem PUBLISH und jedem SUBSCRIBE schaut der Broker nach, ob das erlaubt ist, und schickt die Nachricht nur in die Richtung, wo sie hindarf. Ein Gateway schreibt nur in sein eigenes state und liest nur sein eigenes cmd, alles andere bleibt zu. Gesteuert wird die Weiche von außen, über die Rechteliste, die make fleet erzeugt.",
-      "en": "After that comes the permission list. Think of it as a switch: on every PUBLISH and every SUBSCRIBE the broker looks up whether it is allowed, and sends the message only in the direction where it may go. A gateway only writes to its own state and only reads its own cmd, everything else stays closed. The switch is controlled from outside, through the permission list that make fleet generates."
+      "de": "Danach kommt die Rechteliste (ACL). Die könnt ihr euch wie eine Weiche vorstellen: Bei jedem PUBLISH und jedem SUBSCRIBE schaut der Broker nach, ob das erlaubt ist, und schickt die Nachricht nur in die Richtung, wo sie hindarf. Ein Gateway schreibt nur in sein eigenes state und liest nur sein eigenes cmd, alles andere bleibt zu. Gesteuert wird die Weiche von außen, über die Rechteliste (acl_file), die make fleet erzeugt.",
+      "en": "After that comes the permission list (ACL). Think of it as a switch: on every PUBLISH and every SUBSCRIBE the broker looks up whether it is allowed, and sends the message only in the direction where it may go. A gateway only writes to its own state and only reads its own cmd, everything else stays closed. The switch is controlled from outside, through the permission list (acl_file) that make fleet generates."
     }
   },
   {
     "id": "bypass", "view": "plant", "focus": ["session"],
-    "chapter": { "de": "Die Abzweigung", "en": "The bypass" },
+    "chapter": { "de": "Die Abzweigung (Session)", "en": "The bypass (session)" },
     "text": {
-      "de": "Neben der Weiche hat der Broker für jedes Gateway einen Session-Speicher, quasi eine Abzweigung, einen Bypass. Ist ein Gateway gerade offline, parkt der Broker die Commands für es dort. Kommt es mit Clean Start = false zurück, werden sie zugestellt. Mit Clean Start = true ist die alte Session weg und die Commands mit ihr. Wie lange der Broker eine Session aufhebt, ist noch offen, in der Simulation eine Stunde.",
-      "en": "Next to the switch, the broker keeps a session store for every gateway, a branch, a bypass, so to speak. If a gateway is offline right now, the broker parks its commands there. When it comes back with Clean Start = false, they are delivered. With Clean Start = true the old session is gone, and the commands with it. How long the broker keeps a session is still open; the simulation uses one hour."
+      "de": "Neben der Weiche hat der Broker für jedes Gateway einen Session-Speicher (persistente Session), quasi eine Abzweigung, einen Bypass. Ist ein Gateway gerade offline, parkt der Broker die Commands für es dort. Kommt es mit Clean Start = false zurück, werden sie zugestellt. Mit Clean Start = true ist die alte Session weg und die Commands mit ihr. Wie lange der Broker eine Session aufhebt (Session Expiry), ist noch offen, in der Simulation eine Stunde.",
+      "en": "Next to the switch, the broker keeps a session store (persistent session) for every gateway, a branch, a bypass, so to speak. If a gateway is offline right now, the broker parks its commands there. When it comes back with Clean Start = false, they are delivered. With Clean Start = true the old session is gone, and the commands with it. How long the broker keeps a session (session expiry) is still open; the simulation uses one hour."
     }
   },
   {
     "id": "measure", "view": "plant", "focus": ["audit"],
-    "chapter": { "de": "Die Messstation", "en": "The measuring station" },
+    "chapter": { "de": "Die Messstation (Audit-Log)", "en": "The measuring station (audit log)" },
     "text": {
-      "de": "Dabei schreibt der Broker dauerhaft mit: Das Audit-Log hält fest, wer sich verbindet, wer abgewiesen wird und welche Zugriffe die Rechteliste verweigert. Was in den Nachrichten steht, landet dort nicht. Im Lab misst der Harness zusätzlich, ob eine Nachricht wirklich ankommt: Es zählt der Zeuge, nicht die Quittung.",
-      "en": "Meanwhile the broker keeps a record: the audit log notes who connects, who gets turned away and which access the permission list denies. The content of the messages does not end up there. In the lab, the harness also measures whether a message really arrives: what counts is the witness, not the receipt."
+      "de": "Dabei schreibt der Broker dauerhaft mit: Das Audit-Log hält fest, wer sich verbindet, wer abgewiesen wird und welche Zugriffe die Rechteliste verweigert. Was in den Nachrichten steht, landet dort nicht. Im Lab misst der Harness (Testprogramm) zusätzlich, ob eine Nachricht wirklich ankommt: Es zählt der Zeuge (berechtigter Empfänger), nicht die Quittung (PUBACK).",
+      "en": "Meanwhile the broker keeps a record: the audit log notes who connects, who gets turned away and which access the permission list denies. The content of the messages does not end up there. In the lab, the harness (test program) also measures whether a message really arrives: what counts is the witness (an authorised receiver), not the receipt (PUBACK)."
     }
   },
   {
     "id": "cloud", "view": "plant", "focus": ["ingest"],
     "chapter": { "de": "Die Cloud", "en": "The cloud" },
     "text": {
-      "de": "Am Ende fließen die Zustände zum Cloud-Ingest. Er hat alle state-Topics abonniert und steht im Lab für die spätere Brücke nach Google Pub/Sub, wo die Daten weiterverarbeitet werden.",
-      "en": "In the end, the state messages flow to Cloud Ingest. It has subscribed to all state topics and in the lab stands for the later bridge to Google Pub/Sub, where the data gets processed further."
+      "de": "Am Ende fließen die Zustände zum Cloud-Ingest. Er hat alle state-Topics abonniert (enetec/v1/+/state) und steht im Lab für die spätere Brücke nach Google Pub/Sub, wo die Daten weiterverarbeitet werden.",
+      "en": "In the end, the state messages flow to Cloud Ingest. It has subscribed to all state topics (enetec/v1/+/state) and in the lab stands for the later bridge to Google Pub/Sub, where the data gets processed further."
     }
   },
   {
     "id": "return", "view": "plant", "focus": ["command"],
-    "chapter": { "de": "Der Rückweg", "en": "The way back" },
+    "chapter": { "de": "Der Rückweg (cmd)", "en": "The way back (cmd)" },
     "new": {
-      "de": "Das Gateway antwortet über sein state mit derselben Command-Nummer, quasi der Quittung. Erst damit ist das Command in der Cloud angewendet, der PUBACK hieß nur: übernommen.",
-      "en": "The gateway replies on its state with the same command number, a receipt so to speak. Only then is the command applied in the cloud; the PUBACK only meant: taken over."
+      "de": "Das Gateway antwortet über sein state mit derselben Command-Nummer (origin_command_id), quasi der Quittung. Erst damit ist das Command in der Cloud angewendet (APPLIED), der PUBACK hieß nur: übernommen.",
+      "en": "The gateway replies on its state with the same command number (origin_command_id), a receipt so to speak. Only then is the command applied in the cloud (APPLIED); the PUBACK only meant: taken over."
     },
     "text": {
-      "de": "Den Rückweg nehmen die Commands: Cloud-Command schreibt in das cmd-Topic eines Gateways, die Weiche prüft, und der Broker stellt genau diesem einen Gateway zu, oder parkt das Command in dessen Session, wenn es offline ist. Das Gateway antwortet über sein state mit derselben Command-Nummer, quasi der Quittung. Erst damit ist das Command in der Cloud angewendet, der PUBACK hieß nur: übernommen. Und der Kreislauf beginnt von vorn.",
-      "en": "The commands take the way back: Cloud Command writes to one gateway's cmd topic, the switch checks it, and the broker delivers it to exactly that one gateway, or parks the command in its session if it is offline. The gateway replies on its state with the same command number, a receipt so to speak. Only then is the command applied in the cloud; the PUBACK only meant: taken over. And the circuit starts all over again."
+      "de": "Den Rückweg nehmen die Commands: Cloud-Command schreibt in das cmd-Topic eines Gateways, die Weiche (ACL) prüft, und der Broker stellt genau diesem einen Gateway zu, oder parkt das Command in dessen Session, wenn es offline ist. Das Gateway antwortet über sein state mit derselben Command-Nummer (origin_command_id), quasi der Quittung. Erst damit ist das Command in der Cloud angewendet (APPLIED), der PUBACK hieß nur: übernommen. Und der Kreislauf beginnt von vorn.",
+      "en": "The commands take the way back: Cloud Command writes to one gateway's cmd topic, the switch (ACL) checks it, and the broker delivers it to exactly that one gateway, or parks the command in its session if it is offline. The gateway replies on its state with the same command number (origin_command_id), a receipt so to speak. Only then is the command applied in the cloud (APPLIED); the PUBACK only meant: taken over. And the circuit starts all over again."
     }
   },
   {
@@ -437,8 +437,8 @@ footer { font-size: 14px; color: var(--muted); max-width: 90ch; }
       "en": "The kit also plays the whole temperature command, from Firestore to APPLIED, the way the system simulator handles it."
     },
     "text": {
-      "de": "Was ihr hier seht, ist das Soll: So verlangen es die ENETEC-Anforderungen. Welcher Broker welchen Teil davon wirklich schafft, misst das Lab. Mosquitto und EMQX könnt ihr im Baukasten mit den echten Ergebnissen ausprobieren, Pro Mosquitto kommt nach dem ersten Lauf dazu. Dort läuft auch der ganze Temperatur-Command, von Firestore bis APPLIED, so wie ihn der System-Simulator abwickelt.",
-      "en": "What you see here is the target: this is what the ENETEC requirements demand. Which broker actually manages which part is what the lab measures. You can try Mosquitto and EMQX with the real results in the building kit; Pro Mosquitto joins after its first run. The kit also plays the whole temperature command, from Firestore to APPLIED, the way the system simulator handles it."
+      "de": "Was ihr hier seht, ist das Soll: So verlangen es die ENETEC-Anforderungen. Welcher Broker welchen Teil davon wirklich schafft, misst das Lab. Mosquitto und EMQX könnt ihr im Baukasten mit den echten Ergebnissen ausprobieren. Dort läuft auch der ganze Temperatur-Command, von Firestore bis APPLIED, so wie ihn der System-Simulator abwickelt.",
+      "en": "What you see here is the target: this is what the ENETEC requirements demand. Which broker actually manages which part is what the lab measures. You can try Mosquitto and EMQX with the real results in the building kit. The kit also plays the whole temperature command, from Firestore to APPLIED, the way the system simulator handles it."
     }
   }
 ]
@@ -625,7 +625,7 @@ function valve(note) {
     <rect class="screen" x="-14" y="-88" width="28" height="34" rx="3"/>
     <text class="screen-txt sm" x="0" y="-66" text-anchor="middle">ACL</text>
     <circle class="fitting" cx="25" cy="-82" r="4"/><circle class="fitting" cx="25" cy="-60" r="4"/>
-    ${note ? `<text class="note-txt" x="150" y="-130" text-anchor="middle">${esc(L("Rechteliste", "Permission list"))}</text>
+    ${note ? `<text class="note-txt" x="150" y="-130" text-anchor="middle">${esc(L("Rechteliste (ACL)", "Permission list (ACL)"))}</text>
     <text class="svg-sub" x="150" y="-104" text-anchor="middle">make fleet</text>
     <path class="note-arrow" d="M150,-94 C150,-68 100,-68 44,-70"/>
     <polygon class="note-head" points="30,-70 46,-79 46,-61"/>` : ""}`;
@@ -663,17 +663,17 @@ const tabText = (x, text, icon) => `${icon ? `<path class="tab-ic" d="M${x + 22}
 function lineupMarkup() {
   const items = [
     { draw: () => gateway(true), x: 130, s: 1.5, label: ["Gateway", "Gateway"], go: "gateways" },
-    { draw: () => filter(true), x: 340, s: 1.05, label: ["Ausweiskontrolle", "ID check"], go: "idcheck" },
+    { draw: () => filter(true), x: 340, s: 1.05, label: ["Ausweiskontrolle", "ID check"], tech: ["mTLS", "mTLS"], go: "idcheck" },
     { draw: () => pump(true), x: 575, s: 0.95, dx: -31, label: ["Broker", "Broker"], go: "heart" },
-    { draw: () => valve(false), x: 815, s: 1.25, label: ["Rechteliste", "Permission list"], go: "switch" },
-    { draw: () => session(true), x: 1025, s: 1.15, label: ["Session-Speicher", "Session store"], go: "bypass" },
+    { draw: () => valve(false), x: 815, s: 1.25, label: ["Rechteliste", "Permission list"], tech: ["ACL", "ACL"], go: "switch" },
+    { draw: () => session(true), x: 1025, s: 1.15, label: ["Session-Speicher", "Session store"], tech: ["persistente Session", "persistent session"], go: "bypass" },
     { draw: () => audit(true), x: 1240, s: 0.95, label: ["Audit-Log", "Audit log"], go: "measure" },
     { draw: () => cloud("plain", true), x: 1460, s: 1.0, label: ["Cloud", "Cloud"], go: "cloud" }
   ];
   return items.map((it, i) => `<g class="li" style="--i:${i}" data-go="${it.go}">
       <rect class="hitbox" x="${it.x - 100}" y="280" width="200" height="330"/>
       <g transform="translate(${(it.x + (it.dx || 0) * it.s).toFixed(1)} 430) scale(${it.s})">${it.draw()}</g>
-      <text class="li-lbl" x="${it.x}" y="590" text-anchor="middle">${esc(tx(it.label))}</text>
+      <text class="li-lbl" x="${it.x}" y="590" text-anchor="middle">${esc(tx(it.label))}</text>${it.tech ? `<text class="svg-sub" x="${it.x}" y="620" text-anchor="middle">(${esc(tx(it.tech))})</text>` : ""}
     </g>`).join("");
 }
 
@@ -696,11 +696,11 @@ function plantMarkup() {
     <g id="water"></g>
     <g class="part" data-id="manifold" data-go="gateways">${collars}<text class="svg-sub" x="470" y="752" text-anchor="middle">${esc(L("Eingang, Port 8883", "Entrance, port 8883"))}</text></g>
     ${gateways}
-    <g class="part" data-id="filter" data-go="idcheck"><g transform="translate(600 520)">${filter(false)}</g><text class="svg-lbl" x="600" y="424" text-anchor="middle">${esc(L("Ausweiskontrolle", "ID check"))}</text></g>
+    <g class="part" data-id="filter" data-go="idcheck"><g transform="translate(600 520)">${filter(false)}</g><text class="svg-lbl" x="600" y="424" text-anchor="middle">${esc(L("Ausweiskontrolle (mTLS)", "ID check (mTLS)"))}</text></g>
     <g class="part" data-id="audit" data-go="measure"><path class="cable" d="M800,586 L800,628"/><g transform="translate(800 690)">${audit(false)}</g><text class="svg-lbl" x="900" y="698">${esc(L("Audit-Log", "Audit log"))}</text></g>
     <g class="part" data-id="broker" data-go="heart"><g transform="translate(790 520)">${pump(false)}</g></g>
     <g class="part" data-id="valve" data-go="switch"><g transform="translate(1000 380)">${valve(true)}</g></g>
-    <g class="part" data-id="session" data-go="bypass"><g transform="translate(875 250)">${session(false, true)}</g><text class="svg-lbl" x="875" y="198" text-anchor="middle">${esc(L("Session-Speicher", "Session store"))}</text></g>
+    <g class="part" data-id="session" data-go="bypass"><g transform="translate(875 250)">${session(false, true)}</g><text class="svg-lbl" x="875" y="198" text-anchor="middle">${esc(L("Session-Speicher (persistente Session)", "Session store (persistent session)"))}</text></g>
     <g class="part" data-id="ingest" data-go="cloud">
       <rect class="dashed-box" x="1346" y="180" width="188" height="42" rx="10"/>
       <text class="svg-sub" x="1440" y="207" text-anchor="middle">${"GCP Pub/Sub"}</text>
@@ -909,7 +909,7 @@ async function publish(i, kind) {
   await fly(gwToValve(i), "PUBLISH", "state");
   step("info", `PUBLISH ${topic}, QoS 1.`, `PUBLISH ${topic}, QoS 1.`);
   if (kind === "own_state") {
-    step("ok", `Rechteliste: „topic write ${topic}“ passt, erlaubt.`, `Permission list: "topic write ${topic}" matches, allowed.`, "R08");
+    step("ok", `Rechteliste (ACL): „topic write ${topic}“ passt, erlaubt.`, `Permission list (ACL): "topic write ${topic}" matches, allowed.`, "R08");
     await Promise.all([fly(valveToGw(i), "PUBACK 0x00", "ok"), fly(ROUTE.valveToIngest, "PUBLISH", "state")]);
     sim.ingest++; renderState();
     step("ok", "PUBACK 0x00 an das Gateway: Der Broker hat die Nachricht übernommen. Zugestellt ist sie damit noch nicht.", "PUBACK 0x00 to the gateway: the broker has taken over the message. That does not mean it was delivered.", "R12");
@@ -919,8 +919,8 @@ async function publish(i, kind) {
   await burst([1000, 380], "0x87");
   await fly(valveToGw(i), "PUBACK 0x87", "fail");
   logReal(`Denied PUBLISH from ${g.cid} (d0, q1, r0, m1, '${topic}', ... (61 bytes))`);
-  step("fail", `Rechteliste: Keine Zeile für ${g.id} erlaubt dieses Topic, also verboten (deny by default). PUBACK 0x87 (Not authorized), nichts wird zugestellt.`,
-    `Permission list: no line for ${g.id} allows this topic, so it is forbidden (deny by default). PUBACK 0x87 (Not authorized), nothing is delivered.`, kind === "other_state" ? "R10" : kind === "own_cmd" ? "R08" : "R07");
+  step("fail", `Rechteliste (ACL): Keine Zeile für ${g.id} erlaubt dieses Topic, also verboten (deny by default). PUBACK 0x87 (Not authorized), nichts wird zugestellt.`,
+    `Permission list (ACL): no line for ${g.id} allows this topic, so it is forbidden (deny by default). PUBACK 0x87 (Not authorized), nothing is delivered.`, kind === "other_state" ? "R10" : kind === "own_cmd" ? "R08" : "R07");
 }
 async function subscribe(i, kind) {
   const gw = sim.gws[i], g = GW[i];
@@ -930,21 +930,21 @@ async function subscribe(i, kind) {
   step("info", `SUBSCRIBE ${filterOf}.`, `SUBSCRIBE ${filterOf}.`);
   if (kind === "own_cmd") {
     await fly(valveToGw(i), "SUBACK 0x01", "ok");
-    step("ok", `Rechteliste: „topic read ${filterOf}“ passt. SUBACK 0x01 (QoS 1 gewährt).`, `Permission list: "topic read ${filterOf}" matches. SUBACK 0x01 (QoS 1 granted).`, "R09");
+    step("ok", `Rechteliste (ACL): „topic read ${filterOf}“ passt. SUBACK 0x01 (QoS 1 gewährt).`, `Permission list (ACL): "topic read ${filterOf}" matches. SUBACK 0x01 (QoS 1 granted).`, "R09");
     return;
   }
   await burst([1000, 380], "0x87");
   await fly(valveToGw(i), "SUBACK 0x87", "fail");
   logSoll(`SUBSCRIBE ${filterOf} von ${g.cid} abgelehnt (SUBACK 0x87)`, `SUBSCRIBE ${filterOf} from ${g.cid} rejected (SUBACK 0x87)`);
-  step("fail", `Rechteliste: Lesen von ${filterOf} ist für ${g.id} nicht erlaubt. SUBACK 0x87 (Not authorized).`,
-    `Permission list: reading ${filterOf} is not allowed for ${g.id}. SUBACK 0x87 (Not authorized).`, kind === "own_state" ? "R09" : "R10");
+  step("fail", `Rechteliste (ACL): Lesen von ${filterOf} ist für ${g.id} nicht erlaubt. SUBACK 0x87 (Not authorized).`,
+    `Permission list (ACL): reading ${filterOf} is not allowed for ${g.id}. SUBACK 0x87 (Not authorized).`, kind === "own_state" ? "R09" : "R10");
   step("info", "Manche Broker bestätigen so ein Abo und liefern nur nichts aus. Das misst das Lab (ACL-08 bis ACL-12).", "Some brokers acknowledge such a subscription and simply deliver nothing. The lab measures this (ACL-08 to ACL-12).");
 }
 async function sendCmd(i) {
   const gw = sim.gws[i], g = GW[i], topic = topicOf(i, "cmd");
   await fly(ROUTE.commandToValve, "PUBLISH cmd", "cmd");
   step("info", `Cloud-Command schreibt ${topic}, QoS 1.`, `Cloud Command writes ${topic}, QoS 1.`);
-  step("ok", `Rechteliste: „user ${SVC.command} · topic write enetec/v1/+/cmd“ passt, erlaubt.`, `Permission list: "user ${SVC.command} · topic write enetec/v1/+/cmd" matches, allowed.`, "R07");
+  step("ok", `Rechteliste (ACL): „user ${SVC.command} · topic write enetec/v1/+/cmd“ passt, erlaubt.`, `Permission list (ACL): "user ${SVC.command} · topic write enetec/v1/+/cmd" matches, allowed.`, "R07");
   if (gw.online) {
     await fly(valveToGw(i), "PUBLISH cmd", "cmd");
     step("ok", `Zugestellt an genau ein Gateway: ${g.id}, das sein eigenes cmd abonniert hat. Es bestätigt mit PUBACK.`, `Delivered to exactly one gateway: ${g.id}, which has subscribed to its own cmd. It confirms with PUBACK.`, "R09");
@@ -1028,7 +1028,7 @@ function tryHtml(id) {
   const g0 = GW[0];
   switch (id) {
     case "parts":
-      return `<div class="row">${[["gateways", "Gateway", "Gateway"], ["idcheck", "Ausweiskontrolle", "ID check"], ["heart", "Broker", "Broker"], ["switch", "Rechteliste", "Permission list"], ["bypass", "Session-Speicher", "Session store"], ["measure", "Audit-Log", "Audit log"], ["cloud", "Cloud", "Cloud"]]
+      return `<div class="row">${[["gateways", "Gateway", "Gateway"], ["idcheck", "Ausweiskontrolle (mTLS)", "ID check (mTLS)"], ["heart", "Broker", "Broker"], ["switch", "Rechteliste (ACL)", "Permission list (ACL)"], ["bypass", "Session-Speicher (persistente Session)", "Session store (persistent session)"], ["measure", "Audit-Log", "Audit log"], ["cloud", "Cloud", "Cloud"]]
         .map(([st, de, en]) => `<button type="button" class="btn small" data-go="${st}">${esc(L(de, en))}</button>`).join("")}</div>
         <p class="note">${esc(L("Oder direkt im Bild auf ein Bauteil klicken.", "Or click a part in the picture."))}</p>`;
     case "idea":
@@ -1065,8 +1065,8 @@ function tryHtml(id) {
             <button type="button" class="btn small primary" data-act="idcheck">${esc(L("Verbindung aufbauen", "Open a connection"))}</button>
             ${sim.gws[0].online ? `<button type="button" class="btn small" data-act="drop:0">${esc(L("Netz weg", "link down"))}</button>` : ""}
           </div></div>
-        <p class="note">${esc(L("Probiert auch: gültiges Zertifikat und eigene Client-ID, während das Gateway schon verbunden ist. Widerruf greift nur, wenn der Broker die Sperrliste (CRL) lädt. Der Lab-Mosquitto hat keine eingerichtet, das Cedalo-Profil schon.",
-          "Also try: valid certificate and own client ID while the gateway is already connected. Revocation only works if the broker loads the revocation list (CRL). The lab Mosquitto has none configured, the Cedalo profile does."))}</p>`;
+        <p class="note">${esc(L("Probiert auch: gültiges Zertifikat und eigene Client-ID, während das Gateway schon verbunden ist. Widerruf greift nur, wenn der Broker die Sperrliste (CRL) lädt. Der Lab-Mosquitto hat keine eingerichtet.",
+          "Also try: valid certificate and own client ID while the gateway is already connected. Revocation only works if the broker loads the revocation list (CRL). The lab Mosquitto has none configured."))}</p>`;
     case "switch": {
       const topics = form.op === "pub"
         ? [["own_state", L("eigenes state", "own state")], ["own_cmd", L("eigenes cmd (falsche Richtung)", "own cmd (wrong direction)")], ["other_state", L(`state von ${GW[1].id}`, `state of ${GW[1].id}`)], ["outside", L("Topic außerhalb", "topic outside")]]
@@ -1079,7 +1079,7 @@ function tryHtml(id) {
           <div class="field"><label for="f-topic">Topic</label><select id="f-topic">${topics.map(([k, lbl]) => `<option value="${k}"${form.topic === k ? " selected" : ""}>${esc(lbl)}</option>`).join("")}</select></div>
         </div>
         <div class="row"><button type="button" class="btn primary" data-act="acl">${esc(L("Ausführen", "Run"))}</button></div>
-        <span class="note">${esc(L("Rechteliste für dieses Gateway (mosquitto/config/acl):", "Permission list for this gateway (mosquitto/config/acl):"))}</span>
+        <span class="note">${esc(L("Rechteliste (ACL) für dieses Gateway (mosquitto/config/acl):", "Permission list (ACL) for this gateway (mosquitto/config/acl):"))}</span>
         <pre class="acl">${lines.map((l, n) => `<span${n === hit ? ` class="hit"` : ""}>${esc(l)}</span>`).join("\n")}${hit < 0 ? `\n<span class="miss">${esc(L("# keine passende Zeile: verboten", "# no matching line: forbidden"))}</span>` : ""}</pre>`;
     }
     case "bypass": {
@@ -1113,7 +1113,7 @@ function tryHtml(id) {
       // Ziel und target vom Kopf-Link übernehmen (die Artefakt-Kopie ersetzt nur diesen einen Link).
       const kit = $("#to-kit");
       return `<div class="row"><a class="btn primary" id="to-kit-2" href="${esc(kit.getAttribute("href"))}"${kit.target === "_blank" ? ` target="_blank" rel="noopener noreferrer"` : ""}>${esc(L("Zum Baukasten", "To the building kit"))}</a></div>
-        <p class="note">${esc(L("Im Baukasten zeigt jede Aktion, was Mosquitto und EMQX im Lab tatsächlich gemacht haben, mit Testfall und Beobachtung. Pro Mosquitto steht dort als Kandidat, gemessen ist es noch nicht. Unter „Temperatur-Command (v1.3)“ am Gateway spielt ihr den Command mit Antwort, Ablehnung, Zeitüberschreitung und fremden oder unpassenden Antworten durch. Das ist ein lokaler Nachweis mit Firestore-Emulator und lokalem Broker; EMQX Dedicated Flex, mTLS, ACLs und echte Geräte sind damit noch nicht geprüft.", "In the building kit every action shows what Mosquitto and EMQX actually did in the lab, with test case and observation. Pro Mosquitto is listed there as a candidate, it has not been measured yet. Under \"Temperature command (v1.3)\" at the gateway you can play the command with reply, rejection, timeout and foreign or mismatched replies. That is local evidence with the Firestore emulator and a local broker; EMQX Dedicated Flex, mTLS, ACLs and real devices are not yet tested by it."))}</p>`;
+        <p class="note">${esc(L("Im Baukasten zeigt jede Aktion, was Mosquitto und EMQX im Lab tatsächlich gemacht haben, mit Testfall und Beobachtung. Unter „Temperatur-Command (v1.3)“ am Gateway spielt ihr den Command mit Antwort, Ablehnung, Zeitüberschreitung und fremden oder unpassenden Antworten durch. Das ist ein lokaler Nachweis mit Firestore-Emulator und lokalem Broker; EMQX Dedicated Flex, mTLS, ACLs und echte Geräte sind damit noch nicht geprüft.", "In the building kit every action shows what Mosquitto and EMQX actually did in the lab, with test case and observation. Under \"Temperature command (v1.3)\" at the gateway you can play the command with reply, rejection, timeout and foreign or mismatched replies. That is local evidence with the Firestore emulator and a local broker; EMQX Dedicated Flex, mTLS, ACLs and real devices are not yet tested by it."))}</p>`;
     }
   }
   return "";

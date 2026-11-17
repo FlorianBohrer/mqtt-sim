@@ -17,8 +17,8 @@
 name = "Mosquitto 2.1"
 role = "Lab-Referenz"
 role_en = "lab reference"
-note = "Open-Source-Broker der Lab-Basis. Kein Anbieter-Kandidat, aber die Grundlage von Pro Mosquitto (Cedalo): Was hier fehlt, muss Pro Mosquitto liefern."
-note_en = "Open-source broker the lab is built on. Not a vendor candidate, but the basis of Pro Mosquitto (Cedalo): whatever is missing here, Pro Mosquitto has to deliver."
+note = "Open-Source-Broker der Lab-Basis. Kein Anbieter-Kandidat, sondern der Maßstab: So verhält sich ein Broker ohne Zusatzdienste."
+note_en = "Open-source broker the lab is built on. Not a vendor candidate but the yardstick: this is how a broker behaves without extra services."
 
 [brokers.emqx]
 name = "EMQX 5.8"
@@ -34,43 +34,8 @@ role_en = "lab prototype for R06/R11"
 note = "EMQX 5.8.6 mit derselben Konfiguration wie oben, dazu ein HTTP-Authenticator: Bei jedem Verbindungsaufbau fragt EMQX einen kleinen Registry-Dienst, ob die Client-ID zum Zertifikat gehört und ob sie schon verbunden ist. Damit alle 34 Pflichtfälle. Lab-Prototyp (brokers/registry/), keine Hochverfügbarkeit, nicht für den Betrieb gebaut."
 note_en = "EMQX 5.8.6 with the same configuration as above, plus an HTTP authenticator: on every connect EMQX asks a small registry service whether the client ID belongs to the certificate and whether it is already connected. That passes all 34 mandatory cases. Lab prototype (brokers/registry/), no high availability, not built for production."
 
-[brokers.cedalo]
-name = "Pro Mosquitto (Cedalo)"
-role = "Kandidat"
-role_en = "candidate"
-note = "Kommerzielle Ausgabe von Eclipse Mosquitto (Cedalo, Freiburg). Noch kein Lab-Lauf: alle Fälle „nicht gemessen“. Profil, Konfiguration und Herstellerangaben mit Quellen: brokers/cedalo/README.md."
-note_en = "Commercial edition of Eclipse Mosquitto (Cedalo, Freiburg). No lab run yet: every case is \"not measured\". Profile, configuration and vendor information with sources: brokers/cedalo/README.md."
-
-# Herstellerangaben (recherchiert 2026-10-12, nicht im Lab geprüft). Die Seite zeigt sie getrennt
-# von den Messergebnissen, immer mit Quelle.
-[[brokers.cedalo.facts]]
-de = "Native Google-Pub/Sub-Bridge: MQTT-Topics nach Google Cloud Pub/Sub (passt zum Umzug AWS IoT → GCP)."
-en = "Native Google Pub/Sub bridge: MQTT topics to Google Cloud Pub/Sub (fits the move AWS IoT → GCP)."
-url = "https://cedalo.com/mqtt-broker-pro-mosquitto/mqtt-integrations/"
-
-[[brokers.cedalo.facts]]
-de = "HA-Cluster ab 3 Knoten: Full Sync (aktiv/passiv, Leader per RAFT) oder Dynamic-Security Sync (aktiv/aktiv); seit Plattform 3.2 High Performance Clustering (Enterprise)."
-en = "HA cluster from 3 nodes: Full Sync (active/passive, leader via RAFT) or Dynamic-Security Sync (active/active); since platform 3.2 High Performance Clustering (Enterprise)."
-url = "https://www.cedalo.com/pro-mosquitto/high-availability"
-
-[[brokers.cedalo.facts]]
-de = "Zertifikatsverwaltung im Management Center: CAs und Client-Zertifikate importieren, verteilen, widerrufen; Clients gezielt trennen."
-en = "Certificate management in the Management Center: import, deploy and revoke CAs and client certificates; disconnect individual clients."
-url = "https://www.cedalo.com/pro-mosquitto/management-center"
-
-[[brokers.cedalo.facts]]
-de = "Persistent Queueing auf Platte (übersteht Neustarts), Audit-Trail-Plugin (Verbindungen, Abos, ACL-Änderungen, syslog)."
-en = "Persistent queueing on disk (survives restarts), audit trail plugin (connections, subscriptions, ACL changes, syslog)."
-url = "https://www.cedalo.com/pro-mosquitto/broker"
-
-[[brokers.cedalo.facts]]
-de = "Test: 30 Tage On-Premises (Docker-Compose + Lizenzdatei) oder 14 Tage Cloud. Cloud-Preise S 39 €/M 89 € pro Monat bis 30/300 Clients; ~10.000 Gateways nur im Enterprise-Tarif (Preis auf Anfrage)."
-en = "Trial: 30 days on-premises (Docker Compose + licence file) or 14 days cloud. Cloud prices S €39/M €89 per month for up to 30/300 clients; ~10,000 gateways only on the Enterprise plan (price on request)."
-url = "https://www.cedalo.com/pricing"
-
-[[brokers.cedalo.facts]]
-de = "Keine Angabe gefunden zu: Client-ID an das Zertifikat binden (R06), Session-Takeover verhindern (R11), Zertifikate ohne CN zuordnen (R16). Bei Cedalo erfragen."
-en = "Nothing found on: binding the client ID to the certificate (R06), preventing session takeover (R11), mapping certificates without CN (R16). Ask Cedalo."
+# Pro Mosquitto (Cedalo) ist seit 17.11.2026 zurückgestellt und steht nicht mehr auf der Seite.
+# Profil, Konfiguration und Herstellerangaben: brokers/cedalo/README.md und die Git-Historie dieser Datei.
 
 # 2026-10-08-mosquitto-2.0.18-v13.md bleibt als Historie im Repo, steht hier aber nicht mehr:
 # RST-01 öffnete die Session dort noch mit Clean Start = true (seit 13.10. wie ein Gateway).

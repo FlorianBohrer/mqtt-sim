@@ -52,6 +52,10 @@ async function act(page, sel) {
     check(await page.$$eval("#stations .new-tag", e => e.length) === 2, `${lang}: two stations tagged new`);
     await page.evaluate(() => showStation(STATIONS.findIndex(s => s.id === "return")));
     check(/origin|Command-Nummer|command number/.test(await page.$eval("#panel mark.new", e => e.textContent)), `${lang}: receipt sentence highlighted`);
+    // Bildbegriffe mit Fachbegriff in Klammern, Cedalo nicht mehr erwähnt
+    const chapters = await page.evaluate(() => STATIONS.map(s => T(s.chapter)).join(" | "));
+    check(/\(mTLS\)/.test(chapters) && /\(ACL\)/.test(chapters) && /\(Broker\)|\(broker\)/.test(chapters), `${lang}: chapters carry technical terms: ${chapters}`);
+    check(!/cedalo|Pro Mosquitto/i.test(await page.evaluate(() => document.documentElement.innerHTML)), `${lang}: Cedalo is not mentioned`);
     // Bauteil im Bild anklicken
     await page.evaluate(() => showStation(1));
     await page.click('#plant [data-id="valve"] circle.plastic-ring');

@@ -44,7 +44,7 @@ aus der Seriennummer abgeleiteten Client-ID. Das frühere Schema bleibt als `WIR
 | **4. Acceptance-Harness (ENTC-63)** | 31 Pflichtfälle zu 15 Anforderungen (R01–R15), PASS/FAIL je Anforderung, Exit 0 nur wenn alles besteht. Gemessen wird die tatsächliche Zustellung, nicht nur der Return-Code. | `make acceptance` mit Berichten und Evidenz |
 | **5. Broker-Profile** | Der Broker ist austauschbar: Ein Profil (`sim/targets/*.toml`) beschreibt Adresse, Zertifikats-Trust und Log-Muster. Die Tests bleiben gleich. | `make acceptance BROKER=<profil>` |
 | **6. Legacy und Rotation** | Das echte AWS-IoT-Zertifikat des Test-Gateways `0000000000000005` hatte keinen CN (nur `C=UK, ST=United`, RSA 2048). Daraus entstanden die Fälle LEG und ROT. | R16/R17 (zunächst nur beobachtend) |
-| **7. Weitere Broker** | Konfiguration für EMQX; bis 08.10. auch HiveMQ (mit Lab-Erweiterung) und Bevywise, seit 12.10. gestrichen (Git-Historie). Neu: Pro Mosquitto von Cedalo. | `make acceptance BROKER=emqx` bzw. `BROKER=cedalo` |
+| **7. Weitere Broker** | Konfiguration für EMQX; bis 08.10. auch HiveMQ (mit Lab-Erweiterung) und Bevywise, seit 12.10. gestrichen (Git-Historie). Pro Mosquitto von Cedalo vorbereitet, seit 17.11. zurückgestellt (nicht mehr auf den Webseiten). | `make acceptance BROKER=emqx` bzw. `BROKER=cedalo` |
 | **8. Vergleich** | Zwei Profile auswählen, Ergebnisse nebeneinander, Aufwandsklassen je Anforderung. | `make compare A=… B=…` |
 | **9. Wire contract v1.3** (08.10.) | Topics `enetec/v1/{clientId}/state\|cmd`, Client-ID als Pseudonym der Seriennummer (ENTC-47; Algorithmus noch offen, im Lab ein Platzhalter), Registry Zertifikat → Seriennummer → Client-ID. Das alte Schema bleibt als Kompatibilitätsprofil. | `make acceptance` (v13), `WIRE=lab-eicp` |
 | **10. Offene Fälle aus dem Current State** (08.10.) | Binärtransport, Last Will (auch auf fremde Topics), Message Expiry, Payload-Größen, Broker-Neustart, Widerruf und ACL-Entzug bei aktiver Verbindung. Die drei letzten brauchen eine Aktion am Broker mitten im Lauf (Hooks). Dazu die gewichtete Entscheidungsmatrix. | R18–R24, `make decide` |
@@ -249,7 +249,8 @@ zweisprachig: **DE | EN** oben rechts (oder `index.html?lang=en`).
 - **Paket-Monitor:** Unter dem Schaltschrank laufen die MQTT-Pakete des Ablaufs mit (simuliert, das
   Ergebnis stammt aus dem Lab-Lauf).
 - **Lernpfad:** sieben geführte Schritte mit Fortschritt.
-- **Pult:** Brokervergleich je Anforderung, generierte ACLs, Glossar.
+- **Pult:** Brokervergleich je Anforderung, generierte ACLs.
+- **Glossar:** eigener Menüpunkt oben (auch über `#glossar`). Nach Themen gruppiert, mit Suche und Themen-Filter; jeder Begriff mit dem Fachbegriff in Klammern, z. B. „Weiche (ACL-Prüfung)“.
 - **Export:** Der Aufbau wird zu `sim/config.local.toml`. Damit erzeugt `make fleet` genau diese Gateways,
   mit Seriennummern, Client-IDs und Anbindungen wie im Baukasten. `sim/config.local.toml` ergänzt
   `sim/config.toml` und wird nicht eingecheckt; zurück zur Lab-Flotte mit
@@ -292,7 +293,7 @@ Vorhandene Profile und Anleitungen: [`brokers/emqx/`](../brokers/emqx/README.md)
 | EMQX 5.8.6 + Registry (Lab-Prototyp, [`brokers/emqx-registry/`](../brokers/emqx-registry/README.md)) | **34 PASS, abgenommen** | wie EMQX | PASS in 2 von 3 Läufen (einmal letzter Schwung zu spät) |
 | EMQX 5.8.6 (Kandidat, führend) | **31 PASS**, 3 FAIL (ID-01, ID-03, DUP-01) | RST-01 PASS (Durable Sessions), EXP-01 FAIL, ACL-14 PARTIAL, MTLS-07/-08, REV-01, LEG-01 FAIL | PASS, 10/10 Prüfungen |
 | Mosquitto 2.1.2 (Lab-Referenz, Basis von Pro Mosquitto) | 25 PASS, 3 FAIL (ID-01, ID-03, DUP-01), 6 PARTIAL | RST-01 PASS, EXP-01 PASS, ACL-14 PASS, MTLS-08, REV-01, LEG-01 FAIL | PASS, 10/10 Prüfungen |
-| Pro Mosquitto (Cedalo, Kandidat) | Profil und Konfiguration vorbereitet, noch kein Lauf (Lizenz nötig) | – | – |
+| Pro Mosquitto (Cedalo) | seit 17.11. zurückgestellt, aktuell nicht relevant; Profil bleibt vorbereitet, kein Lauf | – | – |
 
 Berichte: [`2026-10-13-emqx-5.8.6-v13.md`](mqtt-tests/reference/2026-10-13-emqx-5.8.6-v13.md),
 [`2026-10-13-mosquitto-2.1.2-v13.md`](mqtt-tests/reference/2026-10-13-mosquitto-2.1.2-v13.md); Mosquitto 2.0.18 lieferte in allen Fällen
@@ -306,7 +307,7 @@ Plattenspeicherung.
 **Profil lab-eicp (bis 2026-10-01, historisch):** Mosquitto 23 PASS / 2 FAIL / 6 PARTIAL,
 EMQX 29/31 (Client-ID-Bindung, doppelte Client-ID).
 
-**Cedalo laut Herstellerangaben** (recherchiert 12.10., nicht im Lab geprüft; Quellen in
+**Cedalo laut Herstellerangaben** (zurückgestellt seit 17.11.; recherchiert 12.10., nicht im Lab geprüft; Quellen in
 [`brokers/cedalo/README.md`](../brokers/cedalo/README.md)): native Google-Pub/Sub-Bridge, HA-Cluster ab
 3 Knoten, Zertifikatsverwaltung mit Widerruf und Trennen von Clients im Management Center, Persistent
 Queueing, Audit Trail. Keine Angabe gefunden zu Client-ID-Bindung (R06), Takeover-Schutz (R11) und
@@ -368,7 +369,7 @@ Berichte: `docs/mqtt-tests/reference/`. Legacy-Analyse: [`mqtt-tests/legacy-cert
 **Nächste Schritte:**
 1. Den Registry-Prototyp für EMQX ([`brokers/emqx-registry/`](../brokers/emqx-registry/README.md)) in eine echte, redundante Komponente überführen (Registry aus ENTC-47) und das Verhalten beim stillen Linkverlust (R11 blockiert Reconnects bis zum Keep-alive) mit ENETEC abstimmen.
 1. Den EMQX-Zielkonflikt R20 (Message Expiry) gegen R22 (Neustart) entscheiden oder mit einer neueren EMQX-Version erneut messen.
-2. Pro Mosquitto: 30-Tage-Test anfordern, `make acceptance BROKER=cedalo`, offene Punkte (R06, R11, R16, Pub/Sub-Bridge, Preis On-Premises) bei Cedalo erfragen ([`brokers/cedalo/README.md`](../brokers/cedalo/README.md)).
+2. ~~Pro Mosquitto: 30-Tage-Test anfordern, `make acceptance BROKER=cedalo`, offene Punkte (R06, R11, R16, Pub/Sub-Bridge, Preis On-Premises) bei Cedalo erfragen~~ (zurückgestellt seit 17.11., [`brokers/cedalo/README.md`](../brokers/cedalo/README.md)).
 3. Gewichte in `sim/decision.toml` mit SOLHEA/ENETEC abstimmen und die Handbewertungen mit Quellen füllen.
 4. Lasttest für die 15.000 Verbindungen und Pub/Sub-Anbindung, getrennt von der funktionalen Abnahme.
 5. Ableitungs-Algorithmus der Client-ID (ENTC-47) und Paketgrenze (ENTC-61) übernehmen, sobald entschieden.
